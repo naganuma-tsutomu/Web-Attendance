@@ -1,5 +1,3 @@
-import type { Shift } from '../../../src/types';
-
 export interface Env {
     DB: D1Database;
 }
@@ -31,10 +29,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const shiftsData: Omit<Shift, 'id'>[] = await context.request.json();
-
-        // In a real production scenario, doing 100+ inserts in loop might be slow if not batched.
-        // D1 supports batching
+        const shiftsData: any[] = await context.request.json();
         const stmt = context.env.DB.prepare(
             `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -52,8 +47,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ));
 
         await context.env.DB.batch(batch);
-
         return new Response('Batch inserted', { status: 200 });
+    } catch (e) {
+        return new Response((e as Error).message, { status: 500 });
+    }
+};
+
+export const onRequestDelete: PagesFunction<Env> = async (context) => {
+    try {
+        const url = new URL(context.request.url);
+        const yearMonth = url.searchParams.get('yearMonth');
+        if (!yearMonth) return new Response('Missing yearMonth', { status: 400 });
+
+        await context.env.DB.prepare(
+            "DELETE FROM shifts WHERE date LIKE ?"
+        ).bind(`${yearMonth}%`).run();
+
+        return new Response('Deleted', { status: 200 });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }

@@ -15,10 +15,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             ...row,
             availableDays: row.availableDays ? JSON.parse(row.availableDays) : undefined,
             isHelpStaff: row.isHelpStaff === 1,
-            defaultWorkingHours: row.defaultWorkingHoursStart ? {
-                start: row.defaultWorkingHoursStart,
-                end: row.defaultWorkingHoursEnd
-            } : undefined
         }));
 
         return Response.json(staffs);
@@ -44,8 +40,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             staffData.hoursTarget || null,
             staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
             staffData.isHelpStaff ? 1 : 0,
-            staffData.defaultWorkingHours?.start || null,
-            staffData.defaultWorkingHours?.end || null
+            staffData.defaultWorkingHoursStart || null,
+            staffData.defaultWorkingHoursEnd || null
         ).run();
 
         return Response.json({ id });

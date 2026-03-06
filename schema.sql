@@ -30,3 +30,16 @@ CREATE TABLE IF NOT EXISTS shifts (
     isEarlyShift INTEGER DEFAULT 0,
     isError INTEGER DEFAULT 0
 );
+
+-- Role Settings Table (Base working hours per role)
+CREATE TABLE IF NOT EXISTS role_settings (
+    role TEXT PRIMARY KEY,
+    defaultStartTime TEXT NOT NULL, -- "HH:MM"
+    defaultEndTime TEXT NOT NULL   -- "HH:MM"
+);
+
+-- Insert initial records for roles
+INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('正社員', '09:00', '18:00');
+INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('準社員', '09:00', '17:00');
+INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('パート', '10:00', '16:00');
+INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('特殊スタッフ', '13:00', '17:00');

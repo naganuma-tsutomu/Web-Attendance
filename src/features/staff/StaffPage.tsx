@@ -50,7 +50,14 @@ const StaffPage = () => {
 
     const handleOpenAddModal = () => {
         setEditingStaff(null);
-        setFormData({ name: '', role: '正社員', hoursTarget: 160 });
+        setFormData({
+            name: '',
+            role: '正社員',
+            hoursTarget: 160,
+            defaultWorkingHoursStart: '',
+            defaultWorkingHoursEnd: '',
+            isHelpStaff: false
+        });
         setIsModalOpen(true);
     };
 
@@ -62,7 +69,8 @@ const StaffPage = () => {
             hoursTarget: staff.hoursTarget,
             isHelpStaff: staff.isHelpStaff,
             availableDays: staff.availableDays,
-            defaultWorkingHours: staff.defaultWorkingHours,
+            defaultWorkingHoursStart: staff.defaultWorkingHoursStart,
+            defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd,
         });
         setIsModalOpen(true);
     };
@@ -257,6 +265,31 @@ const StaffPage = () => {
                                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                                 />
                                 <label htmlFor="isHelpStaff" className="text-sm text-slate-700">ヘルプ要員として扱う（シフト不足時に補完）</label>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100 mt-4">
+                                <label className="block text-sm font-bold text-slate-800 mb-2">個別勤務時間設定</label>
+                                <p className="text-xs text-slate-500 mb-3">設定すると、雇用形態別のデフォルト時間を上書きします。</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">開始時間</label>
+                                        <input
+                                            type="time"
+                                            value={formData.defaultWorkingHoursStart || ''}
+                                            onChange={e => setFormData({ ...formData, defaultWorkingHoursStart: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">終了時間</label>
+                                        <input
+                                            type="time"
+                                            value={formData.defaultWorkingHoursEnd || ''}
+                                            onChange={e => setFormData({ ...formData, defaultWorkingHoursEnd: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-sm"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="flex space-x-3 pt-6">

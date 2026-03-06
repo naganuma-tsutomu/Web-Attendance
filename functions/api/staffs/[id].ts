@@ -26,8 +26,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             staffData.hoursTarget || null,
             staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
             staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
-            staffData.defaultWorkingHours?.start || null,
-            staffData.defaultWorkingHours?.end || null,
+            staffData.defaultWorkingHoursStart || null,
+            staffData.defaultWorkingHoursEnd || null,
             id
         ).run();
 

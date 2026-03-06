@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, Settings, LogOut, Moon } from 'lucide-react';
+import { Calendar, Users, Settings, LogOut, Moon, Clock } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 
 const Layout = () => {
@@ -13,9 +13,10 @@ const Layout = () => {
     };
 
     const navItems = [
-        { path: '/', label: 'シフト作成', icon: Calendar },
+        { path: '/', label: 'シフト表', icon: Calendar },
         { path: '/staff', label: 'スタッフ管理', icon: Users },
-        { path: '/preferences', label: '希望休入力', icon: Settings },
+        { path: '/preferences', label: '希望休入力', icon: Clock },
+        { path: '/settings', label: 'マスター設定', icon: Settings },
     ];
 
     return (

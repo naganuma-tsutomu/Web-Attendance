@@ -8,10 +8,8 @@ export interface Staff {
     hoursTarget: number; // 月間目標労働時間 (例: 135)
     isHelpStaff?: boolean; // 特殊スタッフ用: シフトエラー時に穴埋め可能か
     availableDays?: number[]; // 出勤可能曜日 (0: 日, 1: 月, ... 6: 土) - 主にパート・特殊スタッフ用
-    defaultWorkingHours?: {
-        start: string; // "16:00"
-        end: string;   // "17:00"
-    };
+    defaultWorkingHoursStart?: string; // "16:00"
+    defaultWorkingHoursEnd?: string;   // "17:00"
 }
 
 export interface ShiftPreference {
@@ -30,4 +28,10 @@ export interface Shift {
     classType: ClassType;
     isEarlyShift: boolean; // 早番フラグ (正社員の翌日早番制約用)
     isError?: boolean; // 自動計算で割り当て失敗したフラグ
+}
+
+export interface RoleSetting {
+    role: Role;
+    defaultStartTime: string;
+    defaultEndTime: string;
 }

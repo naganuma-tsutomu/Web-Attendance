@@ -1,0 +1,22 @@
+import { verifyCookie } from '../../utils';
+
+export interface Env {
+    ADMIN_PASSWORD?: string;
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+    const cookieHeader = context.request.headers.get('Cookie');
+    const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD || "admin";
+
+    if (cookieHeader && cookieHeader.includes('auth_token=')) {
+        const match = cookieHeader.match(/auth_token=([^;]+)/);
+        if (match) {
+            const isValid = await verifyCookie(match[1], ADMIN_PASSWORD);
+            if (isValid) {
+                return Response.json({ authenticated: true, user: { uid: 'admin', email: 'admin' } });
+            }
+        }
+    }
+
+    return Response.json({ authenticated: false }, { status: 401 });
+};

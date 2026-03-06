@@ -1,0 +1,17 @@
+name = "web-attendance"
+compatibility_date = "2024-03-20"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "web-attendance-db"
+database_id = "eec9a750-a720-4bd6-86ea-b54995c2b78e"
+preview_database_id = "DB"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "web-attendance-db"
+database_id = "eec9a750-a720-4bd6-86ea-b54995c2b78e"
+
+[vars]
+ADMIN_PASSWORD = "admin" # Change this in production using wrangler pages secret put !

@@ -51,10 +51,6 @@ const PreferencesPage = () => {
                 // Generate base calendar
                 const baseDays = generateNextMonthDays();
 
-                if (import.meta.env.VITE_FIREBASE_API_KEY.includes('Dummy')) {
-                    throw new Error("dummy config");
-                }
-
                 // Check if user already submitted for this month
                 const allPrefs = await getPreferencesByMonth(targetYearMonth);
                 const userPref = allPrefs.find(p => p.staffId === currentUser.uid);
@@ -70,10 +66,10 @@ const PreferencesPage = () => {
                     setPreferences(baseDays);
                 }
             } catch (err) {
-                console.error("Firebase fetch error", err);
+                console.error("Fetch error", err);
                 // Fallback to empty base calendar
                 setPreferences(generateNextMonthDays());
-                setMessage({ text: '現在デモモードです。データは保存されません。', type: 'info' });
+                setMessage({ text: 'データの取得に失敗しました。', type: 'error' });
             } finally {
                 setLoading(false);
             }
@@ -98,10 +94,6 @@ const PreferencesPage = () => {
                 .filter(p => p.status === 'unavailable')
                 .map(p => p.dateStr);
 
-            if (import.meta.env.VITE_FIREBASE_API_KEY.includes('Dummy')) {
-                throw new Error("dummy config");
-            }
-
             await savePreference({
                 staffId: currentUser.uid,
                 yearMonth: targetYearMonth,
@@ -111,7 +103,7 @@ const PreferencesPage = () => {
             setMessage({ text: '希望休を保存しました！', type: 'success' });
         } catch (err) {
             console.error(err);
-            setMessage({ text: 'デモモードのため保存はシミュレートされました。', type: 'success' });
+            setMessage({ text: '保存に失敗しました。時間をおいて再度お試しください。', type: 'error' });
         } finally {
             setSaving(false);
             setTimeout(() => setMessage({ text: '', type: '' }), 3000);

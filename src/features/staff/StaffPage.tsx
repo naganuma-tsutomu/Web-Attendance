@@ -1,35 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, Filter, AlertCircle } from 'lucide-react';
-import { getStaffList, deleteStaff } from '../../lib/api';
-import type { Staff } from '../../types';
+import { getStaffList, deleteStaff, createStaff, updateStaff } from '../../lib/api';
+import type { Staff, Role } from '../../types';
 
-// Mock data (Fallback for demo)
-const mockStaff: Staff[] = [
-    { id: '1', name: '山田 太郎', role: '正社員', hoursTarget: 160 },
-    { id: '2', name: '佐藤 花子', role: '準社員', hoursTarget: 135 },
-    { id: '3', name: '鈴木 一郎', role: 'パート', hoursTarget: 80 },
-    { id: '4', name: '田中 掃除', role: '特殊スタッフ', hoursTarget: 20 },
-];
+const ROLES: Role[] = ['正社員', '準社員', 'パート', '特殊スタッフ'];
 
 const StaffPage = () => {
     const [staffList, setStaffList] = useState<Staff[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+    const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
+        name: '',
+        role: '正社員',
+        hoursTarget: 160,
+    });
 
     const fetchStaff = async () => {
         setLoading(true);
         try {
-            if (import.meta.env.VITE_FIREBASE_API_KEY.includes('Dummy')) {
-                throw new Error("dummy config");
-            }
             const data = await getStaffList();
-            setStaffList(data.length > 0 ? data : mockStaff);
+            setStaffList(data);
             setError('');
         } catch (err) {
-            console.error("Firebase fetch error", err);
-            setStaffList(mockStaff);
-            setError('データベース設定が未完了のため、デモデータを表示しています。');
+            console.error("Fetch error", err);
+            setError('データベースからの読み込みに失敗しました。');
         } finally {
             setLoading(false);
         }
@@ -47,7 +44,42 @@ const StaffPage = () => {
             setStaffList(prev => prev.filter(s => s.id !== id));
         } catch (err) {
             console.error(err);
-            alert("削除に失敗しました（デモモード中は削除できません）。");
+            alert("削除に失敗しました。");
+        }
+    };
+
+    const handleOpenAddModal = () => {
+        setEditingStaff(null);
+        setFormData({ name: '', role: '正社員', hoursTarget: 160 });
+        setIsModalOpen(true);
+    };
+
+    const handleOpenEditModal = (staff: Staff) => {
+        setEditingStaff(staff);
+        setFormData({
+            name: staff.name,
+            role: staff.role,
+            hoursTarget: staff.hoursTarget,
+            isHelpStaff: staff.isHelpStaff,
+            availableDays: staff.availableDays,
+            defaultWorkingHours: staff.defaultWorkingHours,
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            if (editingStaff) {
+                await updateStaff(editingStaff.id, formData);
+            } else {
+                await createStaff(formData);
+            }
+            setIsModalOpen(false);
+            fetchStaff();
+        } catch (err) {
+            console.error(err);
+            alert("保存に失敗しました。");
         }
     };
 
@@ -61,7 +93,10 @@ const StaffPage = () => {
                     <h2 className="text-2xl font-bold text-slate-800">スタッフ管理</h2>
                     <p className="text-slate-500 mt-1">全スタッフの登録情報と勤務条件を管理します</p>
                 </div>
-                <button className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors w-full sm:w-auto justify-center">
+                <button
+                    onClick={handleOpenAddModal}
+                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors w-full sm:w-auto justify-center"
+                >
                     <Plus className="w-5 h-5" />
                     <span>スタッフ追加</span>
                 </button>
@@ -149,7 +184,10 @@ const StaffPage = () => {
                                             {staff.hoursTarget} 時間
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                            <button className="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded-lg hover:bg-indigo-50">
+                                            <button
+                                                onClick={() => handleOpenEditModal(staff)}
+                                                className="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded-lg hover:bg-indigo-50"
+                                            >
                                                 <Edit2 className="w-5 h-5" />
                                             </button>
                                             <button
@@ -166,6 +204,80 @@ const StaffPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Staff Edit/Add Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-800">
+                                {editingStaff ? 'スタッフ情報を編集' : '新しくスタッフを追加'}
+                            </h3>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <Plus className="w-6 h-6 transform rotate-45" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">名前</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">雇用形態</label>
+                                <select
+                                    value={formData.role}
+                                    onChange={e => setFormData({ ...formData, role: e.target.value as any })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
+                                >
+                                    {ROLES.map(role => <option key={role} value={role}>{role}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">月間目標労働時間 (h)</label>
+                                <input
+                                    type="number"
+                                    required
+                                    value={formData.hoursTarget}
+                                    onChange={e => setFormData({ ...formData, hoursTarget: parseInt(e.target.value) })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
+                                />
+                            </div>
+                            <div className="flex items-center space-x-2 pt-2">
+                                <input
+                                    type="checkbox"
+                                    id="isHelpStaff"
+                                    checked={formData.isHelpStaff || false}
+                                    onChange={e => setFormData({ ...formData, isHelpStaff: e.target.checked })}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                />
+                                <label htmlFor="isHelpStaff" className="text-sm text-slate-700">ヘルプ要員として扱う（シフト不足時に補完）</label>
+                            </div>
+
+                            <div className="flex space-x-3 pt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    キャンセル
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors font-medium"
+                                >
+                                    保存する
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

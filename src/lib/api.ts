@@ -1,4 +1,4 @@
-import type { Staff, ShiftPreference, Shift } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole } from '../types';
 
 const API_BASE = '/api';
 
@@ -7,7 +7,7 @@ const API_BASE = '/api';
 // ==========================================
 
 export const getStaffList = async (): Promise<Staff[]> => {
-    const res = await fetch(`${API_BASE}/staffs`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/staffs`);
     if (!res.ok) throw new Error('Failed to fetch staffs');
     return res.json();
 };
@@ -16,8 +16,7 @@ export const createStaff = async (staffData: Omit<Staff, 'id'>): Promise<string>
     const res = await fetch(`${API_BASE}/staffs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffData),
-        credentials: 'include'
+        body: JSON.stringify(staffData)
     });
     if (!res.ok) throw new Error('Failed to create staff');
     const { id } = await res.json();
@@ -28,16 +27,14 @@ export const updateStaff = async (staffId: string, staffData: Partial<Staff>): P
     const res = await fetch(`${API_BASE}/staffs/${staffId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffData),
-        credentials: 'include'
+        body: JSON.stringify(staffData)
     });
     if (!res.ok) throw new Error('Failed to update staff');
 };
 
 export const deleteStaff = async (staffId: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/staffs/${staffId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+        method: 'DELETE'
     });
     if (!res.ok) throw new Error('Failed to delete staff');
 };
@@ -47,7 +44,7 @@ export const deleteStaff = async (staffId: string): Promise<void> => {
 // ==========================================
 
 export const getPreferencesByMonth = async (yearMonth: string): Promise<ShiftPreference[]> => {
-    const res = await fetch(`${API_BASE}/preferences?yearMonth=${yearMonth}`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/preferences?yearMonth=${yearMonth}`);
     if (!res.ok) throw new Error('Failed to fetch preferences');
     return res.json();
 };
@@ -56,8 +53,7 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
     const res = await fetch(`${API_BASE}/preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(preference),
-        credentials: 'include'
+        body: JSON.stringify(preference)
     });
     if (!res.ok) throw new Error('Failed to save preference');
     const { id } = await res.json();
@@ -69,7 +65,7 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
 // ==========================================
 
 export const getShiftsByMonth = async (yearMonth: string): Promise<Shift[]> => {
-    const res = await fetch(`${API_BASE}/shifts?yearMonth=${yearMonth}`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/shifts?yearMonth=${yearMonth}`);
     if (!res.ok) throw new Error('Failed to fetch shifts');
     return res.json();
 };
@@ -78,38 +74,86 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     const res = await fetch(`${API_BASE}/shifts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shifts),
-        credentials: 'include'
+        body: JSON.stringify(shifts)
     });
     if (!res.ok) throw new Error('Failed to batch insert shifts');
 };
 
-export const updateShift = async (shiftId: string, shiftData: Partial<Shift>): Promise<void> => {
-    const res = await fetch(`${API_BASE}/shifts/${shiftId}`, {
+export const updateShift = async (id: string, shiftData: Partial<Shift>): Promise<void> => {
+    const res = await fetch(`${API_BASE}/shifts/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shiftData),
-        credentials: 'include'
+        body: JSON.stringify(shiftData)
     });
     if (!res.ok) throw new Error('Failed to update shift');
 };
 
 // ==========================================
-// Settings API
+// Shift Time Patterns API (勤務時間パターン)
 // ==========================================
 
-export const getRoleSettings = async (): Promise<any[]> => {
-    const res = await fetch(`${API_BASE}/settings/roles`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch role settings');
+export const getTimePatterns = async (): Promise<ShiftTimePattern[]> => {
+    const res = await fetch(`${API_BASE}/settings/time-patterns`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch time patterns');
     return res.json();
 };
 
-export const updateRoleSetting = async (role: string, settings: { defaultStartTime: string, defaultEndTime: string }): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(role)}`, {
-        method: 'PUT',
+export const createTimePattern = async (pattern: Omit<ShiftTimePattern, 'id'>): Promise<string> => {
+    const res = await fetch(`${API_BASE}/settings/time-patterns`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(pattern),
         credentials: 'include'
     });
-    if (!res.ok) throw new Error('Failed to update role setting');
+    if (!res.ok) throw new Error('Failed to create time pattern');
+    const { id } = await res.json();
+    return id;
+};
+
+export const deleteTimePattern = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/time-patterns/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to delete time pattern');
+};
+
+// ==========================================
+// Roles API (動的役職管理)
+// ==========================================
+
+export const getRoles = async (): Promise<DynamicRole[]> => {
+    const res = await fetch(`${API_BASE}/settings/roles`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch roles');
+    return res.json();
+};
+
+export const createRole = async (name: string): Promise<string> => {
+    const res = await fetch(`${API_BASE}/settings/roles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to create role');
+    const { id } = await res.json();
+    return id;
+};
+
+export const deleteRole = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to delete role');
+};
+
+export const updateRolePatterns = async (roleId: string, patternIds: string[]): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(roleId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternIds }),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to update role patterns');
 };

@@ -31,15 +31,44 @@ CREATE TABLE IF NOT EXISTS shifts (
     isError INTEGER DEFAULT 0
 );
 
--- Role Settings Table (Base working hours per role)
-CREATE TABLE IF NOT EXISTS role_settings (
-    role TEXT PRIMARY KEY,
-    defaultStartTime TEXT NOT NULL, -- "HH:MM"
-    defaultEndTime TEXT NOT NULL   -- "HH:MM"
+-- ======================================================
+-- 新設計: 勤務時間パターン + 役職のDB管理
+-- ======================================================
+
+-- 勤務時間パターン (役職に関係なく定義する時間パターン)
+CREATE TABLE IF NOT EXISTS shift_time_patterns (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,       -- 例: "早番", "遅番", "中番"
+    startTime TEXT NOT NULL,  -- "HH:MM"
+    endTime TEXT NOT NULL     -- "HH:MM"
 );
 
--- Insert initial records for roles
-INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('正社員', '09:00', '18:00');
-INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('準社員', '09:00', '17:00');
-INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('パート', '10:00', '16:00');
-INSERT OR IGNORE INTO role_settings (role, defaultStartTime, defaultEndTime) VALUES ('特殊スタッフ', '13:00', '17:00');
+-- 役職マスタ (自由に追加・削除可能)
+CREATE TABLE IF NOT EXISTS roles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE  -- 例: "正社員", "短時間パートA"
+);
+
+-- 役職とパターンの中間テーブル (役職に使えるパターンを紐付ける)
+CREATE TABLE IF NOT EXISTS role_patterns (
+    roleId TEXT NOT NULL,
+    patternId TEXT NOT NULL,
+    PRIMARY KEY (roleId, patternId),
+    FOREIGN KEY(roleId) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY(patternId) REFERENCES shift_time_patterns(id) ON DELETE CASCADE
+);
+
+-- 初期データ: 標準的な役職
+INSERT OR IGNORE INTO roles (id, name) VALUES ('role_full', '正社員');
+INSERT OR IGNORE INTO roles (id, name) VALUES ('role_semi', '準社員');
+INSERT OR IGNORE INTO roles (id, name) VALUES ('role_part', 'パート');
+INSERT OR IGNORE INTO roles (id, name) VALUES ('role_special', '特殊スタッフ');
+
+-- 初期データ: 標準的な勤務時間パターン
+INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_early', '早番', '09:00', '17:00');
+INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_late', '遅番', '12:00', '20:00');
+INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_short', '短時間', '10:00', '15:00');
+
+-- 廃止: role_settings, shift_patterns (既に存在する場合は残しても無害)
+-- DROP TABLE IF EXISTS role_settings;
+-- DROP TABLE IF EXISTS shift_patterns;

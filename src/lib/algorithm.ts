@@ -1,5 +1,5 @@
 import { differenceInMinutes, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
-import type { Staff, ShiftPreference, Shift, ClassType, RoleSetting } from '../types';
+import type { Staff, ShiftPreference, Shift, ClassType, DynamicRole } from '../types';
 
 /**
  * Heuristic shift generator.
@@ -9,7 +9,7 @@ export const generateShiftsForMonth = (
     yearMonth: string, // e.g. '2024-04'
     staffList: Staff[],
     preferences: ShiftPreference[],
-    roleSettings: RoleSetting[],
+    roles: DynamicRole[],
     holidays: string[] = [] // YYYY-MM-DD format
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
@@ -21,19 +21,21 @@ export const generateShiftsForMonth = (
 
     // Helper to get base hours for a staff
     const getBaseHours = (staff: Staff): { start: string, end: string } => {
-        // 1. Staff individual settings
+        // 1. Staff individual settings (Legacy override)
         if (staff.defaultWorkingHoursStart && staff.defaultWorkingHoursEnd) {
             return { start: staff.defaultWorkingHoursStart, end: staff.defaultWorkingHoursEnd };
         }
-        // 2. Role based settings
-        const roleSet = roleSettings.find(rs => rs.role === staff.role);
-        if (roleSet) {
-            return { start: roleSet.defaultStartTime, end: roleSet.defaultEndTime };
+        // 2. Dynamic Role based patterns
+        const role = roles.find(r => r.name === staff.role);
+        if (role && role.patterns.length > 0) {
+            // Use the first pattern as "default" for now
+            return { start: role.patterns[0].startTime, end: role.patterns[0].endTime };
         }
-        // 3. Fallback defaults
+
+        // 3. Fallback defaults (Compatibility with previous hardcoded logic)
         if (staff.role === '正社員') return { start: '10:15', end: '18:45' };
         if (staff.role === '準社員') return { start: '11:15', end: '18:45' };
-        return { start: '12:00', end: '18:00' }; // Part-time etc
+        return { start: '12:00', end: '18:00' };
     };
 
     // Tracking staff hours for the month to balance
@@ -55,15 +57,9 @@ export const generateShiftsForMonth = (
 
         // 1. Identify available staff for today
         const availableStaff = staffList.filter(staff => {
-            // Check day of week availability (if specified)
-            if (staff.availableDays && !staff.availableDays.includes(dayOfWeek)) {
-                return false;
-            }
-            // Check preferences
+            if (staff.availableDays && !staff.availableDays.includes(dayOfWeek)) return false;
             const pref = preferences.find(p => p.staffId === staff.id);
-            if (pref && pref.unavailableDates.includes(dateStr)) {
-                return false;
-            }
+            if (pref && pref.unavailableDates.includes(dateStr)) return false;
             return true;
         });
 
@@ -72,11 +68,9 @@ export const generateShiftsForMonth = (
         if (dayOfWeek === 6) {
             // Saturday Rule: 2 Full-time (正社員) + optional Sub-full-time (準社員)
             const fullTimeAvail = availableStaff.filter(s => s.role === '正社員')
-                .sort((a, b) => currentHours[a.id] - currentHours[b.id]); // prioritize those with less hours
+                .sort((a, b) => currentHours[a.id] - currentHours[b.id]);
 
             let assignedCount = 0;
-
-            // Assign up to 2 full time
             for (let i = 0; i < Math.min(2, fullTimeAvail.length); i++) {
                 const s = fullTimeAvail[i];
                 const { start, end } = getBaseHours(s);
@@ -93,7 +87,6 @@ export const generateShiftsForMonth = (
                 assignedCount++;
             }
 
-            // Assign sub-full-time if they need hours
             const subFullTimeAvail = availableStaff.filter(s => s.role === '準社員')
                 .filter(s => currentHours[s.id] < s.hoursTarget)
                 .sort((a, b) => currentHours[a.id] - currentHours[b.id]);
@@ -107,7 +100,7 @@ export const generateShiftsForMonth = (
                     staffId: s.id,
                     startTime: start,
                     endTime: end,
-                    classType: '虹組', // default to Niji or balance
+                    classType: '虹組',
                     isEarlyShift: false
                 });
                 currentHours[s.id] += differenceInMinutes(new Date(`2000-01-01T${end}`), new Date(`2000-01-01T${start}`)) / 60;
@@ -115,7 +108,6 @@ export const generateShiftsForMonth = (
             }
 
             if (assignedCount < 2) {
-                // Error: Not enough staff for Saturday
                 generatedShifts.push({
                     id: `err_${dateStr}_sat`,
                     date: dateStr,
@@ -127,16 +119,12 @@ export const generateShiftsForMonth = (
                     isEarlyShift: false
                 });
             }
-            prevDayLateStaffIds = []; // reset since it's Saturday
+            prevDayLateStaffIds = [];
         } else {
-            // Weekday Rule: 6 people. 12:00-18:45 must have 2 per class.
-            // Simplified assignment: 
-            // - Try to assign 3 for 虹組, 3 for スマイル組
-            // - Mix of early and late to ensure coverage
+            // Weekday Rule
             let assignedStaffIds = new Set<string>();
             let classAssignmentCount: Record<string, number> = { '虹組': 0, 'スマイル組': 0 };
 
-            // Helper to add shift
             const addShift = (staff: Staff, start: string, end: string, isEarly: boolean, isHelp: boolean = false) => {
                 const classType: ClassType = isHelp ? '特殊' : (classAssignmentCount['虹組'] <= classAssignmentCount['スマイル組'] ? '虹組' : 'スマイル組');
                 generatedShifts.push({
@@ -150,53 +138,44 @@ export const generateShiftsForMonth = (
                 });
                 assignedStaffIds.add(staff.id);
                 if (!isHelp) classAssignmentCount[classType]++;
-
-                // Track hours roughly
                 currentHours[staff.id] += differenceInMinutes(new Date(`2000-01-01T${end}`), new Date(`2000-01-01T${start}`)) / 60;
                 if (!isEarly) todayLateStaffIds.push(staff.id);
             };
 
-            // 1. Fulfill Full-time prev day constraint
+            // 1. Prev day constraint
             let ftAvail = availableStaff.filter(s => s.role === '正社員').sort((a, b) => currentHours[a.id] - currentHours[b.id]);
             const prevLateAvail = ftAvail.find(s => prevDayLateStaffIds.includes(s.id));
             if (prevLateAvail) {
-                // 正社員の早番は固定時間のイメージが強いですが、ベース設定に従いつつ終了時間を早める
                 addShift(prevLateAvail, '10:15', '18:00', true);
                 ftAvail = ftAvail.filter(s => s.id !== prevLateAvail.id);
             }
 
-            // Assign remaining full-time (try to balance Early/Late)
             ftAvail.forEach((s, idx) => {
                 if (assignedStaffIds.size >= 6) return;
                 const isEarly = idx % 2 === 0;
-                if (isEarly) {
-                    addShift(s, '10:15', '18:00', true);
-                } else {
-                    addShift(s, '11:00', '18:45', false);
-                }
+                if (isEarly) addShift(s, '10:15', '18:00', true);
+                else addShift(s, '11:00', '18:45', false);
             });
 
-            // Assign Sub-full-time
+            // SFT
             let sftAvail = availableStaff.filter(s => s.role === '準社員' && !assignedStaffIds.has(s.id))
                 .sort((a, b) => currentHours[a.id] - currentHours[b.id]);
-
             sftAvail.forEach((s) => {
                 if (assignedStaffIds.size >= 6) return;
                 const { start, end } = getBaseHours(s);
                 addShift(s, start, end, false);
             });
 
-            // Assign Part-time (very greedy, just assign standard chunk to fill 6)
-            let ptAvail = availableStaff.filter(s => s.role === 'パート' && !assignedStaffIds.has(s.id));
+            // PT
+            let ptAvail = availableStaff.filter(s => (s.role === 'パート' || !['正社員', '準社員'].includes(s.role)) && !assignedStaffIds.has(s.id));
             ptAvail.forEach(s => {
                 if (assignedStaffIds.size >= 6) return;
                 const { start, end } = getBaseHours(s);
                 addShift(s, start, end, true);
             });
 
-            // Fill with help staff if still under 6
             if (assignedStaffIds.size < 6) {
-                let helpAvail = availableStaff.filter(s => s.role === '特殊スタッフ' && s.isHelpStaff && !assignedStaffIds.has(s.id));
+                let helpAvail = availableStaff.filter(s => s.isHelpStaff && !assignedStaffIds.has(s.id));
                 helpAvail.forEach(s => {
                     if (assignedStaffIds.size >= 6) return;
                     const { start, end } = getBaseHours(s);
@@ -204,7 +183,6 @@ export const generateShiftsForMonth = (
                 });
             }
 
-            // Check if we met the 6 people minimum
             const missing = 6 - assignedStaffIds.size;
             if (missing > 0) {
                 for (let i = 0; i < missing; i++) {
@@ -220,7 +198,6 @@ export const generateShiftsForMonth = (
                     });
                 }
             }
-
             prevDayLateStaffIds = todayLateStaffIds;
         }
     });

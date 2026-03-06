@@ -4,7 +4,7 @@ import { format, parse, startOfWeek, getDay, addMonths, subMonths } from 'date-f
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, getRoleSettings, updateShift } from '../../lib/api';
+import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, getRoles, updateShift } from '../../lib/api';
 import { generateShiftsForMonth } from '../../lib/algorithm';
 import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
 import type { Shift, Staff } from '../../types';
@@ -91,17 +91,22 @@ const SchedulePage = () => {
     };
 
     const handleGenerate = async () => {
-        if (!window.confirm(`${format(currentMonth, 'yyyy年M月')}のシフトを自動生成します。よろしいですか？`)) return;
+        if (!window.confirm(`${format(currentMonth, 'yyyy年M月')}のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`)) return;
 
         setGenerating(true);
         try {
             const staffs = await getStaffList();
             const prefs = await getPreferencesByMonth(targetYearMonth);
-            const roleSettings = await getRoleSettings();
+            const roles = await getRoles();
 
-            // example dummy holiday
+            // 既存シフトを先に削除してから新規挿入（重複防止）
+            await fetch(`/api/shifts?yearMonth=${targetYearMonth}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
             const holidays: string[] = [];
-            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roleSettings, holidays);
+            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, holidays);
 
             await saveShiftsBatch(generatedShifts);
             await loadShifts();

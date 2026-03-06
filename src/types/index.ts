@@ -1,37 +1,46 @@
-export type Role = '正社員' | '準社員' | 'パート' | '特殊スタッフ';
+export type Role = string; // 動的役職 (DBから取得)
 export type ClassType = '虹組' | 'スマイル組' | '特殊';
 
 export interface Staff {
-    id: string; // Firestore Doc ID
+    id: string;
     name: string;
-    role: Role;
-    hoursTarget: number; // 月間目標労働時間 (例: 135)
-    isHelpStaff?: boolean; // 特殊スタッフ用: シフトエラー時に穴埋め可能か
-    availableDays?: number[]; // 出勤可能曜日 (0: 日, 1: 月, ... 6: 土) - 主にパート・特殊スタッフ用
-    defaultWorkingHoursStart?: string; // "16:00"
-    defaultWorkingHoursEnd?: string;   // "17:00"
+    role: string; // 役職名 (動的)
+    hoursTarget: number;
+    isHelpStaff?: boolean;
+    availableDays?: number[];
+    defaultWorkingHoursStart?: string;
+    defaultWorkingHoursEnd?: string;
 }
 
 export interface ShiftPreference {
-    id: string; // Firestore Doc ID
+    id: string;
     staffId: string;
-    yearMonth: string; // "YYYY-MM" (例: "2024-04")
-    unavailableDates: string[]; // 出勤不可日の配列 (例: ["2024-04-01", "2024-04-15"])
+    yearMonth: string;
+    unavailableDates: string[];
 }
 
 export interface Shift {
-    id: string; // Firestore Doc ID
-    date: string; // "YYYY-MM-DD"
-    staffId: string | 'UNASSIGNED'; // エラーで未割り当ての場合は 'UNASSIGNED'
-    startTime: string; // "10:15"
-    endTime: string;   // "18:45"
+    id: string;
+    date: string;
+    staffId: string | 'UNASSIGNED';
+    startTime: string;
+    endTime: string;
     classType: ClassType;
-    isEarlyShift: boolean; // 早番フラグ (正社員の翌日早番制約用)
-    isError?: boolean; // 自動計算で割り当て失敗したフラグ
+    isEarlyShift: boolean;
+    isError?: boolean;
 }
 
-export interface RoleSetting {
-    role: Role;
-    defaultStartTime: string;
-    defaultEndTime: string;
+// 勤務時間パターン (役職と無関係な時間定義)
+export interface ShiftTimePattern {
+    id: string;
+    name: string;     // 例: "早番", "遅番"
+    startTime: string;
+    endTime: string;
+}
+
+// 役職 (DB管理・動的)
+export interface DynamicRole {
+    id: string;
+    name: string;
+    patterns: ShiftTimePattern[];
 }

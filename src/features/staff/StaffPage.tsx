@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Filter, AlertCircle } from 'lucide-react';
-import { getStaffList, deleteStaff, createStaff, updateStaff } from '../../lib/api';
-import type { Staff, Role } from '../../types';
-
-const ROLES: Role[] = ['正社員', '準社員', 'パート', '特殊スタッフ'];
+import { Plus, Search, Edit2, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { getStaffList, deleteStaff, createStaff, updateStaff, getRoles } from '../../lib/api';
+import type { Staff, DynamicRole } from '../../types';
 
 const StaffPage = () => {
     const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -14,31 +13,40 @@ const StaffPage = () => {
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
     const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
         name: '',
-        role: '正社員',
+        role: '',
         hoursTarget: 160,
     });
 
-    const fetchStaff = async () => {
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const data = await getStaffList();
-            setStaffList(data);
+            const [staffData, rolesData] = await Promise.all([
+                getStaffList(),
+                getRoles()
+            ]);
+            setStaffList(staffData);
+            setRoles(rolesData);
+
+            // Default role for new staff if roles exist
+            if (rolesData.length > 0 && !formData.role) {
+                setFormData(prev => ({ ...prev, role: rolesData[0].name }));
+            }
+
             setError('');
         } catch (err) {
             console.error("Fetch error", err);
-            setError('データベースからの読み込みに失敗しました。');
+            setError('データの読み込みに失敗しました。設定で役職が登録されているか確認してください。');
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchStaff();
+        fetchData();
     }, []);
 
     const handleDelete = async (id: string, name: string) => {
         if (!window.confirm(`${name}さんを削除してもよろしいですか？`)) return;
-
         try {
             await deleteStaff(id);
             setStaffList(prev => prev.filter(s => s.id !== id));
@@ -52,7 +60,7 @@ const StaffPage = () => {
         setEditingStaff(null);
         setFormData({
             name: '',
-            role: '正社員',
+            role: roles[0]?.name || '',
             hoursTarget: 160,
             defaultWorkingHoursStart: '',
             defaultWorkingHoursEnd: '',
@@ -84,7 +92,7 @@ const StaffPage = () => {
                 await createStaff(formData);
             }
             setIsModalOpen(false);
-            fetchStaff();
+            fetchData();
         } catch (err) {
             console.error(err);
             alert("保存に失敗しました。");
@@ -95,15 +103,14 @@ const StaffPage = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header Area */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">スタッフ管理</h2>
-                    <p className="text-slate-500 mt-1">全スタッフの登録情報と勤務条件を管理します</p>
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">スタッフ管理</h2>
+                    <p className="text-slate-500 mt-1">スタッフの登録情報と役職の割り当てを管理します</p>
                 </div>
                 <button
                     onClick={handleOpenAddModal}
-                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors w-full sm:w-auto justify-center"
+                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 transition-all font-bold"
                 >
                     <Plus className="w-5 h-5" />
                     <span>スタッフ追加</span>
@@ -113,12 +120,11 @@ const StaffPage = () => {
             {error && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start space-x-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-amber-800">{error}</span>
+                    <span className="text-sm text-amber-800 font-medium">{error}</span>
                 </div>
             )}
 
-            {/* Filters and Search Area */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                 <div className="flex-1 relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Search className="h-5 w-5 text-slate-400" />
@@ -128,79 +134,67 @@ const StaffPage = () => {
                         placeholder="名前で検索..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-slate-50"
+                        className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm transition-all"
                     />
-                </div>
-                <div className="flex space-x-2">
-                    <button className="flex items-center space-x-2 px-4 py-2.5 border border-slate-300 rounded-xl hover:bg-slate-50 text-slate-700 transition-colors bg-white">
-                        <Filter className="w-5 h-5 text-slate-500" />
-                        <span>絞り込み</span>
-                    </button>
                 </div>
             </div>
 
-            {/* Staff List Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
+                    <table className="min-w-full divide-y divide-slate-100">
+                        <thead className="bg-slate-50/50">
                             <tr>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
                                     名前
                                 </th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    雇用形態
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                    役職
                                 </th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    目標労働時間 (月)
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                    月間目標時間
                                 </th>
-                                <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    アクション
+                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                    操作
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
+                        <tbody className="divide-y divide-slate-50">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                                        読み込み中...
+                                    <td colSpan={4} className="px-6 py-12 text-center">
+                                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-300" />
                                     </td>
                                 </tr>
                             ) : filteredStaff.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                                        スタッフが見つかりません。
+                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                        該当するスタッフが見つかりません
                                     </td>
                                 </tr>
                             ) : (
                                 filteredStaff.map((staff) => (
-                                    <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-slate-900">{staff.name}</div>
+                                            <div className="text-sm font-bold text-slate-800">{staff.name}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                      ${staff.role === '正社員' ? 'bg-blue-100 text-blue-800' : ''}
-                      ${staff.role === '準社員' ? 'bg-indigo-100 text-indigo-800' : ''}
-                      ${staff.role === 'パート' ? 'bg-emerald-100 text-emerald-800' : ''}
-                      ${staff.role === '特殊スタッフ' ? 'bg-amber-100 text-amber-800' : ''}
-                    `}>
+                                            <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
                                                 {staff.role}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                            {staff.hoursTarget} 時間
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
+                                            {staff.hoursTarget} h
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                             <button
                                                 onClick={() => handleOpenEditModal(staff)}
-                                                className="text-indigo-600 hover:text-indigo-900 transition-colors p-1 rounded-lg hover:bg-indigo-50"
+                                                className="text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
                                             >
                                                 <Edit2 className="w-5 h-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(staff.id, staff.name)}
-                                                className="text-red-500 hover:text-red-700 transition-colors p-1 rounded-lg hover:bg-red-50"
+                                                className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
                                             >
                                                 <Trash2 className="w-5 h-5" />
                                             </button>
@@ -213,98 +207,77 @@ const StaffPage = () => {
                 </div>
             </div>
 
-            {/* Staff Edit/Add Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">
-                                {editingStaff ? 'スタッフ情報を編集' : '新しくスタッフを追加'}
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-white">
+                        <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                            <h3 className="text-xl font-bold text-slate-800">
+                                {editingStaff ? '情報を更新' : 'スタッフ登録'}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                                <Plus className="w-6 h-6 transform rotate-45" />
+                            <button onClick={() => setIsModalOpen(false)} className="bg-white p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400">
+                                <Plus className="w-5 h-5 transform rotate-45" />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">名前</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
-                                />
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                            <div className="space-y-4">
+                                <div className="space-y-1.5 pl-1">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">氏名</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full px-4 py-3 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium text-slate-700"
+                                        placeholder="山田 太郎"
+                                    />
+                                </div>
+                                <div className="space-y-1.5 pl-1">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">役職マスタから選ぶ</label>
+                                    <select
+                                        value={formData.role}
+                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                        className="w-full px-4 py-3 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium text-slate-700 appearance-none"
+                                    >
+                                        {roles.length === 0 && <option value="">役職を登録してください</option>}
+                                        {roles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5 pl-1">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">目標労働時間 (h/月)</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        value={formData.hoursTarget}
+                                        onChange={e => setFormData({ ...formData, hoursTarget: parseInt(e.target.value) })}
+                                        className="w-full px-4 py-3 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium text-slate-700"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">雇用形態</label>
-                                <select
-                                    value={formData.role}
-                                    onChange={e => setFormData({ ...formData, role: e.target.value as any })}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
-                                >
-                                    {ROLES.map(role => <option key={role} value={role}>{role}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">月間目標労働時間 (h)</label>
-                                <input
-                                    type="number"
-                                    required
-                                    value={formData.hoursTarget}
-                                    onChange={e => setFormData({ ...formData, hoursTarget: parseInt(e.target.value) })}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50"
-                                />
-                            </div>
-                            <div className="flex items-center space-x-2 pt-2">
+
+                            <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                 <input
                                     type="checkbox"
                                     id="isHelpStaff"
                                     checked={formData.isHelpStaff || false}
                                     onChange={e => setFormData({ ...formData, isHelpStaff: e.target.checked })}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                    className="rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500 h-5 w-5"
                                 />
-                                <label htmlFor="isHelpStaff" className="text-sm text-slate-700">ヘルプ要員として扱う（シフト不足時に補完）</label>
+                                <label htmlFor="isHelpStaff" className="text-sm font-bold text-slate-600 cursor-pointer">ヘルプ要員（不足時の補完に使用）</label>
                             </div>
 
-                            <div className="pt-2 border-t border-slate-100 mt-4">
-                                <label className="block text-sm font-bold text-slate-800 mb-2">個別勤務時間設定</label>
-                                <p className="text-xs text-slate-500 mb-3">設定すると、雇用形態別のデフォルト時間を上書きします。</p>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">開始時間</label>
-                                        <input
-                                            type="time"
-                                            value={formData.defaultWorkingHoursStart || ''}
-                                            onChange={e => setFormData({ ...formData, defaultWorkingHoursStart: e.target.value })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">終了時間</label>
-                                        <input
-                                            type="time"
-                                            value={formData.defaultWorkingHoursEnd || ''}
-                                            onChange={e => setFormData({ ...formData, defaultWorkingHoursEnd: e.target.value })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-sm"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex space-x-3 pt-6">
+                            <div className="flex space-x-4 pt-4">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                                    className="flex-1 px-6 py-4 border border-slate-100 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
                                 >
-                                    キャンセル
+                                    Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors font-medium"
+                                    className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all font-bold uppercase tracking-widest text-xs"
                                 >
-                                    保存する
+                                    Confirm & Save
                                 </button>
                             </div>
                         </form>

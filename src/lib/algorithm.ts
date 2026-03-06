@@ -20,23 +20,28 @@ export const generateShiftsForMonth = (
     const generatedShifts: Shift[] = [];
 
     // Helper to get base hours for a staff
-    const getBaseHours = (staff: Staff): { start: string, end: string } => {
+    const getHoursForShift = (staff: Staff, isEarly: boolean): { start: string, end: string } => {
         // 1. Staff individual settings (Legacy override)
         if (staff.defaultWorkingHoursStart && staff.defaultWorkingHoursEnd) {
             return { start: staff.defaultWorkingHoursStart, end: staff.defaultWorkingHoursEnd };
         }
-        // 2. Dynamic Role based patterns
+        // 2. Dynamic Role based patterns (early=patterns[0], late=patterns[1])
         const role = roles.find(r => r.name === staff.role);
         if (role && role.patterns.length > 0) {
-            // Use the first pattern as "default" for now
-            return { start: role.patterns[0].startTime, end: role.patterns[0].endTime };
+            if (isEarly || role.patterns.length === 1) {
+                return { start: role.patterns[0].startTime, end: role.patterns[0].endTime };
+            }
+            return { start: role.patterns[1].startTime, end: role.patterns[1].endTime };
         }
 
         // 3. Fallback defaults (Compatibility with previous hardcoded logic)
-        if (staff.role === '正社員') return { start: '10:15', end: '18:45' };
+        if (staff.role === '正社員') return isEarly ? { start: '10:15', end: '18:00' } : { start: '11:00', end: '18:45' };
         if (staff.role === '準社員') return { start: '11:15', end: '18:45' };
         return { start: '12:00', end: '18:00' };
     };
+
+    // getBaseHours: 早番/遅番不問のデフォルトを返す（土曜やヘルプ用）
+    const getBaseHours = (staff: Staff) => getHoursForShift(staff, true);
 
     // Tracking staff hours for the month to balance
     const currentHours: Record<string, number> = {};
@@ -57,9 +62,28 @@ export const generateShiftsForMonth = (
 
         // 1. Identify available staff for today
         const availableStaff = staffList.filter(staff => {
-            if (staff.availableDays && !staff.availableDays.includes(dayOfWeek)) return false;
+            // Check individual shift preferences (manual holidays) first
             const pref = preferences.find(p => p.staffId === staff.id);
             if (pref && pref.unavailableDates.includes(dateStr)) return false;
+
+            // Check fixed available days (default holidays)
+            if (!staff.availableDays || staff.availableDays.length === 0) return true;
+
+            const dayOfWeek = getDay(date);
+            const nthWeek = Math.ceil(date.getDate() / 7); // 第何週目か (1-5)
+
+            const config = staff.availableDays.find(d => {
+                if (typeof d === 'number') return d === dayOfWeek;
+                return d.day === dayOfWeek;
+            });
+
+            if (!config) return false; // この曜日は出勤不可
+
+            // 詳細設定（週指定）がある場合
+            if (typeof config === 'object' && config.weeks && config.weeks.length > 0) {
+                if (!config.weeks.includes(nthWeek)) return false; // この週は出勤不可
+            }
+
             return true;
         });
 
@@ -142,19 +166,20 @@ export const generateShiftsForMonth = (
                 if (!isEarly) todayLateStaffIds.push(staff.id);
             };
 
-            // 1. Prev day constraint
+            // 1. Prev day constraint: 前日遅番だった正社員は今日早番に
             let ftAvail = availableStaff.filter(s => s.role === '正社員').sort((a, b) => currentHours[a.id] - currentHours[b.id]);
             const prevLateAvail = ftAvail.find(s => prevDayLateStaffIds.includes(s.id));
             if (prevLateAvail) {
-                addShift(prevLateAvail, '10:15', '18:00', true);
+                const { start, end } = getHoursForShift(prevLateAvail, true); // 早番
+                addShift(prevLateAvail, start, end, true);
                 ftAvail = ftAvail.filter(s => s.id !== prevLateAvail.id);
             }
 
             ftAvail.forEach((s, idx) => {
                 if (assignedStaffIds.size >= 6) return;
                 const isEarly = idx % 2 === 0;
-                if (isEarly) addShift(s, '10:15', '18:00', true);
-                else addShift(s, '11:00', '18:45', false);
+                const { start, end } = getHoursForShift(s, isEarly);
+                addShift(s, start, end, isEarly);
             });
 
             // SFT

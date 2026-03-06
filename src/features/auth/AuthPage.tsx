@@ -23,32 +23,44 @@ const AuthPage = () => {
         }
     };
 
+    const handleTestLogin = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            await login('admin'); // デフォルトのパスワードを使用してログイン
+        } catch (err: any) {
+            setError('テストログインに失敗しました。');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center">
                     <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center transform rotate-3 shadow-lg">
                         <span className="text-white text-3xl font-bold">星</span>
                     </div>
                 </div>
-                <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 tracking-tight">
+                <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                     星空児童館
                 </h2>
-                <p className="mt-2 text-center text-sm text-slate-600">
+                <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
                     シフト管理システム
                 </p>
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-100">
+                <div className="bg-white dark:bg-slate-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-100 dark:border-slate-700">
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                                 管理者パスワード
                             </label>
                             <div className="mt-1 relative rounded-md shadow-sm">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-slate-400" />
+                                    <Lock className="h-5 w-5 text-slate-400 dark:text-slate-500" />
                                 </div>
                                 <input
                                     id="password"
@@ -57,26 +69,26 @@ const AuthPage = () => {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-3"
+                                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-slate-300 dark:border-slate-600 rounded-md py-3 bg-white dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
                                     placeholder="システムパスワードを入力"
                                 />
                             </div>
                         </div>
 
                         {error && (
-                            <div className="rounded-md bg-red-50 p-4 border border-red-100">
+                            <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4 border border-red-100 dark:border-red-800">
                                 <div className="flex">
                                     <div className="flex-shrink-0">
-                                        <AlertCircle className="h-5 w-5 text-red-500" />
+                                        <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400" />
                                     </div>
                                     <div className="ml-3">
-                                        <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                                        <h3 className="text-sm font-medium text-red-800 dark:text-red-300">{error}</h3>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        <div>
+                        <div className="space-y-3">
                             <button
                                 type="submit"
                                 disabled={isLoading}
@@ -91,6 +103,15 @@ const AuthPage = () => {
                                     <LogIn className="w-5 h-5 mr-2" />
                                 )}
                                 {isLoading ? 'ログイン中...' : 'ログイン'}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleTestLogin}
+                                disabled={isLoading}
+                                className="w-full flex justify-center py-3 px-4 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                【検証用】パスワードなしでログイン
                             </button>
                         </div>
                     </form>

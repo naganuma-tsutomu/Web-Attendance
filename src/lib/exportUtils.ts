@@ -23,7 +23,8 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
         let totalMinutes = 0;
 
         days.forEach(day => {
-            const dateStr = format(day, 'yyyy-MM-DD');
+            const dateStr = format(day, 'yyyy-MM-dd'); // 正しい日フォーマット
+
             const dayShift = shifts.find(s => s.staffId === staff.id && s.date === dateStr);
 
             if (dayShift) {

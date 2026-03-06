@@ -1,13 +1,18 @@
 export type Role = string; // 動的役職 (DBから取得)
 export type ClassType = '虹組' | 'スマイル組' | '特殊';
 
+export interface AvailableDayConfig {
+    day: number;    // 0:日, 1:月, ..., 6:土
+    weeks?: number[]; // [1, 2, 3, 4, 5] (空または未定義なら「全週」)
+}
+
 export interface Staff {
     id: string;
     name: string;
     role: string; // 役職名 (動的)
     hoursTarget: number;
     isHelpStaff?: boolean;
-    availableDays?: number[];
+    availableDays?: (number | AvailableDayConfig)[];
     defaultWorkingHoursStart?: string;
     defaultWorkingHoursEnd?: string;
 }
@@ -42,5 +47,6 @@ export interface ShiftTimePattern {
 export interface DynamicRole {
     id: string;
     name: string;
+    targetHours: number;
     patterns: ShiftTimePattern[];
 }

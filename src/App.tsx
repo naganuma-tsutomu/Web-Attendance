@@ -17,8 +17,8 @@ const AppRoutes = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-indigo-600 font-medium tracking-widest text-lg animate-pulse">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <div className="text-indigo-600 dark:text-indigo-400 font-medium tracking-widest text-lg animate-pulse">
           読み込み中...
         </div>
       </div>

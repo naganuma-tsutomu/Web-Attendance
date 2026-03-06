@@ -26,11 +26,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/roles — 役職追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string };
+        const body = await context.request.json() as { name: string, targetHours?: number };
         const id = `role_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         await context.env.DB.prepare(
-            'INSERT INTO roles (id, name) VALUES (?, ?)'
-        ).bind(id, body.name).run();
+            'INSERT INTO roles (id, name, targetHours) VALUES (?, ?, ?)'
+        ).bind(id, body.name, body.targetHours || 0).run();
         return Response.json({ id });
     } catch (e) { return new Response((e as Error).message, { status: 500 }); }
 };

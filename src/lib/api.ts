@@ -39,6 +39,15 @@ export const deleteStaff = async (staffId: string): Promise<void> => {
     if (!res.ok) throw new Error('Failed to delete staff');
 };
 
+export const updateStaffOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
+    const res = await fetch(`${API_BASE}/staffs/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders })
+    });
+    if (!res.ok) throw new Error('Failed to update staff order');
+};
+
 // ==========================================
 // ShiftPreference API
 // ==========================================
@@ -77,6 +86,14 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
         body: JSON.stringify(shifts)
     });
     if (!res.ok) throw new Error('Failed to batch insert shifts');
+};
+
+export const deleteShiftsByMonth = async (yearMonth: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/shifts?yearMonth=${yearMonth}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to delete shifts');
 };
 
 export const updateShift = async (id: string, shiftData: Partial<Shift>): Promise<void> => {
@@ -128,16 +145,26 @@ export const getRoles = async (): Promise<DynamicRole[]> => {
     return res.json();
 };
 
-export const createRole = async (name: string): Promise<string> => {
+export const createRole = async (name: string, targetHours: number = 0): Promise<string> => {
     const res = await fetch(`${API_BASE}/settings/roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, targetHours }),
         credentials: 'include'
     });
     if (!res.ok) throw new Error('Failed to create role');
     const { id } = await res.json();
     return id;
+};
+
+export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number, patternIds?: string[] }): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(roleId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to update role');
 };
 
 export const deleteRole = async (id: string): Promise<void> => {
@@ -149,11 +176,5 @@ export const deleteRole = async (id: string): Promise<void> => {
 };
 
 export const updateRolePatterns = async (roleId: string, patternIds: string[]): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(roleId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patternIds }),
-        credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to update role patterns');
+    return updateRole(roleId, { patternIds });
 };

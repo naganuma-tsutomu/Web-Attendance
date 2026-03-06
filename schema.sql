@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS staffs (
     availableDays TEXT, -- JSON array string
     isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
     defaultWorkingHoursStart TEXT,
-    defaultWorkingHoursEnd TEXT
+    defaultWorkingHoursEnd TEXT,
+    display_order INTEGER DEFAULT 0
 );
 
 -- Shift Preferences Table
@@ -46,7 +47,8 @@ CREATE TABLE IF NOT EXISTS shift_time_patterns (
 -- 役職マスタ (自由に追加・削除可能)
 CREATE TABLE IF NOT EXISTS roles (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE  -- 例: "正社員", "短時間パートA"
+    name TEXT NOT NULL UNIQUE,  -- 例: "正社員", "短時間パートA"
+    targetHours INTEGER DEFAULT 0 -- 月間目標時間
 );
 
 -- 役職とパターンの中間テーブル (役職に使えるパターンを紐付ける)

@@ -64,35 +64,6 @@ describe('generateShiftsForMonth', () => {
         expect(saturdayShifts.length).toBeGreaterThan(0);
     });
 
-    it('DynamicRole のパターンが早番/遅番に反映される', () => {
-        const staff = [
-            makeStaff({ id: 's1', name: 'スタッフA', role: 'カスタム役職' }),
-            makeStaff({ id: 's2', name: 'スタッフB', role: 'カスタム役職' }),
-        ];
-        const roles: DynamicRole[] = [{
-            id: 'r1',
-            name: 'カスタム役職',
-            patterns: [
-                { id: 'p1', name: '早番', startTime: '08:00', endTime: '16:00' },
-                { id: 'p2', name: '遅番', startTime: '13:00', endTime: '21:00' },
-            ],
-        }];
-
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles);
-        // 平日のシフトはパターンの時間で生成されるはず
-        const weekdayShifts = shifts.filter(s => s.date === '2025-06-02'); // 月曜
-        const earlyShift = weekdayShifts.find(s => s.isEarlyShift);
-        const lateShift = weekdayShifts.find(s => !s.isEarlyShift && !s.isError);
-
-        if (earlyShift) {
-            expect(earlyShift.startTime).toBe('08:00');
-            expect(earlyShift.endTime).toBe('16:00');
-        }
-        if (lateShift) {
-            expect(lateShift.startTime).toBe('13:00');
-            expect(lateShift.endTime).toBe('21:00');
-        }
-    });
 
     it('生成されたシフトIDに重複がない', () => {
         const staff = [

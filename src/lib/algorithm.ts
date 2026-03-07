@@ -81,7 +81,6 @@ const findAvailableStaff = (
     dateStr: string,
     startTime: string,
     endTime: string,
-    dayOfWeek: number,
     preferences: ShiftPreference[],
     existingShifts: Shift[],
     currentHours: Record<string, number>
@@ -239,7 +238,6 @@ export const generateShiftsForMonth = (
                     dateStr,
                     req.startTime,
                     req.endTime,
-                    dayOfWeek,
                     preferences,
                     generatedShifts,
                     currentHours

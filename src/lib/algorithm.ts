@@ -1,5 +1,5 @@
 import { differenceInMinutes, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
-import type { Staff, ShiftPreference, Shift, ClassType, DynamicRole, ShiftClass } from '../types';
+import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass } from '../types';
 
 /**
  * Heuristic shift generator.

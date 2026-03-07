@@ -1,4 +1,5 @@
 import type { Staff } from '../../../src/types';
+import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
 
 export interface Env {
     DB: D1Database;
@@ -43,13 +44,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         return Response.json(staffs);
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error fetching staffs');
     }
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const staffData: Partial<Staff> = await context.request.json();
+        
+        // Validate name
+        const nameError = validateName(staffData.name || '', '名前', 100);
+        if (nameError) return createValidationError(nameError);
+        
+        // Validate role
+        const roleError = validateRole(staffData.role || '');
+        if (roleError) return createValidationError(roleError);
+        
         const id = staffData.id || `staff_${Date.now()}`;
 
         const { maxOrder } = await context.env.DB.prepare(
@@ -64,8 +74,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).bind(
                 id,
-                staffData.name || 'Unknown',
-                staffData.role || 'パート',
+                staffData.name!.trim(),
+                staffData.role!,
                 staffData.hoursTarget || null,
                 staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
                 staffData.isHelpStaff ? 1 : 0,
@@ -103,6 +113,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         return Response.json({ id });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error creating staff');
     }
 };

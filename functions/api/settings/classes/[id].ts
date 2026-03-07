@@ -1,10 +1,18 @@
 export interface Env { DB: D1Database; }
 
+import { handleServerError, createValidationError, validateName } from '../../utils/validation';
+
 // PUT /api/settings/classes/[id] — クラス更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
         const body = await context.request.json() as { name?: string, display_order?: number, auto_allocate?: number };
+
+        // Validate name if provided
+        if (body.name !== undefined) {
+            const nameError = validateName(body.name, 'クラス名', 50);
+            if (nameError) return createValidationError(nameError);
+        }
 
         let query = 'UPDATE classes SET ';
         const sets: string[] = [];
@@ -12,7 +20,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         if (body.name !== undefined) {
             sets.push('name = ?');
-            params.push(body.name);
+            params.push(body.name.trim());
         }
         if (body.display_order !== undefined) {
             sets.push('display_order = ?');
@@ -23,14 +31,18 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             params.push(body.auto_allocate);
         }
 
-        if (sets.length === 0) return new Response('No data to update', { status: 400 });
+        if (sets.length === 0) {
+            return createValidationError('更新するデータがありません');
+        }
 
         query += sets.join(', ') + ' WHERE id = ?';
         params.push(id);
 
         await context.env.DB.prepare(query).bind(...params).run();
         return new Response(null, { status: 204 });
-    } catch (e) { return new Response((e as Error).message, { status: 500 }); }
+    } catch (e) { 
+        return handleServerError(e, 'Database error updating class'); 
+    }
 };
 
 // DELETE /api/settings/classes/[id] — クラス削除
@@ -39,5 +51,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = context.params.id as string;
         await context.env.DB.prepare('DELETE FROM classes WHERE id = ?').bind(id).run();
         return new Response(null, { status: 204 });
-    } catch (e) { return new Response((e as Error).message, { status: 500 }); }
+    } catch (e) { 
+        return handleServerError(e, 'Database error deleting class'); 
+    }
 };

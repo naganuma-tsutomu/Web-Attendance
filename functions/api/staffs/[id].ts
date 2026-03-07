@@ -1,3 +1,5 @@
+import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
+
 export interface Env {
     DB: D1Database;
 }
@@ -6,9 +8,21 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const id = url.pathname.split('/').pop();
-        if (!id) return new Response('Missing ID', { status: 400 });
+        if (!id) return createValidationError('IDが指定されていません');
 
         const staffData: any = await context.request.json();
+        
+        // Validate name if provided
+        if (staffData.name !== undefined) {
+            const nameError = validateName(staffData.name, '名前', 100);
+            if (nameError) return createValidationError(nameError);
+        }
+        
+        // Validate role if provided
+        if (staffData.role !== undefined) {
+            const roleError = validateRole(staffData.role);
+            if (roleError) return createValidationError(roleError);
+        }
 
         const statements = [
             context.env.DB.prepare(
@@ -22,8 +36,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd)
                  WHERE id = ?`
             ).bind(
-                staffData.name || null,
-                staffData.role || null,
+                staffData.name !== undefined ? staffData.name.trim() : null,
+                staffData.role !== undefined ? staffData.role : null,
                 staffData.hoursTarget || null,
                 staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
                 staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
@@ -63,9 +77,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         await context.env.DB.batch(statements);
 
-        return new Response('Updated', { status: 200 });
+        return Response.json({ success: true });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error updating staff');
     }
 };
 
@@ -73,12 +87,12 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const id = url.pathname.split('/').pop();
-        if (!id) return new Response('Missing ID', { status: 400 });
+        if (!id) return createValidationError('IDが指定されていません');
 
         await context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id).run();
 
-        return new Response('Deleted', { status: 200 });
+        return Response.json({ success: true });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error deleting staff');
     }
 };

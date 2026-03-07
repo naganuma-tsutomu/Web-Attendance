@@ -5,7 +5,10 @@ import AuthPage from './features/auth/AuthPage';
 import StaffPage from './features/staff/StaffPage';
 import PreferencesPage from './features/preferences/PreferencesPage';
 import SchedulePage from './features/schedule/SchedulePage';
-import SettingsPage from './features/settings/SettingsPage';
+import TimePatternsPage from './pages/settings/TimePatternsPage';
+import RolesPage from './pages/settings/RolesPage';
+import ClassesPage from './pages/settings/ClassesPage';
+import AppearancePage from './pages/settings/AppearancePage';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -43,7 +46,11 @@ const AppRoutes = () => {
           <Route index element={<SchedulePage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="preferences" element={<PreferencesPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings" element={<Navigate to="/settings/patterns" replace />} />
+          <Route path="settings/patterns" element={<TimePatternsPage />} />
+          <Route path="settings/roles" element={<RolesPage />} />
+          <Route path="settings/classes" element={<ClassesPage />} />
+          <Route path="settings/appearance" element={<AppearancePage />} />
         </Route>
       </Routes>
     </Router>

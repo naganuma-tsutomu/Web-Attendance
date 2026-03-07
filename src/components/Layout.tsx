@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, Settings, LogOut, Moon, Clock, Menu, X } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 
 const Layout = () => {
@@ -23,7 +23,10 @@ const Layout = () => {
         { path: '/', label: 'シフト表', icon: Calendar },
         { path: '/staff', label: 'スタッフ管理', icon: Users },
         { path: '/preferences', label: '休日管理', icon: Clock },
-        { path: '/settings', label: '設定', icon: Settings },
+        { path: '/settings/patterns', label: '勤務時間パターン', icon: Clock },
+        { path: '/settings/roles', label: '役職管理', icon: Users },
+        { path: '/settings/classes', label: 'クラス管理', icon: GraduationCap },
+        { path: '/settings/appearance', label: '外観設定', icon: Palette },
     ];
 
     return (
@@ -65,7 +68,10 @@ const Layout = () => {
                 <div className="flex-1 py-6 px-4 space-y-2 flex flex-col overflow-y-auto">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                        const isActive = location.pathname === item.path || 
+                            (item.path !== '/' && location.pathname.startsWith(item.path)) ||
+                            // Special case for /settings/patterns - also active on /settings
+                            (item.path === '/settings/patterns' && location.pathname === '/settings');
 
                         return (
                             <Link

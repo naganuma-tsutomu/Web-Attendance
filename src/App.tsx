@@ -9,6 +9,7 @@ import TimePatternsPage from './pages/settings/TimePatternsPage';
 import RolesPage from './pages/settings/RolesPage';
 import ClassesPage from './pages/settings/ClassesPage';
 import AppearancePage from './pages/settings/AppearancePage';
+import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -50,6 +51,7 @@ const AppRoutes = () => {
           <Route path="settings/patterns" element={<TimePatternsPage />} />
           <Route path="settings/roles" element={<RolesPage />} />
           <Route path="settings/classes" element={<ClassesPage />} />
+          <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
         </Route>
       </Routes>

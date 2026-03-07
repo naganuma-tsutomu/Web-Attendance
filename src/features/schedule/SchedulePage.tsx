@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import type { View } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
+import { useState, useEffect, useRef } from 'react';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, getRoles, updateShift, deleteShiftsByMonth } from '../../lib/api';
+import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles } from '../../lib/api';
 import { generateShiftsForMonth } from '../../lib/algorithm';
 import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
-import type { Shift, Staff } from '../../types';
+import type { Shift, Staff, ShiftPreference, ShiftClass } from '../../types';
 import DailyTimelineModal from './DailyTimelineModal';
+import DailyTimelineView from './DailyTimelineView';
+import WeeklyTimelineView from './WeeklyTimelineView';
 
 const locales = {
     'ja': ja,
@@ -32,6 +33,9 @@ interface CalendarEvent {
     resourceId: string;
     isError: boolean;
     isEarly: boolean;
+    isSummary?: boolean;
+    type?: string;
+    classNameValue?: string;
 }
 
 // 編集フォームの型定義
@@ -49,6 +53,8 @@ const SchedulePage = () => {
     const [errorCount, setErrorCount] = useState(0);
     const [rawShifts, setRawShifts] = useState<Shift[]>([]);
     const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [classes, setClasses] = useState<ShiftClass[]>([]);
+    const [preferences, setPreferences] = useState<ShiftPreference[]>([]);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [editFormData, setEditFormData] = useState<EditFormData>({
@@ -57,6 +63,9 @@ const SchedulePage = () => {
         startTime: '',
         endTime: ''
     });
+
+    const [isDayModified, setIsDayModified] = useState(false);
+    const daySaveRef = useRef<(() => Promise<void>) | null>(null);
 
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
     const [selectedDateForTimeline, setSelectedDateForTimeline] = useState<Date | null>(null);
@@ -70,12 +79,33 @@ const SchedulePage = () => {
     const loadShifts = async () => {
         setLoading(true);
         try {
-            const shifts = await getShiftsByMonth(targetYearMonth);
-            const staffs = await getStaffList();
+            const monthsToFetch = new Set<string>();
+            monthsToFetch.add(format(currentDate, 'yyyy-MM'));
 
-            setRawShifts(shifts);
+            if (view === Views.WEEK) {
+                const weekStart = startOfWeek(currentDate, { locale: ja });
+                const weekEnd = addDays(weekStart, 6);
+                monthsToFetch.add(format(weekStart, 'yyyy-MM'));
+                monthsToFetch.add(format(weekEnd, 'yyyy-MM'));
+            }
+
+            const monthList = Array.from(monthsToFetch);
+            const [shiftsResults, staffs, prefsResults, classesData] = await Promise.all([
+                Promise.all(monthList.map(m => getShiftsByMonth(m))),
+                getStaffList(),
+                Promise.all(monthList.map(m => getPreferencesByMonth(m))),
+                getClasses()
+            ]);
+
+            // 重複を除去して結合
+            const combinedShifts = shiftsResults.flat().filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+            const combinedPrefs = prefsResults.flat().filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+
+            setRawShifts(combinedShifts);
             setStaffList(staffs);
-            mapShiftsToEvents(shifts, staffs);
+            setPreferences(combinedPrefs);
+            setClasses(classesData);
+            mapShiftsToEvents(combinedShifts, staffs, classesData);
         } catch (err) {
             console.error('Failed to load shifts', err);
         } finally {
@@ -85,28 +115,32 @@ const SchedulePage = () => {
 
     useEffect(() => {
         loadShifts();
-    }, [targetYearMonth]);
+    }, [currentDate, view]);
 
-    const mapShiftsToEvents = (shifts: Shift[], staffs: Staff[]) => {
+    const mapShiftsToEvents = (shifts: Shift[], staffs: Staff[], currentClasses: ShiftClass[]) => {
         let errCount = 0;
         const calendarEvents: CalendarEvent[] = shifts.map(shift => {
             if (shift.isError) errCount++;
             const staff = staffs.find(s => s.id === shift.staffId);
             const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
 
+            const shiftClass = currentClasses.find(c => c.id === shift.classType);
+            const className = shiftClass ? shiftClass.name : shift.classType;
+
             let titleSuffix = '';
             if (shift.isError) titleSuffix = '(エラー)';
-            else if (shift.classType === '特殊') titleSuffix = '(ヘルプ)';
+            else if (className === '特殊' || className === 'ヘルプ') titleSuffix = '(ヘルプ)';
             else titleSuffix = shift.isEarlyShift ? '(早番)' : '(遅番)';
 
             return {
                 id: shift.id,
-                title: `${staffName} ${titleSuffix}`,
+                title: `${staffName}${titleSuffix}`,
                 start: new Date(`${shift.date}T${shift.startTime}:00`),
                 end: new Date(`${shift.date}T${shift.endTime}:00`),
                 resourceId: shift.classType,
                 isError: shift.isError ?? false,
-                isEarly: shift.isEarlyShift
+                isEarly: shift.isEarlyShift,
+                classNameValue: className
             };
         });
         setEvents(calendarEvents);
@@ -115,58 +149,55 @@ const SchedulePage = () => {
 
     // 月間表示用のサマリーイベントを生成
     const summaryEvents = view === Views.MONTH ? (() => {
-        const dailySummary: Record<string, { early: number; late: number; help: number; error: number }> = {};
+        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number }> = {};
 
+        // シフトの集計
         events.forEach(event => {
             const dateStr = format(event.start, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { early: 0, late: 0, help: 0, error: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
             }
 
-            if (event.isError) dailySummary[dateStr].error++;
-            else if (event.title.includes('(ヘルプ)')) dailySummary[dateStr].help++;
-            else if (event.isEarly) dailySummary[dateStr].early++;
-            else dailySummary[dateStr].late++;
+            if (event.isError) {
+                dailySummary[dateStr].insufficient++;
+            } else {
+                const className = event.classNameValue || 'その他';
+                dailySummary[dateStr].classes[className] = (dailySummary[dateStr].classes[className] || 0) + 1;
+            }
+        });
+
+        // 希望休の集計
+        preferences.forEach(pref => {
+            pref.unavailableDates.forEach(dateStr => {
+                if (!dailySummary[dateStr]) {
+                    dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+                }
+                dailySummary[dateStr].requestedOff++;
+            });
         });
 
         const summaries: any[] = [];
-        Object.entries(dailySummary).forEach(([dateStr, counts]) => {
+        Object.entries(dailySummary).forEach(([dateStr, data]) => {
             const baseDate = new Date(`${dateStr}T00:00:00`);
 
-            if (counts.early > 0) {
+            // クラス別人数
+            Object.entries(data.classes).forEach(([className, count]) => {
                 summaries.push({
-                    id: `summary-early-${dateStr}`,
-                    title: `早番: ${counts.early}名`,
+                    id: `summary-class-${className}-${dateStr}`,
+                    title: `${className}: ${count}名`,
                     start: baseDate,
                     end: baseDate,
                     isSummary: true,
-                    type: 'early'
+                    type: 'class',
+                    classNameValue: className
                 });
-            }
-            if (counts.late > 0) {
+            });
+
+            // 不足人数
+            if (data.insufficient > 0) {
                 summaries.push({
-                    id: `summary-late-${dateStr}`,
-                    title: `遅番: ${counts.late}名`,
-                    start: baseDate,
-                    end: baseDate,
-                    isSummary: true,
-                    type: 'late'
-                });
-            }
-            if (counts.help > 0) {
-                summaries.push({
-                    id: `summary-help-${dateStr}`,
-                    title: `ヘルプ: ${counts.help}名`,
-                    start: baseDate,
-                    end: baseDate,
-                    isSummary: true,
-                    type: 'help'
-                });
-            }
-            if (counts.error > 0) {
-                summaries.push({
-                    id: `summary-error-${dateStr}`,
-                    title: `エラー: ${counts.error}件`,
+                    id: `summary-insufficient-${dateStr}`,
+                    title: `不足: ${data.insufficient}名`,
                     start: baseDate,
                     end: baseDate,
                     isSummary: true,
@@ -174,24 +205,39 @@ const SchedulePage = () => {
                     type: 'error'
                 });
             }
+
+            // 希望休人数
+            if (data.requestedOff > 0) {
+                summaries.push({
+                    id: `summary-off-${dateStr}`,
+                    title: `希望休: ${data.requestedOff}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'off'
+                });
+            }
         });
         return summaries;
     })() : events;
 
     const handleGenerate = async () => {
-        if (!window.confirm(`${format(currentDate, 'yyyy年M月')}のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`)) return;
+        if (!window.confirm(`${format(currentDate, 'yyyy年M月')} のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`)) return;
 
         setGenerating(true);
         try {
-            const staffs = await getStaffList();
-            const prefs = await getPreferencesByMonth(targetYearMonth);
-            const roles = await getRoles();
+            const [staffs, prefs, roles, holidays, currentClasses] = await Promise.all([
+                getStaffList(),
+                getPreferencesByMonth(targetYearMonth),
+                getRoles(),
+                [], // TODO: 休祝日の取得
+                getClasses()
+            ]);
 
             // 既存シフトを先に削除してから新規挿入（重複防止）
             await deleteShiftsByMonth(targetYearMonth);
 
-            const holidays: string[] = [];
-            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, holidays);
+            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidays);
 
             await saveShiftsBatch(generatedShifts);
             await loadShifts();
@@ -238,13 +284,13 @@ const SchedulePage = () => {
                     staffId: editFormData.staffId || 'UNASSIGNED',
                     startTime: editFormData.startTime,
                     endTime: editFormData.endTime,
-                    classType: '虹組',
+                    classType: classes[0]?.id || 'class_niji',
                     isEarlyShift: false,
                     isError: editFormData.staffId === ''
                 }]);
             }
             setIsEditModalOpen(false);
-            await loadShifts(); // awaitで確実に再読み込みを待つ
+            await loadShifts();
         } catch (err) {
             console.error(err);
             alert('保存に失敗しました。');
@@ -263,29 +309,36 @@ const SchedulePage = () => {
             color: 'white',
             border: '0px',
             display: 'block',
-            fontSize: view === Views.MONTH ? '11px' : '12px',
+            fontSize: '11px',
             padding: '2px 4px'
         };
 
-        if (event.isError) {
+        if (event.isError || event.type === 'error') {
             style.backgroundColor = '#ef4444';
-        } else if (event.type === 'help' || event.title?.includes('ヘルプ')) {
-            style.backgroundColor = '#10b981';
-        } else if (event.type === 'early' || event.isEarly) {
-            style.backgroundColor = '#0284c7';
-        } else if (event.type === 'late' || (!event.isEarly && !event.isError)) {
-            style.backgroundColor = '#eab308';
-            style.color = '#422006';
+        } else if (event.type === 'off') {
+            style.backgroundColor = '#94a3b8'; // Slate 400
+        } else if (event.type === 'class') {
+            const clsName = event.classNameValue;
+            if (clsName === '虹組') style.backgroundColor = '#f59e0b'; // Amber 500
+            else if (clsName === 'スマイル組') style.backgroundColor = '#3b82f6'; // Blue 500
+            else if (clsName === '特殊' || clsName === 'ヘルプ') style.backgroundColor = '#10b981'; // Emerald 500
+            else style.backgroundColor = '#6366f1'; // Indigo 500
+        } else if (event.isEarly) {
+            style.backgroundColor = '#3b82f6';
+        } else {
+            style.backgroundColor = '#f59e0b';
         }
+
+        style.cursor = 'pointer';
 
         return { style };
     };
 
     return (
-        <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
+        <div className="space-y-6 h-full flex flex-col overflow-hidden">
             {/* Header Area */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0 flex-shrink-0">
-                <div className="flex items-center space-x-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 flex-shrink-0 sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 py-4 -mt-4 mb-2">
+                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
                     <div className="flex bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-1 shadow-sm">
                         <button
                             onClick={() => {
@@ -317,7 +370,7 @@ const SchedulePage = () => {
                         </button>
                     </div>
 
-                    <div className="hidden md:flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
+                    <div className="flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
                         <button
                             onClick={() => setView(Views.MONTH)}
                             className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.MONTH ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
@@ -339,13 +392,11 @@ const SchedulePage = () => {
                     </div>
                 </div>
 
-                <div className="flex space-x-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <div className="flex flex-wrap gap-2 w-full lg:w-auto">
                     <button
                         onClick={handleGenerate}
                         disabled={generating}
-                        className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-shrink-0
-                            ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700'}
-                        `}
+                        className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
                     >
                         {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings2 className="w-5 h-5" />}
                         <span className="whitespace-nowrap">{generating ? '生成中...' : '自動生成'}</span>
@@ -361,41 +412,44 @@ const SchedulePage = () => {
                                 alert('削除に失敗しました。');
                             }
                         }}
-                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-shrink-0"
+                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center"
                     >
                         <Trash2 className="w-5 h-5 text-red-500" />
-                        <span className="whitespace-nowrap text-xs sm:text-sm">消去</span>
+                        <span className="whitespace-nowrap">消去</span>
                     </button>
-                    <button
-                        onClick={() => exportToExcel(targetYearMonth, staffList, rawShifts)}
-                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-shrink-0"
-                    >
-                        <Download className="w-5 h-5 text-green-600" />
-                        <span className="whitespace-nowrap text-xs sm:text-sm">Excel</span>
-                    </button>
-                    <button
-                        onClick={() => exportToPDF(targetYearMonth, staffList, rawShifts)}
-                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-shrink-0"
-                    >
-                        <Download className="w-5 h-5 text-red-600" />
-                        <span className="whitespace-nowrap text-xs sm:text-sm">PDF</span>
-                    </button>
-                    <button
-                        onClick={() => {
-                            setSelectedEvent(null);
-                            setEditFormData({
-                                staffId: '',
-                                date: format(currentDate, 'yyyy-MM-01'),
-                                startTime: '09:00',
-                                endTime: '18:00'
-                            });
-                            setIsEditModalOpen(true);
-                        }}
-                        className="flex items-center space-x-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-shrink-0"
-                    >
-                        <Plus className="w-5 h-5" />
-                        <span className="whitespace-nowrap text-xs sm:text-sm">追加</span>
-                    </button>
+
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                            onClick={() => exportToExcel(targetYearMonth, staffList, rawShifts)}
+                            className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
+                        >
+                            <Download className="w-5 h-5 text-green-600" />
+                            <span className="sm:hidden lg:inline text-xs font-bold">Excel</span>
+                        </button>
+                        <button
+                            onClick={() => exportToPDF(targetYearMonth, staffList, rawShifts)}
+                            className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
+                        >
+                            <Download className="w-5 h-5 text-red-600" />
+                            <span className="sm:hidden lg:inline text-xs font-bold">PDF</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                setSelectedEvent(null);
+                                setEditFormData({
+                                    staffId: '',
+                                    date: format(currentDate, 'yyyy-MM-01'),
+                                    startTime: '09:00',
+                                    endTime: '18:00'
+                                });
+                                setIsEditModalOpen(true);
+                            }}
+                            className="flex items-center justify-center space-x-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-[2] sm:flex-none"
+                        >
+                            <Plus className="w-5 h-5" />
+                            <span className="whitespace-nowrap font-bold">追加</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -410,158 +464,214 @@ const SchedulePage = () => {
             )}
 
             {/* Calendar Area */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 flex-1 overflow-hidden relative">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-2 sm:p-4 flex-1 overflow-hidden relative">
                 {loading && (
                     <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
                         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
                     </div>
                 )}
 
-                <div className="h-full dark:invert-[0.9] dark:hue-rotate-180">
-                    <BigCalendar
-                        localizer={localizer}
-                        events={summaryEvents}
-                        startAccessor="start"
-                        endAccessor="end"
-                        culture="ja"
-                        eventPropGetter={eventStyleGetter}
-                        onSelectEvent={(event: any) => {
-                            if (event.isSummary) {
-                                handleOpenTimeline(event.start);
-                            } else {
-                                handleEventSelect(event);
-                            }
-                        }}
-                        selectable={true}
-                        onSelectSlot={(slotInfo) => {
-                            if (slotInfo.action === 'click' || slotInfo.action === 'doubleClick') {
-                                handleOpenTimeline(slotInfo.start);
-                            }
-                        }}
-                        onDrillDown={(date) => {
-                            setCurrentDate(date);
-                            setView(Views.DAY);
-                        }}
-                        views={['month', 'week', 'day']}
-                        view={view}
-                        onView={(v) => setView(v)}
-                        date={currentDate}
-                        onNavigate={(newDate) => setCurrentDate(newDate)}
-                        messages={{
-                            next: "次へ",
-                            previous: "前へ",
-                            today: "今日",
-                            month: "月",
-                            week: "週",
-                            day: "日",
-                            agenda: "予定表",
-                            date: "日付",
-                            time: "時間",
-                            event: "イベント",
-                            noEventsInRange: "この期間にはシフトがありません。"
-                        }}
-                        className="font-sans"
-                    />
-                </div>
-            </div>
-
-            {/* Shift Edit Modal */}
-            {isEditModalOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setIsEditModalOpen(false);
-                    }}
-                >
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
-                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-                                {selectedEvent ? 'シフトの修正' : '予定の新規追加'}
-                            </h3>
-                            <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleUpdateShift} className="p-6 space-y-4">
-                            {!selectedEvent && (
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">日付</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={editFormData.date}
-                                        min={format(currentDate, 'yyyy-MM-01')}
-                                        max={format(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0), 'yyyy-MM-dd')}
-                                        onChange={e => setEditFormData({ ...editFormData, date: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
-                                    />
+                <div className="h-full flex flex-col">
+                    {view === Views.DAY ? (
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                            <DailyTimelineView
+                                date={currentDate}
+                                shifts={rawShifts}
+                                staffList={staffList}
+                                classes={classes}
+                                onShiftUpdate={loadShifts}
+                                onModifiedChange={setIsDayModified}
+                                saveRef={daySaveRef}
+                            />
+                            {isDayModified && (
+                                <div className="mt-4 flex items-center justify-end gap-3 animate-in slide-in-from-bottom-2 pb-2">
+                                    <div className="hidden sm:flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-2 text-xs">
+                                        <Save className="w-4 h-4" />
+                                        <span>未保存の変更があります</span>
+                                    </div>
+                                    <button
+                                        onClick={() => loadShifts()}
+                                        className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
+                                    >
+                                        破棄
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (daySaveRef.current) {
+                                                try {
+                                                    await daySaveRef.current();
+                                                    alert('保存しました');
+                                                } catch (e) {
+                                                    alert('保存に失敗しました');
+                                                }
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-md transition-all flex items-center gap-2"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        保存する
+                                    </button>
                                 </div>
                             )}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">担当スタッフ</label>
-                                <select
-                                    value={editFormData.staffId}
-                                    onChange={e => setEditFormData({ ...editFormData, staffId: e.target.value })}
-                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
-                                >
-                                    <option value="">未割り当て</option>
-                                    {staffList.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">開始時間</label>
-                                    <input
-                                        type="time"
-                                        required
-                                        value={editFormData.startTime}
-                                        onChange={e => setEditFormData({ ...editFormData, startTime: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">終了時間</label>
-                                    <input
-                                        type="time"
-                                        required
-                                        value={editFormData.endTime}
-                                        onChange={e => setEditFormData({ ...editFormData, endTime: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 flex space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsEditModalOpen(false)}
-                                    className="flex-1 px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
-                                >
-                                    キャンセル
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors text-sm font-medium flex items-center justify-center space-x-2"
-                                >
-                                    <Save className="w-4 h-4" />
-                                    <span>保存する</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        </div>
+                    ) : view === Views.WEEK ? (
+                        <div className="flex-1 overflow-hidden">
+                            <WeeklyTimelineView
+                                startDate={currentDate}
+                                shifts={rawShifts}
+                                staffList={staffList}
+                                classes={classes}
+                                onDateClick={(date) => {
+                                    handleOpenTimeline(date);
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="h-full rb-calendar-container">
+                            <BigCalendar
+                                localizer={localizer}
+                                events={summaryEvents}
+                                startAccessor="start"
+                                endAccessor="end"
+                                culture="ja"
+                                selectable={true}
+                                onSelectSlot={({ start }) => handleOpenTimeline(start as Date)}
+                                eventPropGetter={eventStyleGetter}
+                                onSelectEvent={(event: any) => {
+                                    if (event.isSummary) {
+                                        handleOpenTimeline(event.start);
+                                        return;
+                                    }
+                                    handleEventSelect(event);
+                                }}
+                                views={{
+                                    month: true,
+                                    week: true,
+                                    day: true,
+                                }}
+                                view={view}
+                                onView={(v) => setView(v as View)}
+                                date={currentDate}
+                                onNavigate={(newDate) => setCurrentDate(newDate)}
+                                onDrillDown={(date) => {
+                                    handleOpenTimeline(date);
+                                }}
+                                components={{
+                                    toolbar: () => null,
+                                }}
+                                messages={{
+                                    next: "次",
+                                    previous: "前",
+                                    today: "今日",
+                                    month: "月",
+                                    week: "週",
+                                    day: "日",
+                                    agenda: "予定"
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
-            )}
 
-            {/* Daily Timeline Modal */}
-            {isTimelineModalOpen && selectedDateForTimeline && (
-                <DailyTimelineModal
-                    date={selectedDateForTimeline}
-                    shifts={rawShifts}
-                    staffList={staffList}
-                    onClose={() => setIsTimelineModalOpen(false)}
-                    onShiftUpdate={loadShifts}
-                />
-            )}
+                {/* Shift Edit Modal */}
+                {isEditModalOpen && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setIsEditModalOpen(false);
+                        }}
+                    >
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
+                            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                                    {selectedEvent ? 'シフトの修正' : '予定の新規追加'}
+                                </h3>
+                                <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <form onSubmit={handleUpdateShift} className="p-6 space-y-4">
+                                {!selectedEvent && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">日付</label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={editFormData.date}
+                                            min={format(currentDate, 'yyyy-MM-01')}
+                                            max={format(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0), 'yyyy-MM-dd')}
+                                            onChange={e => setEditFormData({ ...editFormData, date: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">担当スタッフ</label>
+                                    <select
+                                        value={editFormData.staffId}
+                                        onChange={e => setEditFormData({ ...editFormData, staffId: e.target.value })}
+                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
+                                    >
+                                        <option value="">未割り当て</option>
+                                        {staffList.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">開始時間</label>
+                                        <input
+                                            type="time"
+                                            required
+                                            value={editFormData.startTime}
+                                            onChange={e => setEditFormData({ ...editFormData, startTime: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">終了時間</label>
+                                        <input
+                                            type="time"
+                                            required
+                                            value={editFormData.endTime}
+                                            onChange={e => setEditFormData({ ...editFormData, endTime: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 flex space-x-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditModalOpen(false)}
+                                        className="flex-1 px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors text-sm font-medium flex items-center justify-center space-x-2"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        <span>保存する</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Daily Timeline Modal */}
+                {isTimelineModalOpen && selectedDateForTimeline && (
+                    <DailyTimelineModal
+                        date={selectedDateForTimeline}
+                        shifts={rawShifts}
+                        staffList={staffList}
+                        classes={classes}
+                        onClose={() => setIsTimelineModalOpen(false)}
+                        onShiftUpdate={loadShifts}
+                    />
+                )}
+            </div>
         </div>
     );
 };

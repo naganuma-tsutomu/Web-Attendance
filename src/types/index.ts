@@ -1,5 +1,11 @@
 export type Role = string; // 動的役職 (DBから取得)
-export type ClassType = '虹組' | 'スマイル組' | '特殊';
+export type ClassType = string; // クラスID (DBから取得)
+
+export interface ShiftClass {
+    id: string;
+    name: string;
+    display_order: number;
+}
 
 export interface AvailableDayConfig {
     day: number;    // 0:日, 1:月, ..., 6:土

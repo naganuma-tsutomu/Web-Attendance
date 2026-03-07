@@ -266,39 +266,39 @@ const StaffPage = () => {
                 </div>
             )}
 
-            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <div className="flex-1 relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-slate-400" />
-                    </div>
+            {/* Header Area */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0 mb-6">
+                <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="名前で検索..."
+                        placeholder="スタッフを検索..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 dark:text-white shadow-sm transition-all"
+                        className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
                     />
                 </div>
+                <button
+                    onClick={handleOpenAddModal} // Changed to handleOpenAddModal
+                    className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-sm transition-all font-bold active:scale-95"
+                >
+                    <Plus className="w-5 h-5" /> {/* Changed to Plus icon */}
+                    <span>スタッフ追加</span>
+                </button>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
-                        <thead className="bg-slate-50/50 dark:bg-slate-900/50">
+            {/* Staff List Table */}
+            <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col">
+                <div className="overflow-x-auto flex-1">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                        <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                             <tr>
-                                <th className="w-10 px-4"></th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    名前
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    月間労働時間
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    固定休日
-                                </th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    操作
-                                </th>
+                                <th className="w-12 px-4 py-4"></th>
+                                <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
+                                <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">役職</th> {/* Changed from 種別 to 役職 */}
+                                <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>
+                                <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">固定休日</th> {/* Changed from 固定休 to 固定休日 */}
+                                <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">操作</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 dark:divide-slate-700">

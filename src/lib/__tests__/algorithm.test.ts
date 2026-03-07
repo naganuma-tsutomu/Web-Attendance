@@ -10,11 +10,16 @@ const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role:
 
 const emptyPrefs: ShiftPreference[] = [];
 const emptyRoles: DynamicRole[] = [];
+const dummyClasses = [
+    { id: 'class_niji', name: '虹組', display_order: 0 },
+    { id: 'class_smile', name: 'スマイル組', display_order: 1 },
+    { id: 'class_special', name: '特殊', display_order: 2 },
+];
 
 describe('generateShiftsForMonth', () => {
     it('日曜日のシフトは生成されない', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
 
         // 2025-06 の日曜日（1, 8, 15, 22, 29 日）にシフトが存在しないことを確認
         const sundays = ['2025-06-01', '2025-06-08', '2025-06-15', '2025-06-22', '2025-06-29'];
@@ -26,7 +31,7 @@ describe('generateShiftsForMonth', () => {
 
     it('スタッフが1人の場合は不足分にエラーシフトが生成される', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
 
         const errorShifts = shifts.filter(s => s.isError === true);
         expect(errorShifts.length).toBeGreaterThan(0);
@@ -47,7 +52,7 @@ describe('generateShiftsForMonth', () => {
             unavailableDates: ['2025-06-02'], // 月曜
         }];
 
-        const shifts = generateShiftsForMonth('2025-06', staff, prefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, prefs, emptyRoles, dummyClasses);
         const targetDayShifts = shifts.filter(s => s.date === '2025-06-02' && s.staffId === 's1');
         expect(targetDayShifts).toHaveLength(0);
     });
@@ -57,7 +62,7 @@ describe('generateShiftsForMonth', () => {
             makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' }),
             makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
 
         // 2025-06-07 は土曜日
         const saturdayShifts = shifts.filter(s => s.date === '2025-06-07');
@@ -70,7 +75,7 @@ describe('generateShiftsForMonth', () => {
             makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' }),
             makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
         const ids = shifts.map(s => s.id);
         const uniqueIds = new Set(ids);
         expect(uniqueIds.size).toBe(ids.length);
@@ -91,7 +96,7 @@ describe('generateShiftsForMonth', () => {
             makeStaff({ id: 's6', name: 'スタッフF', role: '正社員' }),
         ];
         // 2025年6月の月曜日: 02(第1), 09(第2), 16(第3), 23(第4), 30(第5)
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
 
         // 第1月曜 (02日) -> 出勤
         expect(shifts.filter(s => s.date === '2025-06-02' && s.staffId === 's1')).toHaveLength(1);
@@ -109,7 +114,7 @@ describe('generateShiftsForMonth', () => {
         const staff = [
             makeStaff({ id: 's1', name: 'スタッフA', role: '準社員', hoursTarget: null })
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
 
         // 2025年6月の月〜金は21日間、土曜日は4日間、計25日間
         // 準社員は平日の上限6人枠と土曜日の1人枠に入る（他にスタッフがいないため）
@@ -123,7 +128,7 @@ describe('generateShiftsForMonth', () => {
             makeStaff({ id: 'ft2', name: '正社員B', role: '正社員' }),
             makeStaff({ id: 's1', name: '準社員A', role: '準社員' })
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
 
         // 土曜日のシフトを取得
         const saturdayShifts = shifts.filter(s => {

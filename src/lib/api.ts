@@ -1,4 +1,4 @@
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass } from '../types';
 
 const API_BASE = '/api';
 
@@ -184,4 +184,44 @@ export const deleteRole = async (id: string): Promise<void> => {
 
 export const updateRolePatterns = async (roleId: string, patternIds: string[]): Promise<void> => {
     return updateRole(roleId, { patternIds });
+};
+
+// ==========================================
+// Classes API (クラス管理)
+// ==========================================
+
+export const getClasses = async (): Promise<ShiftClass[]> => {
+    const res = await fetch(`${API_BASE}/settings/classes`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch classes');
+    return res.json();
+};
+
+export const createClass = async (name: string): Promise<string> => {
+    const res = await fetch(`${API_BASE}/settings/classes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to create class');
+    const { id } = await res.json();
+    return id;
+};
+
+export const updateClass = async (id: string, data: { name?: string, display_order?: number }): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/classes/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to update class');
+};
+
+export const deleteClass = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/classes/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to delete class');
 };

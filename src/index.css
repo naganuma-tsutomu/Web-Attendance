@@ -16,4 +16,44 @@
     background-color: var(--color-dark-bg);
     color: var(--color-dark-text);
   }
+
+  /* Calendar Dark Mode */
+  .dark .rbc-calendar {
+    color: #f1f5f9;
+  }
+  .dark .rbc-month-view, .dark .rbc-time-view {
+    background-color: #1e293b;
+    border-color: #334155;
+  }
+  .dark .rbc-off-range-bg {
+    background-color: #0f172a / 0.5;
+  }
+  .dark .rbc-header, .dark .rbc-day-bg, .dark .rbc-month-row, .dark .rbc-time-header-content {
+    border-color: #334155;
+  }
+  .dark .rbc-today {
+    background-color: #334155 / 0.3;
+  }
+  .dark .rbc-event {
+    border: none;
+  }
+
+  .rb-calendar-container {
+    height: 100%;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rbc-calendar {
+    flex: 1;
+  }
+
+  .rbc-calendar .rbc-day-bg,
+  .rbc-calendar .rbc-date-cell,
+  .rbc-calendar .rbc-row-content,
+  .rbc-calendar .rbc-events-container,
+  .rbc-calendar .rbc-row-segment {
+    cursor: pointer;
+  }
 }

@@ -1,5 +1,5 @@
 import { differenceInMinutes, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
-import type { Staff, ShiftPreference, Shift, ClassType, DynamicRole } from '../types';
+import type { Staff, ShiftPreference, Shift, ClassType, DynamicRole, ShiftClass } from '../types';
 
 /**
  * Heuristic shift generator.
@@ -10,6 +10,7 @@ export const generateShiftsForMonth = (
     staffList: Staff[],
     preferences: ShiftPreference[],
     roles: DynamicRole[],
+    classes: ShiftClass[],
     holidays: string[] = [] // YYYY-MM-DD format
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
@@ -90,7 +91,11 @@ export const generateShiftsForMonth = (
         const todayLateStaffIds: string[] = [];
 
         if (dayOfWeek === 6) {
-            // Saturday Rule: 2 Full-time (正社員) + optional Sub-full-time (準社員)
+            // Saturday Rule
+            const nijiId = classes.find(c => c.name === '虹組')?.id || classes[0]?.id || 'class_niji';
+            const smileId = classes.find(c => c.name === 'スマイル組')?.id || classes[1]?.id || classes[0]?.id || 'class_smile';
+            const specialId = classes.find(c => c.name === '特殊')?.id || classes[classes.length - 1]?.id || 'class_special';
+
             const fullTimeAvail = availableStaff.filter(s => s.role === '正社員')
                 .sort((a, b) => currentHours[a.id] - currentHours[b.id]);
 
@@ -104,7 +109,7 @@ export const generateShiftsForMonth = (
                     staffId: s.id,
                     startTime: start,
                     endTime: end,
-                    classType: i % 2 === 0 ? '虹組' : 'スマイル組',
+                    classType: i % 2 === 0 ? nijiId : smileId,
                     isEarlyShift: false
                 });
                 currentHours[s.id] += differenceInMinutes(new Date(`2000-01-01T${end}`), new Date(`2000-01-01T${start}`)) / 60;
@@ -126,7 +131,7 @@ export const generateShiftsForMonth = (
                     staffId: s.id,
                     startTime: start,
                     endTime: end,
-                    classType: '虹組',
+                    classType: nijiId,
                     isEarlyShift: false
                 });
                 currentHours[s.id] += differenceInMinutes(new Date(`2000-01-01T${end}`), new Date(`2000-01-01T${start}`)) / 60;
@@ -140,7 +145,7 @@ export const generateShiftsForMonth = (
                     staffId: 'UNASSIGNED',
                     startTime: '10:15',
                     endTime: '18:45',
-                    classType: '特殊',
+                    classType: specialId,
                     isError: true,
                     isEarlyShift: false
                 });
@@ -149,10 +154,16 @@ export const generateShiftsForMonth = (
         } else {
             // Weekday Rule
             let assignedStaffIds = new Set<string>();
-            let classAssignmentCount: Record<string, number> = { '虹組': 0, 'スマイル組': 0 };
+
+            // クラスIDの取得（デフォルト想定: 虹組=0番目, スマイル組=1番目, 特殊=最後の方）
+            const nijiId = classes.find(c => c.name === '虹組')?.id || classes[0]?.id || 'class_niji';
+            const smileId = classes.find(c => c.name === 'スマイル組')?.id || classes[1]?.id || classes[0]?.id || 'class_smile';
+            const specialId = classes.find(c => c.name === '特殊')?.id || classes[classes.length - 1]?.id || 'class_special';
+
+            let classAssignmentCount: Record<string, number> = { [nijiId]: 0, [smileId]: 0 };
 
             const addShift = (staff: Staff, start: string, end: string, isEarly: boolean, isHelp: boolean = false) => {
-                const classType: ClassType = isHelp ? '特殊' : (classAssignmentCount['虹組'] <= classAssignmentCount['スマイル組'] ? '虹組' : 'スマイル組');
+                const classType: ClassType = isHelp ? specialId : (classAssignmentCount[nijiId] <= classAssignmentCount[smileId] ? nijiId : smileId);
                 generatedShifts.push({
                     id: `gen_${dateStr}_wd_${staff.id}`,
                     date: dateStr,
@@ -223,7 +234,7 @@ export const generateShiftsForMonth = (
                         staffId: 'UNASSIGNED',
                         startTime: '12:00',
                         endTime: '18:45',
-                        classType: classAssignmentCount['虹組'] <= classAssignmentCount['スマイル組'] ? '虹組' : 'スマイル組',
+                        classType: classAssignmentCount[nijiId] <= classAssignmentCount[smileId] ? nijiId : smileId,
                         isError: true,
                         isEarlyShift: false
                     });

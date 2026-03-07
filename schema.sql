@@ -1,3 +1,15 @@
+-- Classes Table
+CREATE TABLE IF NOT EXISTS classes (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    display_order INTEGER DEFAULT 0
+);
+
+-- Initial Class Data
+INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_niji', '虹組', 1);
+INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_smile', 'スマイル組', 2);
+INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_special', '特殊', 3);
+
 -- Staffs Table
 CREATE TABLE IF NOT EXISTS staffs (
     id TEXT PRIMARY KEY,

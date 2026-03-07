@@ -1,6 +1,6 @@
 export interface Env { DB: D1Database; }
 
-import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../utils/validation';
+import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
 
 // GET /api/settings/time-patterns
 export const onRequestGet: PagesFunction<Env> = async (context) => {

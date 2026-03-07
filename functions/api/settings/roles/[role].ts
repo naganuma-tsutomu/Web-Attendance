@@ -2,7 +2,7 @@ export interface Env {
     DB: D1Database;
 }
 
-import { handleServerError, createValidationError } from '../../utils/validation';
+import { handleServerError, createValidationError } from '../../../utils/validation';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {

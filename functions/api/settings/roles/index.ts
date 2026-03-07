@@ -1,6 +1,6 @@
 export interface Env { DB: D1Database; }
 
-import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../utils/validation';
+import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
 
 // GET /api/settings/roles — 役職+紐付けパターン一覧
 export const onRequestGet: PagesFunction<Env> = async (context) => {

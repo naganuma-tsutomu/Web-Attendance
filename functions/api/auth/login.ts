@@ -7,7 +7,11 @@ export interface Env {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const { password } = await context.request.json() as any;
-        const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD || "admin";
+        const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
+
+        if (!ADMIN_PASSWORD) {
+            return new Response('Server Configuration Error: ADMIN_PASSWORD not set', { status: 500 });
+        }
 
         if (password !== ADMIN_PASSWORD) {
             return new Response('Unauthorized', { status: 401 });

@@ -59,3 +59,15 @@ export interface DynamicRole {
     targetHours: number | null;
     patterns: ShiftTimePattern[];
 }
+
+// シフト要件
+export interface ShiftRequirement {
+    id: string;
+    classId: string;
+    dayOfWeek: number;      // 0:日, 1:月, ..., 6:土, 7:平日, 8:毎日
+    startTime: string;      // HH:MM
+    endTime: string;        // HH:MM
+    minStaffCount: number;  // 最小スタッフ数
+    maxStaffCount?: number; // 最大スタッフ数（オプション）
+    priority: number;       // 優先度（高いほど優先）
+}

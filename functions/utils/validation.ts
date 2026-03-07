@@ -84,3 +84,48 @@ export function validateRole(role: string): string | null {
     }
     return null;
 }
+
+// Validate dayOfWeek (0-6: 日-土, 7: 平日, 8: 毎日)
+export function validateDayOfWeek(day: number): string | null {
+    if (typeof day !== 'number' || !Number.isInteger(day)) {
+        return '曜日は整数値で指定してください';
+    }
+    if (day < 0 || day > 8) {
+        return '曜日は0〜8の範囲で指定してください（0:日, 1:月, ..., 6:土, 7:平日, 8:毎日）';
+    }
+    return null;
+}
+
+// Validate minStaffCount (must be > 0)
+export function validateMinStaffCount(count: number): string | null {
+    if (typeof count !== 'number' || !Number.isInteger(count)) {
+        return '最小スタッフ数は整数値で指定してください';
+    }
+    if (count < 1) {
+        return '最小スタッフ数は1以上を指定してください';
+    }
+    if (count > 999) {
+        return '最小スタッフ数は999以下で指定してください';
+    }
+    return null;
+}
+
+// Validate maxStaffCount (must be >= minStaffCount if provided)
+export function validateMaxStaffCount(count: number | null | undefined, minCount: number): string | null {
+    if (count === null || count === undefined) {
+        return null; // Optional field
+    }
+    if (typeof count !== 'number' || !Number.isInteger(count)) {
+        return '最大スタッフ数は整数値で指定してください';
+    }
+    if (count < 1) {
+        return '最大スタッフ数は1以上を指定してください';
+    }
+    if (count > 999) {
+        return '最大スタッフ数は999以下で指定してください';
+    }
+    if (count < minCount) {
+        return '最大スタッフ数は最小スタッフ数以上に設定してください';
+    }
+    return null;
+}

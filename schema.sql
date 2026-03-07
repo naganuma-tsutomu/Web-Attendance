@@ -114,3 +114,25 @@ INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES 
 -- 廃止: role_settings, shift_patterns (既に存在する場合は残しても無害)
 -- DROP TABLE IF EXISTS role_settings;
 -- DROP TABLE IF EXISTS shift_patterns;
+
+-- ======================================================
+-- シフト要件管理テーブル
+-- ======================================================
+
+-- Shift Requirements Table
+CREATE TABLE IF NOT EXISTS shift_requirements (
+    id TEXT PRIMARY KEY,
+    classId TEXT NOT NULL,
+    dayOfWeek INTEGER NOT NULL,
+    startTime TEXT NOT NULL,
+    endTime TEXT NOT NULL,
+    minStaffCount INTEGER NOT NULL DEFAULT 1,
+    maxStaffCount INTEGER,
+    priority INTEGER DEFAULT 0,
+    FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+-- Initial sample data (optional)
+-- Example: Niji class needs 2 staff on weekdays 9:00-12:00
+INSERT OR IGNORE INTO shift_requirements (id, classId, dayOfWeek, startTime, endTime, minStaffCount, priority)
+VALUES ('req_001', 'class_niji', 1, '09:00', '12:00', 2, 1);

@@ -10,6 +10,10 @@ const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role:
 
 const emptyPrefs: ShiftPreference[] = [];
 const emptyRoles: DynamicRole[] = [];
+// 正社員を定義したroles（土曜日テスト用）
+const fullTimeRoles: DynamicRole[] = [
+    { id: 'r1', name: '正社員', targetHours: 160, patterns: [] }
+];
 const dummyClasses = [
     { id: 'class_niji', name: '虹組', display_order: 0, auto_allocate: 1 },
     { id: 'class_smile', name: 'スマイル組', display_order: 1, auto_allocate: 1 },
@@ -128,7 +132,8 @@ describe('generateShiftsForMonth', () => {
             makeStaff({ id: 'ft2', name: '正社員B', role: '正社員' }),
             makeStaff({ id: 's1', name: '準社員A', role: '準社員' })
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
+        // fullTimeRolesを渡して正社員を正しく認識させる
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, fullTimeRoles, dummyClasses);
 
         // 土曜日のシフトを取得
         const saturdayShifts = shifts.filter(s => {

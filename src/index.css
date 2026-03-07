@@ -56,4 +56,13 @@
   .rbc-calendar .rbc-row-segment {
     cursor: pointer;
   }
+
+  /* Hide scrollbar for settings sidebar */
+  .settings-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+  .settings-sidebar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

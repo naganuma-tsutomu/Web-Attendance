@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, Settings2 } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { getTimePatterns, getRoles, getClasses } from '../../lib/api';
 import type { ShiftTimePattern, DynamicRole, ShiftClass } from '../../types';
 import SettingsLayout from './layouts/SettingsLayout';
@@ -68,17 +68,9 @@ const SettingsPage = () => {
                 <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
             }
         >
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center space-x-2">
-                    <Settings2 className="w-7 h-7 text-indigo-500" />
-                    <span>設定</span>
-                </h2>
-                {/* Mobile description only, or keep it consistent? Original had it. */}
-                {/* <p className="text-slate-500 dark:text-slate-400 mt-1">勤務時間の種類と、役職ごとの利用可能パターンを定義します。</p> */}
-            </div>
-
+            {/* Toast Message */}
             {message && (
-                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-top-1 mb-6">
+                <div className="fixed top-20 right-4 z-50 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
                     <CheckCircle className="w-5 h-5" />
                     <span className="text-sm font-medium">{message}</span>
                 </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, GripVertical } from 'lucide-react';
-import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../../lib/api';
-import type { ShiftClass } from '../../../../types';
+import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
+import type { ShiftClass } from '../../../types';
 import {
     DndContext,
     closestCenter,

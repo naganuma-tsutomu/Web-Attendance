@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, CheckCircle } from 'lucide-react';
-import { createRole, deleteRole, updateRole, updateRolePatterns } from '../../../../lib/api';
-import type { DynamicRole, ShiftTimePattern } from '../../../../types';
+import { createRole, deleteRole, updateRole, updateRolePatterns } from '../../../lib/api';
+import type { DynamicRole, ShiftTimePattern } from '../../../types';
 
 interface RolesSettingsProps {
     roles: DynamicRole[];

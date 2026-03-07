@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, Clock, Loader2 } from 'lucide-react';
-import { createTimePattern, deleteTimePattern } from '../../../../lib/api';
-import type { ShiftTimePattern } from '../../../../types';
+import { createTimePattern, deleteTimePattern } from '../../../lib/api';
+import type { ShiftTimePattern } from '../../../types';
 
 interface TimePatternsSettingsProps {
     patterns: ShiftTimePattern[];

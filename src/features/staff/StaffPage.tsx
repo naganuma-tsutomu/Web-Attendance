@@ -379,12 +379,12 @@ const StaffPage = () => {
 
             {isModalOpen && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]"
+                    className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setIsModalOpen(false);
                     }}
                 >
-                    <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                             <h3 className="text-xl font-bold text-slate-800 dark:text-white">
                                 {editingStaff ? '情報を更新' : 'スタッフ登録'}
@@ -393,7 +393,7 @@ const StaffPage = () => {
                                 <Plus className="w-5 h-5 transform rotate-45" />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
                             <div className="space-y-4">
                                 <div className="space-y-1.5 pl-1">
                                     <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">氏名</label>

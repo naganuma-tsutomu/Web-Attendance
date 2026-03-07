@@ -10,11 +10,12 @@ export interface Staff {
     id: string;
     name: string;
     role: string; // 役職名 (動的)
-    hoursTarget: number;
+    hoursTarget: number | null;
     isHelpStaff?: boolean;
     availableDays?: (number | AvailableDayConfig)[];
     defaultWorkingHoursStart?: string;
     defaultWorkingHoursEnd?: string;
+    display_order?: number;
 }
 
 export interface ShiftPreference {
@@ -47,6 +48,6 @@ export interface ShiftTimePattern {
 export interface DynamicRole {
     id: string;
     name: string;
-    targetHours: number;
+    targetHours: number | null;
     patterns: ShiftTimePattern[];
 }

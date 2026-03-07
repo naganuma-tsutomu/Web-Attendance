@@ -12,7 +12,15 @@ const SettingsPage = () => {
     // State for Roles
     const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [loadingRoles, setLoadingRoles] = useState(true);
-    const [newRoleName, setNewRoleName] = useState('');
+    const [newRole, setNewRole] = useState<{
+        name: string;
+        hoursTarget: number | null;
+        patternIds: string[];
+    }>({
+        name: '',
+        hoursTarget: null,
+        patternIds: []
+    });
 
     const [message, setMessage] = useState('');
     const [activeTab, setActiveTab] = useState<'patterns' | 'roles' | 'appearance'>('patterns');
@@ -79,14 +87,14 @@ const SettingsPage = () => {
     const handleAddRole = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await createRole(newRoleName, 0); // 初期目標時間は0
-            setNewRoleName('');
+            await createRole(newRole.name, newRole.hoursTarget, newRole.patternIds);
+            setNewRole({ name: '', hoursTarget: null, patternIds: [] });
             showMessage('役職を追加しました');
             fetchData();
         } catch (err) { console.error(err); }
     };
 
-    const handleUpdateRoleHours = async (roleId: string, hours: number) => {
+    const handleUpdateRoleHours = async (roleId: string, hours: number | null) => {
         try {
             await updateRole(roleId, { targetHours: hours });
             setRoles(prev => prev.map(r => r.id === roleId ? { ...r, targetHours: hours } : r));
@@ -245,21 +253,97 @@ const SettingsPage = () => {
                     <div className="space-y-6">
                         {/* Role form */}
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <h3 className="font-bold text-slate-800 dark:text-white mb-4">役職の追加</h3>
-                            <form onSubmit={handleAddRole} className="flex space-x-3 items-end max-w-md">
-                                <div className="space-y-1 flex-1">
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="例: パートB"
-                                        value={newRoleName}
-                                        onChange={e => setNewRoleName(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
-                                    />
+                            <h3 className="font-bold text-slate-800 dark:text-white mb-6">役職の新規登録</h3>
+                            <form onSubmit={handleAddRole} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">役職名</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="例: パートB"
+                                            value={newRole.name}
+                                            onChange={e => setNewRole({ ...newRole, name: e.target.value })}
+                                            className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white font-medium"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between pl-1">
+                                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">月間労働時間</label>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-[10px] font-bold text-slate-500">{newRole.hoursTarget === null ? '制限なし' : '設定する'}</span>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only peer"
+                                                        checked={newRole.hoursTarget !== null}
+                                                        onChange={(e) => {
+                                                            setNewRole({ ...newRole, hoursTarget: e.target.checked ? 160 : null });
+                                                        }}
+                                                    />
+                                                    <div className="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <input
+                                                type="number"
+                                                value={newRole.hoursTarget === null ? '' : newRole.hoursTarget}
+                                                disabled={newRole.hoursTarget === null}
+                                                onChange={e => setNewRole({ ...newRole, hoursTarget: parseInt(e.target.value) || 0 })}
+                                                placeholder="設定なし"
+                                                className={`flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-bold
+                                                    ${newRole.hoursTarget === null
+                                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                                        : 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white'}`}
+                                            />
+                                            <span className="text-xs text-slate-500 font-bold">時間</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-sm h-[38px]">
-                                    追加
-                                </button>
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">利用可能な時間パターン (複数選択可)</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {timePatterns.length === 0 ? (
+                                            <p className="text-xs text-slate-400 italic px-1">まずは勤務パターンを登録してください</p>
+                                        ) : (
+                                            timePatterns.map(p => {
+                                                const isSelected = newRole.patternIds.includes(p.id);
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const nextIds = isSelected
+                                                                ? newRole.patternIds.filter(id => id !== p.id)
+                                                                : [...newRole.patternIds, p.id];
+                                                            setNewRole({ ...newRole, patternIds: nextIds });
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center space-x-1.5
+                                                            ${isSelected
+                                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
+                                                    >
+                                                        {isSelected && <CheckCircle className="w-3 h-3" />}
+                                                        <span>{p.name}</span>
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end pt-2">
+                                    <button
+                                        type="submit"
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center space-x-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span>役職を登録する</span>
+                                    </button>
+                                </div>
                             </form>
                         </div>
 
@@ -279,17 +363,36 @@ const SettingsPage = () => {
                                             </button>
                                         </div>
                                         <div className="p-5 flex-1 space-y-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-widest block pl-1">月間目標時間</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <input
-                                                        type="number"
-                                                        value={role.targetHours}
-                                                        onChange={(e) => handleUpdateRoleHours(role.id, parseInt(e.target.value) || 0)}
-                                                        className="w-24 px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white font-bold"
-                                                    />
-                                                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">時間</span>
+                                            <div className="flex items-center justify-between pl-1 mb-1.5">
+                                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">月間労働時間</label>
+                                                <div className="flex items-center space-x-2 scale-75 origin-right">
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="sr-only peer"
+                                                            checked={role.targetHours !== null}
+                                                            onChange={(e) => {
+                                                                const newHours = e.target.checked ? 160 : null;
+                                                                handleUpdateRoleHours(role.id, newHours);
+                                                            }}
+                                                        />
+                                                        <div className="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
+                                                    </label>
                                                 </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="number"
+                                                    value={role.targetHours ?? ''}
+                                                    disabled={role.targetHours === null}
+                                                    onChange={(e) => handleUpdateRoleHours(role.id, parseInt(e.target.value) || 0)}
+                                                    placeholder="設定なし"
+                                                    className={`w-24 px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold transition-all
+                                                            ${role.targetHours === null
+                                                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white'}`}
+                                                />
+                                                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">時間</span>
                                             </div>
 
                                             <div>

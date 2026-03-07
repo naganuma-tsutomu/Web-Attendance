@@ -105,6 +105,13 @@ export const updateShift = async (id: string, shiftData: Partial<Shift>): Promis
     if (!res.ok) throw new Error('Failed to update shift');
 };
 
+export const deleteShift = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/shifts/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Failed to delete shift');
+};
+
 // ==========================================
 // Shift Time Patterns API (勤務時間パターン)
 // ==========================================
@@ -145,11 +152,11 @@ export const getRoles = async (): Promise<DynamicRole[]> => {
     return res.json();
 };
 
-export const createRole = async (name: string, targetHours: number = 0): Promise<string> => {
+export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = []): Promise<string> => {
     const res = await fetch(`${API_BASE}/settings/roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, targetHours }),
+        body: JSON.stringify({ name, targetHours, patternIds }),
         credentials: 'include'
     });
     if (!res.ok) throw new Error('Failed to create role');
@@ -157,7 +164,7 @@ export const createRole = async (name: string, targetHours: number = 0): Promise
     return id;
 };
 
-export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number, patternIds?: string[] }): Promise<void> => {
+export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, patternIds?: string[] }): Promise<void> => {
     const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

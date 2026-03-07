@@ -104,4 +104,35 @@ describe('generateShiftsForMonth', () => {
         // 第5月曜 (30日) -> 出勤
         expect(shifts.filter(s => s.date === '2025-06-30' && s.staffId === 's1')).toHaveLength(1);
     });
+
+    it('hoursTarget が null の場合は労働時間制限なく割り当てられる', () => {
+        const staff = [
+            makeStaff({ id: 's1', name: 'スタッフA', role: '準社員', hoursTarget: null })
+        ];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+
+        // 2025年6月の月〜金は21日間、土曜日は4日間、計25日間
+        // 準社員は平日の上限6人枠と土曜日の1人枠に入る（他にスタッフがいないため）
+        const staffAShifts = shifts.filter(s => s.staffId === 's1');
+        expect(staffAShifts.length).toBe(25);
+    });
+
+    it('正社員がいる場合、準社員は土曜日に割り当てられない', () => {
+        const staff = [
+            makeStaff({ id: 'ft1', name: '正社員A', role: '正社員' }),
+            makeStaff({ id: 'ft2', name: '正社員B', role: '正社員' }),
+            makeStaff({ id: 's1', name: '準社員A', role: '準社員' })
+        ];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles);
+
+        // 土曜日のシフトを取得
+        const saturdayShifts = shifts.filter(s => {
+            const date = new Date(s.date);
+            return date.getDay() === 6;
+        });
+
+        // 準社員Aが土曜日にいないことを確認
+        const s1SatShifts = saturdayShifts.filter(s => s.staffId === 's1');
+        expect(s1SatShifts.length).toBe(0);
+    });
 });

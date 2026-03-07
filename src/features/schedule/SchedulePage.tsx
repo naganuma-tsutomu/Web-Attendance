@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, addMonths, subMonths } from 'date-fns';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views } from 'react-big-calendar';
+import type { View } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -60,8 +61,10 @@ const SchedulePage = () => {
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
     const [selectedDateForTimeline, setSelectedDateForTimeline] = useState<Date | null>(null);
 
-    const [currentMonth, setCurrentMonth] = useState(addMonths(new Date(), 1));
-    const targetYearMonth = format(currentMonth, 'yyyy-MM');
+    const [currentDate, setCurrentDate] = useState(addMonths(new Date(), 1));
+    const [view, setView] = useState<View>(Views.MONTH);
+
+    const targetYearMonth = format(currentDate, 'yyyy-MM');
 
     // Load shifts from DB
     const loadShifts = async () => {
@@ -110,8 +113,73 @@ const SchedulePage = () => {
         setErrorCount(errCount);
     };
 
+    // 月間表示用のサマリーイベントを生成
+    const summaryEvents = view === Views.MONTH ? (() => {
+        const dailySummary: Record<string, { early: number; late: number; help: number; error: number }> = {};
+
+        events.forEach(event => {
+            const dateStr = format(event.start, 'yyyy-MM-dd');
+            if (!dailySummary[dateStr]) {
+                dailySummary[dateStr] = { early: 0, late: 0, help: 0, error: 0 };
+            }
+
+            if (event.isError) dailySummary[dateStr].error++;
+            else if (event.title.includes('(ヘルプ)')) dailySummary[dateStr].help++;
+            else if (event.isEarly) dailySummary[dateStr].early++;
+            else dailySummary[dateStr].late++;
+        });
+
+        const summaries: any[] = [];
+        Object.entries(dailySummary).forEach(([dateStr, counts]) => {
+            const baseDate = new Date(`${dateStr}T00:00:00`);
+
+            if (counts.early > 0) {
+                summaries.push({
+                    id: `summary-early-${dateStr}`,
+                    title: `早番: ${counts.early}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'early'
+                });
+            }
+            if (counts.late > 0) {
+                summaries.push({
+                    id: `summary-late-${dateStr}`,
+                    title: `遅番: ${counts.late}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'late'
+                });
+            }
+            if (counts.help > 0) {
+                summaries.push({
+                    id: `summary-help-${dateStr}`,
+                    title: `ヘルプ: ${counts.help}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'help'
+                });
+            }
+            if (counts.error > 0) {
+                summaries.push({
+                    id: `summary-error-${dateStr}`,
+                    title: `エラー: ${counts.error}件`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    isError: true,
+                    type: 'error'
+                });
+            }
+        });
+        return summaries;
+    })() : events;
+
     const handleGenerate = async () => {
-        if (!window.confirm(`${format(currentMonth, 'yyyy年M月')}のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`)) return;
+        if (!window.confirm(`${format(currentDate, 'yyyy年M月')}のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`)) return;
 
         setGenerating(true);
         try {
@@ -164,7 +232,7 @@ const SchedulePage = () => {
                 });
             } else {
                 // 新規追加（日付選択フィールドを使用）
-                const dateStr = editFormData.date || format(currentMonth, 'yyyy-MM-01');
+                const dateStr = editFormData.date || format(currentDate, 'yyyy-MM-01');
                 await saveShiftsBatch([{
                     date: dateStr,
                     staffId: editFormData.staffId || 'UNASSIGNED',
@@ -188,23 +256,24 @@ const SchedulePage = () => {
         setIsTimelineModalOpen(true);
     };
 
-    const eventStyleGetter = (event: CalendarEvent) => {
-        let style = {
-            backgroundColor: '#4f46e5',
+    const eventStyleGetter = (event: any) => {
+        let style: any = {
             borderRadius: '4px',
             opacity: 0.9,
             color: 'white',
             border: '0px',
-            display: 'block'
+            display: 'block',
+            fontSize: view === Views.MONTH ? '11px' : '12px',
+            padding: '2px 4px'
         };
 
         if (event.isError) {
             style.backgroundColor = '#ef4444';
-        } else if (event.title.includes('ヘルプ')) {
+        } else if (event.type === 'help' || event.title?.includes('ヘルプ')) {
             style.backgroundColor = '#10b981';
-        } else if (event.isEarly) {
+        } else if (event.type === 'early' || event.isEarly) {
             style.backgroundColor = '#0284c7';
-        } else {
+        } else if (event.type === 'late' || (!event.isEarly && !event.isError)) {
             style.backgroundColor = '#eab308';
             style.color = '#422006';
         }
@@ -219,19 +288,53 @@ const SchedulePage = () => {
                 <div className="flex items-center space-x-4">
                     <div className="flex bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-1 shadow-sm">
                         <button
-                            onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                            onClick={() => {
+                                if (view === Views.MONTH) setCurrentDate(subMonths(currentDate, 1));
+                                else if (view === Views.WEEK) setCurrentDate(subWeeks(currentDate, 1));
+                                else setCurrentDate(subDays(currentDate, 1));
+                            }}
                             className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
                         >
                             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                         </button>
-                        <div className="px-3 py-1.5 font-bold text-slate-800 dark:text-white">
-                            {format(currentMonth, 'yyyy年M月', { locale: ja })}
+                        <div className="px-3 py-1.5 font-bold text-slate-800 dark:text-white min-w-[120px] text-center">
+                            {view === Views.MONTH
+                                ? format(currentDate, 'yyyy年M月', { locale: ja })
+                                : view === Views.WEEK
+                                    ? `${format(startOfWeek(currentDate, { locale: ja }), 'M/d')} - ${format(addDays(startOfWeek(currentDate, { locale: ja }), 6), 'M/d')}`
+                                    : format(currentDate, 'M月d日(E)', { locale: ja })
+                            }
                         </div>
                         <button
-                            onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                            onClick={() => {
+                                if (view === Views.MONTH) setCurrentDate(addMonths(currentDate, 1));
+                                else if (view === Views.WEEK) setCurrentDate(addWeeks(currentDate, 1));
+                                else setCurrentDate(addDays(currentDate, 1));
+                            }}
                             className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
                         >
                             <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+                        </button>
+                    </div>
+
+                    <div className="hidden md:flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
+                        <button
+                            onClick={() => setView(Views.MONTH)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.MONTH ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                        >
+                            月
+                        </button>
+                        <button
+                            onClick={() => setView(Views.WEEK)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.WEEK ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                        >
+                            週
+                        </button>
+                        <button
+                            onClick={() => setView(Views.DAY)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.DAY ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                        >
+                            日
                         </button>
                     </div>
                 </div>
@@ -282,7 +385,7 @@ const SchedulePage = () => {
                             setSelectedEvent(null);
                             setEditFormData({
                                 staffId: '',
-                                date: format(currentMonth, 'yyyy-MM-01'),
+                                date: format(currentDate, 'yyyy-MM-01'),
                                 startTime: '09:00',
                                 endTime: '18:00'
                             });
@@ -315,24 +418,35 @@ const SchedulePage = () => {
                 )}
 
                 <div className="h-full dark:invert-[0.9] dark:hue-rotate-180">
-                    <BigCalendar<CalendarEvent>
+                    <BigCalendar
                         localizer={localizer}
-                        events={events}
+                        events={summaryEvents}
                         startAccessor="start"
                         endAccessor="end"
                         culture="ja"
                         eventPropGetter={eventStyleGetter}
-                        onSelectEvent={handleEventSelect}
+                        onSelectEvent={(event: any) => {
+                            if (event.isSummary) {
+                                handleOpenTimeline(event.start);
+                            } else {
+                                handleEventSelect(event);
+                            }
+                        }}
                         selectable={true}
                         onSelectSlot={(slotInfo) => {
                             if (slotInfo.action === 'click' || slotInfo.action === 'doubleClick') {
                                 handleOpenTimeline(slotInfo.start);
                             }
                         }}
-                        onDrillDown={(date) => handleOpenTimeline(date)}
-                        views={['month']}
-                        date={currentMonth}
-                        onNavigate={(newDate) => setCurrentMonth(newDate)}
+                        onDrillDown={(date) => {
+                            setCurrentDate(date);
+                            setView(Views.DAY);
+                        }}
+                        views={['month', 'week', 'day']}
+                        view={view}
+                        onView={(v) => setView(v)}
+                        date={currentDate}
+                        onNavigate={(newDate) => setCurrentDate(newDate)}
                         messages={{
                             next: "次へ",
                             previous: "前へ",
@@ -353,7 +467,12 @@ const SchedulePage = () => {
 
             {/* Shift Edit Modal */}
             {isEditModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setIsEditModalOpen(false);
+                    }}
+                >
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white">
@@ -371,8 +490,8 @@ const SchedulePage = () => {
                                         type="date"
                                         required
                                         value={editFormData.date}
-                                        min={format(currentMonth, 'yyyy-MM-01')}
-                                        max={format(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0), 'yyyy-MM-dd')}
+                                        min={format(currentDate, 'yyyy-MM-01')}
+                                        max={format(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0), 'yyyy-MM-dd')}
                                         onChange={e => setEditFormData({ ...editFormData, date: e.target.value })}
                                         className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
                                     />
@@ -440,6 +559,7 @@ const SchedulePage = () => {
                     shifts={rawShifts}
                     staffList={staffList}
                     onClose={() => setIsTimelineModalOpen(false)}
+                    onShiftUpdate={loadShifts}
                 />
             )}
         </div>

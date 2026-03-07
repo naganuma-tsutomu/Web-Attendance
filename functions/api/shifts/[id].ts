@@ -23,6 +23,14 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             setClauses.push('endTime = ?');
             bindings.push(body.endTime);
         }
+        if (body.classType !== undefined) {
+            setClauses.push('classType = ?');
+            bindings.push(body.classType);
+        }
+        if (body.isEarlyShift !== undefined) {
+            setClauses.push('isEarlyShift = ?');
+            bindings.push(body.isEarlyShift ? 1 : 0);
+        }
         if (body.isError !== undefined) {
             setClauses.push('isError = ?');
             bindings.push(body.isError ? 1 : 0);
@@ -38,6 +46,18 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         ).bind(...bindings).run();
 
         return new Response('Updated', { status: 200 });
+    } catch (e) {
+        return new Response((e as Error).message, { status: 500 });
+    }
+};
+
+export const onRequestDelete: PagesFunction<Env> = async (context) => {
+    try {
+        const id = context.params.id as string;
+        await context.env.DB.prepare(
+            'DELETE FROM shifts WHERE id = ?'
+        ).bind(id).run();
+        return new Response('Deleted', { status: 200 });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }

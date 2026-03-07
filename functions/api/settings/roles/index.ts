@@ -26,11 +26,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/roles — 役職追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string, targetHours?: number };
+        const body = await context.request.json() as { name: string, targetHours?: number | null, patternIds?: string[] };
         const id = `role_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+        // 1. 役職の追加
         await context.env.DB.prepare(
             'INSERT INTO roles (id, name, targetHours) VALUES (?, ?, ?)'
-        ).bind(id, body.name, body.targetHours || 0).run();
+        ).bind(id, body.name, body.targetHours === undefined ? null : body.targetHours).run();
+
+        // 2. パターンの紐付け (もしあれば)
+        if (body.patternIds && body.patternIds.length > 0) {
+            const statements = body.patternIds.map(patternId =>
+                context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
+                    .bind(id, patternId)
+            );
+            await context.env.DB.batch(statements);
+        }
+
         return Response.json({ id });
     } catch (e) { return new Response((e as Error).message, { status: 500 }); }
 };

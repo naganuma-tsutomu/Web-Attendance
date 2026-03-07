@@ -111,11 +111,13 @@ export const generateShiftsForMonth = (
                 assignedCount++;
             }
 
-            const subFullTimeAvail = availableStaff.filter(s => s.role === '準社員')
-                .filter(s => currentHours[s.id] < s.hoursTarget)
+            // 準社員は基本的に土曜出勤しない (assign only if full-time are missing and no other choice - skipped for simplicity as per requirement)
+            // もしどうしても入れ込む必要がある場合は、準社員の role 名を確認
+            const subFullTimeAvail = availableStaff.filter(s => s.role === '準社員' && !assignedCount) // 0人の場合のみ
+                .filter(s => s.hoursTarget === null || currentHours[s.id] < s.hoursTarget)
                 .sort((a, b) => currentHours[a.id] - currentHours[b.id]);
 
-            if (subFullTimeAvail.length > 0) {
+            if (subFullTimeAvail.length > 0 && assignedCount < 2) {
                 const s = subFullTimeAvail[0];
                 const { start, end } = getBaseHours(s);
                 generatedShifts.push({
@@ -166,16 +168,23 @@ export const generateShiftsForMonth = (
                 if (!isEarly) todayLateStaffIds.push(staff.id);
             };
 
+            // Shift candidate selection logic (Generalized for all roles with hoursTarget)
+            const getRankedCandidates = (roleFilter: (s: Staff) => boolean) => {
+                return availableStaff.filter(s => !assignedStaffIds.has(s.id) && roleFilter(s))
+                    .sort((a, b) => currentHours[a.id] - currentHours[b.id])
+                    .filter(s => s.hoursTarget === null || currentHours[s.id] < s.hoursTarget);
+            };
+
             // 1. Prev day constraint: 前日遅番だった正社員は今日早番に
             let ftAvail = availableStaff.filter(s => s.role === '正社員').sort((a, b) => currentHours[a.id] - currentHours[b.id]);
             const prevLateAvail = ftAvail.find(s => prevDayLateStaffIds.includes(s.id));
             if (prevLateAvail) {
                 const { start, end } = getHoursForShift(prevLateAvail, true); // 早番
                 addShift(prevLateAvail, start, end, true);
-                ftAvail = ftAvail.filter(s => s.id !== prevLateAvail.id);
             }
 
-            ftAvail.forEach((s, idx) => {
+            // FT
+            getRankedCandidates(s => s.role === '正社員').forEach((s, idx) => {
                 if (assignedStaffIds.size >= 6) return;
                 const isEarly = idx % 2 === 0;
                 const { start, end } = getHoursForShift(s, isEarly);
@@ -183,17 +192,14 @@ export const generateShiftsForMonth = (
             });
 
             // SFT
-            let sftAvail = availableStaff.filter(s => s.role === '準社員' && !assignedStaffIds.has(s.id))
-                .sort((a, b) => currentHours[a.id] - currentHours[b.id]);
-            sftAvail.forEach((s) => {
+            getRankedCandidates(s => s.role === '準社員').forEach((s) => {
                 if (assignedStaffIds.size >= 6) return;
                 const { start, end } = getBaseHours(s);
                 addShift(s, start, end, false);
             });
 
-            // PT
-            let ptAvail = availableStaff.filter(s => (s.role === 'パート' || !['正社員', '準社員'].includes(s.role)) && !assignedStaffIds.has(s.id));
-            ptAvail.forEach(s => {
+            // PT / Others
+            getRankedCandidates(s => !['正社員', '準社員', 'ヘルプ要員'].includes(s.role)).forEach(s => {
                 if (assignedStaffIds.size >= 6) return;
                 const { start, end } = getBaseHours(s);
                 addShift(s, start, end, true);

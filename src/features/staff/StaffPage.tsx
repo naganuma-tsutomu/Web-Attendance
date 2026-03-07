@@ -90,7 +90,7 @@ const StaffPage = () => {
     const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
         name: '',
         role: '',
-        hoursTarget: 160,
+        hoursTarget: null,
     });
 
     const fetchData = async () => {
@@ -133,17 +133,27 @@ const StaffPage = () => {
     };
 
     const handleOpenAddModal = () => {
+        const defaultRole = roles[0];
         setEditingStaff(null);
         setFormData({
             name: '',
-            role: roles[0]?.name || '',
-            hoursTarget: 160,
+            role: defaultRole?.name || '',
+            hoursTarget: defaultRole?.targetHours ?? null,
             defaultWorkingHoursStart: '',
             defaultWorkingHoursEnd: '',
             isHelpStaff: false,
             availableDays: [1, 2, 3, 4, 5, 6]
         });
         setIsModalOpen(true);
+    };
+
+    const handleRoleChange = (roleName: string) => {
+        const selectedRole = roles.find(r => r.name === roleName);
+        setFormData(prev => ({
+            ...prev,
+            role: roleName,
+            hoursTarget: selectedRole ? (selectedRole.targetHours ?? null) : prev.hoursTarget
+        }));
     };
 
     const handleOpenEditModal = (staff: Staff) => {
@@ -281,10 +291,7 @@ const StaffPage = () => {
                                     名前
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    役職
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                    月間目標時間
+                                    月間労働時間
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">
                                     固定休日
@@ -334,7 +341,7 @@ const StaffPage = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 font-medium">
-                                                    {staff.hoursTarget} h
+                                                    {staff.hoursTarget !== null ? `${staff.hoursTarget} h` : '設定なし'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
@@ -351,180 +358,209 @@ const StaffPage = () => {
                 </div>
             </div>
 
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
-                    <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
-                        <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
-                            <h3 className="text-xl font-bold text-slate-800 dark:text-white">
-                                {editingStaff ? '情報を更新' : 'スタッフ登録'}
-                            </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
-                                <Plus className="w-5 h-5 transform rotate-45" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-1.5 pl-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">氏名</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white"
-                                        placeholder="山田 太郎"
-                                    />
-                                </div>
-                                <div className="space-y-1.5 pl-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">役職マスタから選ぶ</label>
-                                    <select
-                                        value={formData.role}
-                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                        className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white appearance-none"
-                                    >
-                                        {roles.length === 0 && <option value="">役職を登録してください</option>}
-                                        {roles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-1.5 pl-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">目標労働時間 (h/月)</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        value={formData.hoursTarget}
-                                        onChange={e => setFormData({ ...formData, hoursTarget: parseInt(e.target.value) })}
-                                        className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white"
-                                    />
-                                </div>
+            {
+                isModalOpen && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) setIsModalOpen(false);
+                        }}
+                    >
+                        <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
+                            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                                    {editingStaff ? '情報を更新' : 'スタッフ登録'}
+                                </h3>
+                                <button onClick={() => setIsModalOpen(false)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                                    <Plus className="w-5 h-5 transform rotate-45" />
+                                </button>
                             </div>
-
-                            <div className="space-y-4 pt-2">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">固定休日設定</label>
-                                <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-4">
-                                    {['月', '火', '水', '木', '金', '土'].map((label, idx) => {
-                                        const dayNum = idx + 1;
-                                        const config = formData.availableDays?.find(d =>
-                                            (typeof d === 'number' ? d : d.day) === dayNum
-                                        );
-                                        const isPartialWorking = typeof config === 'object';
-                                        const isHolidayEveryWeek = !config;
-                                        const isHoliday = isHolidayEveryWeek || isPartialWorking;
-
-                                        return (
-                                            <div key={dayNum} className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 w-8">{label}曜</span>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="sr-only peer"
-                                                                checked={isHoliday}
-                                                                onChange={(e) => {
-                                                                    const checked = e.target.checked;
-                                                                    let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
-                                                                    if (checked) {
-                                                                        newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
-                                                                    } else {
-                                                                        newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
-                                                                        newAvailableDays.push(dayNum);
-                                                                    }
-                                                                    setFormData({ ...formData, availableDays: newAvailableDays });
-                                                                }}
-                                                            />
-                                                            <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 dark:peer-checked:bg-red-600"></div>
-                                                            <span className="ms-3 text-xs font-bold text-slate-500 dark:text-slate-400">{isHoliday ? '休み' : '出勤'}</span>
-                                                        </label>
-                                                    </div>
-
-                                                    {isHoliday && (
-                                                        <div className="flex space-x-1">
-                                                            {[1, 2, 3, 4, 5].map(week => {
-                                                                let isWeekHoliday = false;
-                                                                if (isHolidayEveryWeek) {
-                                                                    isWeekHoliday = true;
-                                                                } else if (isPartialWorking) {
-                                                                    isWeekHoliday = !(config as any).weeks.includes(week);
-                                                                }
-
-                                                                return (
-                                                                    <button
-                                                                        key={week}
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
-                                                                            const currentConfig = newAvailableDays.find(d => (typeof d === 'number' ? d : d.day) === dayNum);
-                                                                            let availableWeeks = [1, 2, 3, 4, 5];
-                                                                            if (typeof currentConfig === 'object') {
-                                                                                availableWeeks = [...(currentConfig.weeks || [])];
-                                                                            } else if (!currentConfig) {
-                                                                                availableWeeks = [];
-                                                                            }
-                                                                            if (isWeekHoliday) {
-                                                                                availableWeeks.push(week);
-                                                                            } else {
-                                                                                availableWeeks = availableWeeks.filter(w => w !== week);
-                                                                            }
-                                                                            availableWeeks.sort();
-                                                                            newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
-                                                                            if (availableWeeks.length === 5) {
-                                                                                newAvailableDays.push(dayNum);
-                                                                            } else if (availableWeeks.length > 0) {
-                                                                                newAvailableDays.push({ day: dayNum, weeks: availableWeeks });
-                                                                            }
-                                                                            setFormData({ ...formData, availableDays: newAvailableDays });
-                                                                        }}
-                                                                        className={`w-7 h-7 rounded-lg text-[10px] font-bold border transition-all ${isWeekHoliday
-                                                                            ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 shadow-sm'
-                                                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                                                                            }`}
-                                                                        title={`第${week}週`}
-                                                                    >
-                                                                        {week}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </div>
+                            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                                <div className="space-y-4">
+                                    <div className="space-y-1.5 pl-1">
+                                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">氏名</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.name}
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white"
+                                            placeholder="山田 太郎"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5 pl-1">
+                                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">役職マスタから選ぶ</label>
+                                        <select
+                                            value={formData.role}
+                                            onChange={e => handleRoleChange(e.target.value)}
+                                            className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white appearance-none"
+                                        >
+                                            {roles.length === 0 && <option value="">役職を登録してください</option>}
+                                            {roles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-3 pl-1">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">月間労働時間 (h/月)</label>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{formData.hoursTarget === null ? '設定なし' : '設定する'}</span>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only peer"
+                                                        checked={formData.hoursTarget !== null}
+                                                        onChange={(e) => {
+                                                            const checked = e.target.checked;
+                                                            setFormData({ ...formData, hoursTarget: checked ? 160 : null });
+                                                        }}
+                                                    />
+                                                    <div className="w-8 h-4 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                </label>
                                             </div>
-                                        );
-                                    })}
-                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 italic">※ 数字ボタンが赤色の週が休みになります。クリックして切り替えられます。</p>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            required
+                                            value={formData.hoursTarget === null ? '' : formData.hoursTarget}
+                                            disabled={formData.hoursTarget === null}
+                                            onChange={e => setFormData({ ...formData, hoursTarget: parseInt(e.target.value) || 0 })}
+                                            placeholder="設定されていません"
+                                            className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-indigo-500 font-medium transition-all
+                                                ${formData.hoursTarget === null
+                                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                                    : 'bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-white'}`}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="flex items-center space-x-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700">
-                                <input
-                                    type="checkbox"
-                                    id="isHelpStaff"
-                                    checked={formData.isHelpStaff || false}
-                                    onChange={e => setFormData({ ...formData, isHelpStaff: e.target.checked })}
-                                    className="rounded-lg border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 h-5 w-5 bg-white dark:bg-slate-800"
-                                />
-                                <label htmlFor="isHelpStaff" className="text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer">ヘルプ要員（不足時の補完に使用）</label>
-                            </div>
+                                <div className="space-y-4 pt-2">
+                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">固定休日設定</label>
+                                    <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-4">
+                                        {['月', '火', '水', '木', '金', '土'].map((label, idx) => {
+                                            const dayNum = idx + 1;
+                                            const config = formData.availableDays?.find(d =>
+                                                (typeof d === 'number' ? d : d.day) === dayNum
+                                            );
+                                            const isPartialWorking = typeof config === 'object';
+                                            const isHolidayEveryWeek = !config;
+                                            const isHoliday = isHolidayEveryWeek || isPartialWorking;
 
-                            <div className="flex space-x-4 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-6 py-4 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest text-xs"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-bold uppercase tracking-widest text-xs"
-                                >
-                                    Confirm & Save
-                                </button>
-                            </div>
-                        </form>
+                                            return (
+                                                <div key={dayNum} className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-300 w-8">{label}曜</span>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="sr-only peer"
+                                                                    checked={isHoliday}
+                                                                    onChange={(e) => {
+                                                                        const checked = e.target.checked;
+                                                                        let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
+                                                                        if (checked) {
+                                                                            newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                        } else {
+                                                                            newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                            newAvailableDays.push(dayNum);
+                                                                        }
+                                                                        setFormData({ ...formData, availableDays: newAvailableDays });
+                                                                    }}
+                                                                />
+                                                                <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 dark:peer-checked:bg-red-600"></div>
+                                                                <span className="ms-3 text-xs font-bold text-slate-500 dark:text-slate-400">{isHoliday ? '休み' : '出勤'}</span>
+                                                            </label>
+                                                        </div>
+
+                                                        {isHoliday && (
+                                                            <div className="flex space-x-1">
+                                                                {[1, 2, 3, 4, 5].map(week => {
+                                                                    let isWeekHoliday = false;
+                                                                    if (isHolidayEveryWeek) {
+                                                                        isWeekHoliday = true;
+                                                                    } else if (isPartialWorking) {
+                                                                        isWeekHoliday = !(config as any).weeks.includes(week);
+                                                                    }
+
+                                                                    return (
+                                                                        <button
+                                                                            key={week}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
+                                                                                const currentConfig = newAvailableDays.find(d => (typeof d === 'number' ? d : d.day) === dayNum);
+                                                                                let availableWeeks = [1, 2, 3, 4, 5];
+                                                                                if (typeof currentConfig === 'object') {
+                                                                                    availableWeeks = [...(currentConfig.weeks || [])];
+                                                                                } else if (!currentConfig) {
+                                                                                    availableWeeks = [];
+                                                                                }
+                                                                                if (isWeekHoliday) {
+                                                                                    availableWeeks.push(week);
+                                                                                } else {
+                                                                                    availableWeeks = availableWeeks.filter(w => w !== week);
+                                                                                }
+                                                                                availableWeeks.sort();
+                                                                                newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                                if (availableWeeks.length === 5) {
+                                                                                    newAvailableDays.push(dayNum);
+                                                                                } else if (availableWeeks.length > 0) {
+                                                                                    newAvailableDays.push({ day: dayNum, weeks: availableWeeks });
+                                                                                }
+                                                                                setFormData({ ...formData, availableDays: newAvailableDays });
+                                                                            }}
+                                                                            className={`w-7 h-7 rounded-lg text-[10px] font-bold border transition-all ${isWeekHoliday
+                                                                                ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 shadow-sm'
+                                                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                                                                }`}
+                                                                            title={`第${week}週`}
+                                                                        >
+                                                                            {week}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 italic">※ 数字ボタンが赤色の週が休みになります。クリックして切り替えられます。</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        id="isHelpStaff"
+                                        checked={formData.isHelpStaff || false}
+                                        onChange={e => setFormData({ ...formData, isHelpStaff: e.target.checked })}
+                                        className="rounded-lg border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 h-5 w-5 bg-white dark:bg-slate-800"
+                                    />
+                                    <label htmlFor="isHelpStaff" className="text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer">ヘルプ要員（不足時の補完に使用）</label>
+                                </div>
+
+                                <div className="flex space-x-4 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="flex-1 px-6 py-4 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-bold uppercase tracking-widest text-xs"
+                                    >
+                                        Confirm & Save
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

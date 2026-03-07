@@ -148,7 +148,7 @@ const PreferencesPage = () => {
 
             // ローカルキャッシュも更新
             setAllPrefsForMonth(prev => ({ ...prev, [selectedStaffId]: unavailableDates }));
-            setMessage({ text: '希望休を保存しました！', type: 'success' });
+            setMessage({ text: '休日設定を保存しました！', type: 'success' });
         } catch (err) {
             console.error(err);
             setMessage({ text: '保存に失敗しました。', type: 'error' });
@@ -171,7 +171,7 @@ const PreferencesPage = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white">休日管理</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフごとの希望休・出勤不可日を入力・管理します</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフごとの休日・出勤不可日を入力・管理します</p>
                 </div>
                 {/* 月ナビゲーション */}
                 <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-sm">
@@ -282,7 +282,7 @@ const PreferencesPage = () => {
                                         )}
                                     </div>
                                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                                        {format(targetDate, 'yyyy年M月', { locale: ja })} の希望休
+                                        {format(targetDate, 'yyyy年M月', { locale: ja })} の休日設定
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">

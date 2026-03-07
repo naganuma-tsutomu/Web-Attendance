@@ -35,7 +35,7 @@ describe('generateShiftsForMonth', () => {
         });
     });
 
-    it('希望休の日はそのスタッフのシフトが生成されない', () => {
+    it('指定した休日の日はそのスタッフのシフトが生成されない', () => {
         const staff = [
             makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' }),
             makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),

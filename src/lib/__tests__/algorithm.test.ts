@@ -11,9 +11,9 @@ const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role:
 const emptyPrefs: ShiftPreference[] = [];
 const emptyRoles: DynamicRole[] = [];
 const dummyClasses = [
-    { id: 'class_niji', name: '虹組', display_order: 0 },
-    { id: 'class_smile', name: 'スマイル組', display_order: 1 },
-    { id: 'class_special', name: '特殊', display_order: 2 },
+    { id: 'class_niji', name: '虹組', display_order: 0, auto_allocate: 1 },
+    { id: 'class_smile', name: 'スマイル組', display_order: 1, auto_allocate: 1 },
+    { id: 'class_special', name: '特殊', display_order: 2, auto_allocate: 0 },
 ];
 
 describe('generateShiftsForMonth', () => {

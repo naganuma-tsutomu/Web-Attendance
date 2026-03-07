@@ -166,7 +166,7 @@ const PreferencesPage = () => {
     }).length;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>

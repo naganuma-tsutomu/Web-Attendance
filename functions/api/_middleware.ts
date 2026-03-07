@@ -13,7 +13,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     const cookieHeader = context.request.headers.get('Cookie');
-    const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD || "admin";
+    const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
+
+    if (!ADMIN_PASSWORD) {
+        console.error('ADMIN_PASSWORD environment variable is not set');
+        return new Response('Internal Server Error: Missing Configuration', { status: 500 });
+    }
 
     let isAuthenticated = false;
     if (cookieHeader && cookieHeader.includes('auth_token=')) {

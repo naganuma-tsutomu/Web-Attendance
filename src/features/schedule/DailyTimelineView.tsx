@@ -2,13 +2,14 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
-import type { Shift, Staff, ClassType, ShiftClass } from '../../types';
+import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern } from '../../types';
 
 interface DailyTimelineViewProps {
     date: Date;
     shifts: Shift[];
     staffList: Staff[];
     classes: ShiftClass[];
+    timePatterns: ShiftTimePattern[];
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
     // 外部から保存アクションを実行するためのリファレンス用
@@ -57,6 +58,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     shifts,
     staffList,
     classes,
+    timePatterns,
     onShiftUpdate,
     onModifiedChange,
     saveRef,
@@ -83,6 +85,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const dragRef = useRef<DragState | null>(null);
     const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    // シフト時間に合わせてラベル（パターン名）を決定するヘルパー
+    const getShiftLabel = useCallback((startMins: number, endMins: number) => {
+        const startTime = toTimeStr(startMins);
+        const endTime = toTimeStr(endMins);
+        const pattern = timePatterns.find(p => p.startTime === startTime && p.endTime === endTime);
+        return pattern ? pattern.name : 'カスタム';
+    }, [timePatterns]);
 
     // dateが変わったら再初期化
     useEffect(() => {
@@ -256,7 +266,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (drag.type === 'move') {
             const dy = e.clientY - drag.startY;
             setDragDeltaY(dy);
-            const classNames = classes.map(c => c.name);
+            const classNames = classes.map(c => c.id);
             const groups: (string | 'unassigned')[] = [...classNames, 'unassigned'];
             for (const cls of groups) {
                 const el = groupRefs.current[cls];
@@ -276,14 +286,25 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             let newStart = orig.start;
             let newEnd = orig.end;
             const MIN_DURATION = 15;
-            if (drag.type === 'move') {
-                newStart = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - (orig.end - orig.start), orig.start + deltaMins));
-                newEnd = newStart + (orig.end - orig.start);
-            } else if (drag.type === 'resize-left') {
-                newStart = Math.max(START_HOUR * 60, Math.min(orig.end - MIN_DURATION, orig.start + deltaMins));
-            } else if (drag.type === 'resize-right') {
-                newEnd = Math.min(END_HOUR * 60, Math.max(orig.start + MIN_DURATION, orig.end + deltaMins));
+
+            // クラス間移動（垂直ドラッグ）が発生している場合、時間は固定する
+            const isChangingClass = drag.type === 'move' && newClassType !== (drag.origIsError ? 'unassigned' : drag.origClassType);
+
+            if (!isChangingClass) {
+                if (drag.type === 'move') {
+                    newStart = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - (orig.end - orig.start), orig.start + deltaMins));
+                    newEnd = newStart + (orig.end - orig.start);
+                } else if (drag.type === 'resize-left') {
+                    newStart = Math.max(START_HOUR * 60, Math.min(orig.end - MIN_DURATION, orig.start + deltaMins));
+                } else if (drag.type === 'resize-right') {
+                    newEnd = Math.min(END_HOUR * 60, Math.max(orig.start + MIN_DURATION, orig.end + deltaMins));
+                }
+            } else {
+                // クラスが変更されている間は、開始時の時間を維持する
+                newStart = orig.start;
+                newEnd = orig.end;
             }
+
             return { ...prev, [drag.shiftId]: { ...prev[drag.shiftId], start: newStart, end: newEnd } };
         });
     }, [hoveredGroup, classes]);
@@ -436,56 +457,67 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
                 {/* Content Rows */}
                 <div className="pb-2">
-                    {[...classes.map(c => c.name), 'unassigned'].map(groupClass => {
+                    {[...classes, { id: 'unassigned', name: '未割り当て' } as ShiftClass].map(cls => {
                         const groupShifts = dayShifts.filter(shift => {
                             const local = localShifts[shift.id];
-                            const currentClass = local ? local.classType : shift.classType;
+                            const currentClassId = local ? local.classType : shift.classType;
                             const isError = local ? local.isError : shift.isError;
-                            if (groupClass === 'unassigned') {
-                                return !classes.some(c => c.name === currentClass) || isError;
+
+                            if (cls.id === 'unassigned') {
+                                return (isError || !classes.some(c => c.id === currentClassId));
                             }
-                            return currentClass === groupClass && !isError;
+                            return currentClassId === cls.id && !isError;
                         });
 
-                        if (groupShifts.length === 0 && groupClass === 'unassigned') return null;
+                        if (groupShifts.length === 0 && cls.id === 'unassigned') return null;
 
-                        const groupTitle = groupClass === '特殊' ? 'ヘルプ' : groupClass === 'unassigned' ? '未割り当て' : groupClass;
+                        const groupTitle = cls.name === '特殊' ? 'ヘルプ' : cls.name;
 
-                        // 動的に色を割り当てる（将来的に ShiftClass に色を持たせると良さそう）
-                        const colorMap: Record<string, string> = {
-                            'スマイル組': 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800',
-                            '虹組': 'text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-100 dark:border-yellow-800',
-                            '特殊': 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800',
-                            'unassigned': 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800'
+                        // 常にクラス ID に基づいて色を決定するように変更（またはクラス名）
+                        const getDynamicColor = (classId: string, className: string) => {
+                            const colorMap: Record<string, string> = {
+                                'class_smile': 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800',
+                                'class_niji': 'text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-100 dark:border-yellow-800',
+                                'class_special': 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800',
+                                'unassigned': 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800'
+                            };
+                            // 名前でのマッチングもフォールバックとして残しておく
+                            if (colorMap[classId]) return colorMap[classId];
+                            if (className === 'スマイル組') return colorMap['class_smile'];
+                            if (className === '虹組') return colorMap['class_niji'];
+                            if (className === '特殊' || className === 'ヘルプ') return colorMap['class_special'];
+                            if (classId === 'unassigned') return colorMap['unassigned'];
+
+                            return 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800';
                         };
 
-                        const titleColor = colorMap[groupClass as string] || 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800';
+                        const titleColor = getDynamicColor(cls.id, cls.name);
 
                         return (
                             <div
-                                key={groupClass}
-                                ref={el => { groupRefs.current[groupClass] = el; }}
+                                key={cls.id}
+                                ref={el => { groupRefs.current[cls.id] = el; }}
                                 className={`mb-4 last:mb-0 border-x border-b border-slate-200 dark:border-slate-700 shadow-sm rounded-b-lg`}
                             >
-                                <div className={`px-4 py-2 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === groupClass ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
+                                <div className={`px-4 py-2 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
                                     <div className="flex items-center">
                                         {groupTitle}
-                                        {hoveredGroup === groupClass && activeDragId && (
+                                        {hoveredGroup === cls.id && activeDragId && (
                                             <span className="ml-2 text-[10px] text-indigo-500 animate-pulse">ここへ移動</span>
                                         )}
                                     </div>
 
-                                    {groupClass !== 'unassigned' && (
+                                    {cls.id !== 'unassigned' && (
                                         <div className="relative">
                                             <button
-                                                onClick={() => setShowAddMenu(prev => prev === groupClass ? null : (groupClass as ClassType))}
+                                                onClick={() => setShowAddMenu(prev => prev === cls.id ? null : (cls.id as ClassType))}
                                                 className="flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 rounded border border-current transition-colors"
                                             >
                                                 <Plus className="w-3 h-3" />
                                                 追加
                                             </button>
 
-                                            {showAddMenu === groupClass && (
+                                            {showAddMenu === cls.id && (
                                                 <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto">
                                                     {staffList
                                                         .filter(st => !dayShifts.some(s => s.staffId === st.id))
@@ -497,7 +529,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                             .map(st => (
                                                                 <button
                                                                     key={st.id}
-                                                                    onClick={() => handleAddStaff(st.id, groupClass as ClassType)}
+                                                                    onClick={() => handleAddStaff(st.id, cls.id as ClassType)}
                                                                     className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
                                                                 >
                                                                     {st.name}
@@ -556,7 +588,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         onPointerCancel={handlePointerUp}
                                                     >
                                                         <div className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-l transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-left', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
-                                                        <div className="flex-1 px-3 text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter"><GripVertical className="inline w-3 h-3 mr-1 opacity-40" />{staffName}</div>
+                                                        <div className="flex-1 px-3 text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
+                                                            <GripVertical className="inline w-3 h-3 mr-1 opacity-40" />
+                                                            {getShiftLabel(s.start, s.end)}
+                                                        </div>
                                                         <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
                                                     </div>
                                                 </div>

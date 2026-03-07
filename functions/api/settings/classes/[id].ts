@@ -4,7 +4,7 @@ export interface Env { DB: D1Database; }
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string, display_order?: number };
+        const body = await context.request.json() as { name?: string, display_order?: number, auto_allocate?: number };
 
         let query = 'UPDATE classes SET ';
         const sets: string[] = [];
@@ -17,6 +17,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (body.display_order !== undefined) {
             sets.push('display_order = ?');
             params.push(body.display_order);
+        }
+        if (body.auto_allocate !== undefined) {
+            sets.push('auto_allocate = ?');
+            params.push(body.auto_allocate);
         }
 
         if (sets.length === 0) return new Response('No data to update', { status: 400 });

@@ -191,31 +191,37 @@ export const updateRolePatterns = async (roleId: string, patternIds: string[]): 
 // ==========================================
 
 export const getClasses = async (): Promise<ShiftClass[]> => {
-    const res = await fetch(`${API_BASE}/settings/classes`, { credentials: 'include' });
+    const res = await fetch('/api/settings/classes');
     if (!res.ok) throw new Error('Failed to fetch classes');
     return res.json();
 };
 
-export const createClass = async (name: string): Promise<string> => {
-    const res = await fetch(`${API_BASE}/settings/classes`, {
+export const createClass = async (name: string, autoAllocate: number = 1): Promise<{ id: string }> => {
+    const res = await fetch('/api/settings/classes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-        credentials: 'include'
+        body: JSON.stringify({ name, auto_allocate: autoAllocate })
     });
     if (!res.ok) throw new Error('Failed to create class');
-    const { id } = await res.json();
-    return id;
+    return res.json();
 };
 
-export const updateClass = async (id: string, data: { name?: string, display_order?: number }): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/classes/${encodeURIComponent(id)}`, {
+export const updateClass = async (id: string, data: { name?: string, display_order?: number, auto_allocate?: number }): Promise<void> => {
+    const res = await fetch(`/api/settings/classes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-        credentials: 'include'
+        body: JSON.stringify(data)
     });
     if (!res.ok) throw new Error('Failed to update class');
+};
+
+export const updateClassOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/classes/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders })
+    });
+    if (!res.ok) throw new Error('Failed to update class order');
 };
 
 export const deleteClass = async (id: string): Promise<void> => {

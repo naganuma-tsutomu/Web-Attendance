@@ -5,6 +5,7 @@ export interface ShiftClass {
     id: string;
     name: string;
     display_order: number;
+    auto_allocate: number; // 1: ON, 0: OFF
 }
 
 export interface AvailableDayConfig {
@@ -18,6 +19,7 @@ export interface Staff {
     role: string; // 役職名 (動的)
     hoursTarget: number | null;
     isHelpStaff?: boolean;
+    classIds?: string[];
     availableDays?: (number | AvailableDayConfig)[];
     defaultWorkingHoursStart?: string;
     defaultWorkingHoursEnd?: string;

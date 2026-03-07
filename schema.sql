@@ -2,7 +2,8 @@
 CREATE TABLE IF NOT EXISTS classes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    display_order INTEGER DEFAULT 0
+    display_order INTEGER DEFAULT 0,
+    auto_allocate INTEGER DEFAULT 1 -- 1: ON, 0: OFF
 );
 
 -- Initial Class Data
@@ -16,11 +17,29 @@ CREATE TABLE IF NOT EXISTS staffs (
     name TEXT NOT NULL,
     role TEXT NOT NULL,
     hoursTarget INTEGER,
-    availableDays TEXT, -- JSON array string
+    availableDays TEXT, -- JSON array string (Lgegacy, will be replaced by staff_available_days)
     isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
     display_order INTEGER DEFAULT 0
+);
+
+-- Staff Classes (Many-to-Many)
+CREATE TABLE IF NOT EXISTS staff_classes (
+    staffId TEXT NOT NULL,
+    classId TEXT NOT NULL,
+    PRIMARY KEY (staffId, classId),
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE,
+    FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+-- staff_available_days Table (Normalized)
+CREATE TABLE IF NOT EXISTS staff_available_days (
+    id TEXT PRIMARY KEY,
+    staffId TEXT NOT NULL,
+    dayOfWeek INTEGER NOT NULL, -- 0:日, 1:月, ..., 6:土
+    weeks TEXT, -- JSON array string e.g. "[1,3,5]" (NULL means all weeks)
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
 -- Shift Preferences Table
@@ -28,8 +47,17 @@ CREATE TABLE IF NOT EXISTS shift_preferences (
     id TEXT PRIMARY KEY,
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL, -- e.g. "2024-04"
-    unavailableDates TEXT NOT NULL, -- JSON array string of dates "YYYY-MM-DD"
+    unavailableDates TEXT NOT NULL, -- JSON array string (Legacy, will be replaced by shift_preference_dates)
     FOREIGN KEY(staffId) REFERENCES staffs(id)
+);
+
+-- shift_preference_dates Table (Normalized)
+CREATE TABLE IF NOT EXISTS shift_preference_dates (
+    id TEXT PRIMARY KEY,
+    staffId TEXT NOT NULL,
+    yearMonth TEXT NOT NULL,
+    date TEXT NOT NULL, -- "YYYY-MM-DD"
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
 -- Shifts Table

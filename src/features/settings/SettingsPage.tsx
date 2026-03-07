@@ -1,11 +1,76 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Clock, Loader2, CheckCircle, Settings2, Moon, Sun, Users } from 'lucide-react';
+import { Plus, Trash2, Clock, Loader2, CheckCircle, Settings2, Moon, Sun, Users, GripVertical } from 'lucide-react';
 import {
     getTimePatterns, createTimePattern, deleteTimePattern,
     getRoles, createRole, deleteRole, updateRolePatterns, updateRole,
-    getClasses, createClass, deleteClass
+    getClasses, createClass, deleteClass, updateClassOrder, updateClass
 } from '../../lib/api';
 import type { ShiftTimePattern, DynamicRole, ShiftClass } from '../../types';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+
+const SortableClassRow = ({ cls, onDelete, children }: {
+    cls: ShiftClass,
+    onDelete: (id: string) => void,
+    children: React.ReactNode
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: cls.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 'auto',
+        position: 'relative' as const,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all ${isDragging ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
+        >
+            <div className="flex items-center space-x-4">
+                <button
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 p-1 rounded-lg hover:bg-white transition-all"
+                >
+                    <GripVertical className="w-5 h-5" />
+                </button>
+                {children}
+            </div>
+            <div className="flex items-center space-x-2">
+                <button onClick={() => onDelete(cls.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                    <Trash2 className="w-5 h-5" />
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const SettingsPage = () => {
     // State for Time Patterns
@@ -29,13 +94,23 @@ const SettingsPage = () => {
     // State for Classes
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [loadingClasses, setLoadingClasses] = useState(true);
-    const [newClassName, setNewClassName] = useState('');
+    const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1 });
 
     const [message, setMessage] = useState('');
     const [activeTab, setActiveTab] = useState<'patterns' | 'roles' | 'classes' | 'appearance'>('patterns');
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
         return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
     });
+    const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(() => {
+        return (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
+    });
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     useEffect(() => {
         if (theme === 'dark') {
@@ -45,6 +120,10 @@ const SettingsPage = () => {
         }
         localStorage.setItem('theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        localStorage.setItem('weekStartsOn', weekStartsOn.toString());
+    }, [weekStartsOn]);
 
     const fetchData = async () => {
         setLoadingPatterns(true);
@@ -144,12 +223,21 @@ const SettingsPage = () => {
     // --- Class Handlers ---
     const handleAddClass = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newClassName.trim()) return;
+        if (!newClass.name.trim()) return;
         try {
-            await createClass(newClassName);
-            setNewClassName('');
+            await createClass(newClass.name, newClass.auto_allocate);
+            setNewClass({ name: '', auto_allocate: 1 });
             showMessage('クラスを追加しました');
             fetchData();
+        } catch (err) { console.error(err); }
+    };
+
+    const handleToggleClassAllocation = async (cls: ShiftClass) => {
+        const newValue = cls.auto_allocate === 1 ? 0 : 1;
+        try {
+            await updateClass(cls.id, { auto_allocate: newValue });
+            setClasses(prev => prev.map(c => c.id === cls.id ? { ...c, auto_allocate: newValue } : c));
+            showMessage('設定を更新しました');
         } catch (err) { console.error(err); }
     };
 
@@ -161,8 +249,31 @@ const SettingsPage = () => {
         } catch (err) { console.error(err); }
     };
 
+    const handleClassDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = classes.findIndex(c => c.id === active.id);
+        const newIndex = classes.findIndex(c => c.id === over.id);
+
+        const newClasses = arrayMove(classes, oldIndex, newIndex);
+        setClasses(newClasses);
+
+        try {
+            const orders = newClasses.map((c, index) => ({
+                id: c.id,
+                order: index
+            }));
+            await updateClassOrder(orders);
+        } catch (err) {
+            console.error('Failed to update class order', err);
+            // Rollback on error
+            fetchData();
+        }
+    };
+
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="w-full max-w-5xl mx-auto space-y-6 p-4 sm:p-6 md:p-8">
             <div>
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center space-x-2">
                     <Settings2 className="w-7 h-7 text-indigo-500" />
@@ -461,22 +572,36 @@ const SettingsPage = () => {
                                 <Users className="w-5 h-5 text-indigo-400" />
                                 <span>クラスの新規作成</span>
                             </h3>
-                            <form onSubmit={handleAddClass} className="flex gap-4 items-end">
-                                <div className="space-y-1 flex-1">
-                                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">クラス名 (必須)</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="例: ひまわり組"
-                                        value={newClassName}
-                                        onChange={e => setNewClassName(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
-                                    />
+                            <form onSubmit={handleAddClass} className="space-y-4">
+                                <div className="flex gap-4 items-end">
+                                    <div className="space-y-1 flex-1">
+                                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">クラス名 (必須)</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="例: ひまわり組"
+                                            value={newClass.name}
+                                            onChange={e => setNewClass({ ...newClass, name: e.target.value })}
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
+                                        />
+                                    </div>
+                                    <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all h-[38px] flex items-center justify-center space-x-2">
+                                        <Plus className="w-4 h-4" />
+                                        <span>追加</span>
+                                    </button>
                                 </div>
-                                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all h-[38px] flex items-center justify-center space-x-2">
-                                    <Plus className="w-4 h-4" />
-                                    <span>追加</span>
-                                </button>
+                                <div className="flex items-center space-x-2 pl-1">
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={newClass.auto_allocate === 1}
+                                            onChange={(e) => setNewClass({ ...newClass, auto_allocate: e.target.checked ? 1 : 0 })}
+                                        />
+                                        <div className="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
+                                    </label>
+                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">このクラスを自動シフト作成の対象にする</span>
+                                </div>
                             </form>
                         </div>
 
@@ -491,27 +616,50 @@ const SettingsPage = () => {
                                 ) : classes.length === 0 ? (
                                     <div className="p-8 text-center text-slate-400">クラスが登録されていません。</div>
                                 ) : (
-                                    classes.map(c => (
-                                        <div key={c.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
-                                            <div className="flex items-center space-x-4">
-                                                <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg flex items-center justify-center font-bold">
-                                                    {c.name.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-800 dark:text-slate-100">{c.name}</p>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => handleDeleteClass(c.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    ))
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        onDragEnd={handleClassDragEnd}
+                                        modifiers={[restrictToVerticalAxis]}
+                                    >
+                                        <SortableContext
+                                            items={classes.map(c => c.id)}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            {classes.map(c => (
+                                                <SortableClassRow
+                                                    key={c.id}
+                                                    cls={c}
+                                                    onDelete={handleDeleteClass}
+                                                >
+                                                    <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg flex items-center justify-center font-bold">
+                                                        {c.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-800 dark:text-slate-100">{c.name}</p>
+                                                        <div className="flex items-center space-x-2 mt-1">
+                                                            <label className="relative inline-flex items-center cursor-pointer scale-75 origin-left">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    className="sr-only peer"
+                                                                    checked={c.auto_allocate === 1}
+                                                                    onChange={() => handleToggleClassAllocation(c)}
+                                                                />
+                                                                <div className="w-8 h-4 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500"></div>
+                                                            </label>
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">自動割り当て: {c.auto_allocate === 1 ? '有効' : '無効'}</span>
+                                                        </div>
+                                                    </div>
+                                                </SortableClassRow>
+                                            ))}
+                                        </SortableContext>
+                                    </DndContext>
                                 )}
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-2xl">
+                    <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center space-x-2">
                             <Moon className="w-5 h-5 text-indigo-500" />
                             <span>外観設定</span>
@@ -537,6 +685,27 @@ const SettingsPage = () => {
                                     >
                                         <Moon className="w-4 h-4" />
                                         <span>ダーク</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-bold text-slate-800 dark:text-white">週の開始日</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">カレンダーの表示を開始する曜日を選択します。</p>
+                                </div>
+                                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                                    <button
+                                        onClick={() => setWeekStartsOn(0)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${weekStartsOn === 0 ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                                    >
+                                        日曜日
+                                    </button>
+                                    <button
+                                        onClick={() => setWeekStartsOn(1)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${weekStartsOn === 1 ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
+                                    >
+                                        月曜日
                                     </button>
                                 </div>
                             </div>

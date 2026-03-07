@@ -10,12 +10,36 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             "SELECT * FROM staffs ORDER BY display_order ASC"
         ).all();
 
-        // Parse JSON lists for availableDays
-        const staffs = results.map((row: any) => ({
-            ...row,
-            availableDays: row.availableDays ? JSON.parse(row.availableDays) : undefined,
-            isHelpStaff: row.isHelpStaff === 1,
-        }));
+        // Fetch all available days for all staffs in one go to be efficient
+        const { results: allAvailableDays } = await context.env.DB.prepare(
+            "SELECT * FROM staff_available_days"
+        ).all();
+
+        // Fetch all classes for all staffs
+        const { results: allStaffClasses } = await context.env.DB.prepare(
+            "SELECT * FROM staff_classes"
+        ).all();
+
+        const staffs = results.map((row: any) => {
+            const staffId = row.id;
+            const normalizedDays = allAvailableDays
+                .filter((d: any) => d.staffId === staffId)
+                .map((d: any) => ({
+                    day: d.dayOfWeek,
+                    weeks: d.weeks ? JSON.parse(d.weeks) : undefined
+                }));
+
+            const classIds = allStaffClasses
+                .filter((sc: any) => sc.staffId === staffId)
+                .map((sc: any) => sc.classId);
+
+            return {
+                ...row,
+                availableDays: normalizedDays.length > 0 ? normalizedDays : (row.availableDays ? JSON.parse(row.availableDays) : undefined),
+                isHelpStaff: row.isHelpStaff === 1,
+                classIds: classIds
+            };
+        });
 
         return Response.json(staffs);
     } catch (e) {
@@ -26,31 +50,56 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const staffData: Partial<Staff> = await context.request.json();
-
-        // Generate simple ID if none
         const id = staffData.id || `staff_${Date.now()}`;
 
-        // Get current max display_order
         const { maxOrder } = await context.env.DB.prepare(
             "SELECT MAX(display_order) as maxOrder FROM staffs"
         ).first() as { maxOrder: number | null };
 
         const displayOrder = (maxOrder || 0) + 1;
 
-        await context.env.DB.prepare(
-            `INSERT INTO staffs (id, name, role, hoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
-            id,
-            staffData.name || 'Unknown',
-            staffData.role || 'パート',
-            staffData.hoursTarget || null,
-            staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
-            staffData.isHelpStaff ? 1 : 0,
-            staffData.defaultWorkingHoursStart || null,
-            staffData.defaultWorkingHoursEnd || null,
-            displayOrder
-        ).run();
+        const statements = [
+            context.env.DB.prepare(
+                `INSERT INTO staffs (id, name, role, hoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+                id,
+                staffData.name || 'Unknown',
+                staffData.role || 'パート',
+                staffData.hoursTarget || null,
+                staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
+                staffData.isHelpStaff ? 1 : 0,
+                staffData.defaultWorkingHoursStart || null,
+                staffData.defaultWorkingHoursEnd || null,
+                displayOrder
+            )
+        ];
+
+        // Add statements for normalized available days
+        if (staffData.availableDays && staffData.availableDays.length > 0) {
+            staffData.availableDays.forEach((d, idx) => {
+                const day = typeof d === 'number' ? d : d.day;
+                const weeks = typeof d === 'number' ? null : (d.weeks ? JSON.stringify(d.weeks) : null);
+                statements.push(
+                    context.env.DB.prepare(
+                        "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
+                    ).bind(`${id}_available_${idx}`, id, day, weeks)
+                );
+            });
+        }
+
+        // Add statements for staff classes
+        if ((staffData as any).classIds && (staffData as any).classIds.length > 0) {
+            (staffData as any).classIds.forEach((classId: string) => {
+                statements.push(
+                    context.env.DB.prepare(
+                        "INSERT INTO staff_classes (staffId, classId) VALUES (?, ?)"
+                    ).bind(id, classId)
+                );
+            });
+        }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ id });
     } catch (e) {

@@ -575,11 +575,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                             人員が割り当てられていません
                                         </div>
                                     )}
-                                    {groupShifts.map((shift, idx) => {
+                                    {groupShifts.map((shift) => {
                                         const staff = staffList.find(s => s.id === shift.staffId);
                                         const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
                                         const s = localShifts[shift.id] ?? { start: toMins(shift.startTime), end: toMins(shift.endTime), classType: shift.classType };
-                                        const isLast = idx === groupShifts.length - 1;
                                         const isDragging = activeDragId === shift.id;
 
                                         return (

@@ -82,3 +82,14 @@ export interface ShiftRequirement {
     maxStaffCount?: number; // 最大スタッフ数（オプション）
     priority: number;       // 優先度（高いほど優先）
 }
+
+// 祝日
+export interface Holiday {
+    id: string;
+    date: string;           // YYYY-MM-DD
+    name: string;           // 祝日名
+    type: 'national' | 'observance' | 'company';
+    isWorkday: boolean;     // 振替休日等の特別対応用
+    created_at?: string;
+    updated_at?: string;
+}

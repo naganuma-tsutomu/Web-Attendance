@@ -1,4 +1,4 @@
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday } from '../types';
 
 const API_BASE = '/api';
 
@@ -212,4 +212,84 @@ export const deleteClass = async (id: string): Promise<void> => {
         method: 'DELETE',
         credentials: 'include'
     } as RequestInit);
+};
+
+// ==========================================
+// Shift Requirements API (必要人数設定)
+// ==========================================
+
+export const getShiftRequirements = async (): Promise<ShiftRequirement[]> => {
+    const res = await fetch(`${API_BASE}/settings/shift-requirements`, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch shift requirements');
+    return res.json();
+};
+
+export const saveShiftRequirements = async (requirements: ShiftRequirement[]): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/shift-requirements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requirements),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to save shift requirements');
+};
+
+export const deleteShiftRequirement = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/shift-requirements/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to delete shift requirement');
+};
+
+// ==========================================
+// Holidays API (祝日管理)
+// ==========================================
+
+export const getHolidays = async (year?: number): Promise<Holiday[]> => {
+    const url = year
+        ? `${API_BASE}/settings/holidays?year=${year}`
+        : `${API_BASE}/settings/holidays`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch holidays');
+    return res.json();
+};
+
+export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
+    const res = await fetch(`${API_BASE}/settings/holidays`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(holiday),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to create holiday');
+    const { id } = await res.json();
+    return id;
+};
+
+export const updateHoliday = async (id: string, data: Partial<Holiday>): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/holidays/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to update holiday');
+};
+
+export const deleteHoliday = async (id: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/settings/holidays/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to delete holiday');
+};
+
+export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
+    const url = year
+        ? `${API_BASE}/settings/holidays/sync?year=${year}`
+        : `${API_BASE}/settings/holidays/sync`;
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to sync holidays');
+    return res.json();
 };

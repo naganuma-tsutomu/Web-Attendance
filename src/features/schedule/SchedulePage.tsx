@@ -4,10 +4,10 @@ import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, sub
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns } from '../../lib/api';
+import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
 import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
-import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern } from '../../types';
+import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday } from '../../types';
 import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
 import WeeklyTimelineView from './WeeklyTimelineView';
@@ -61,6 +61,7 @@ const SchedulePage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [timePatterns, setTimePatterns] = useState<ShiftTimePattern[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreference[]>([]);
+    const [holidays, setHolidays] = useState<Holiday[]>([]); // 祝日データ（カレンダー表示・シフト生成に使用）
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [editFormData, setEditFormData] = useState<EditFormData>({
@@ -104,12 +105,20 @@ const SchedulePage = () => {
             }
 
             const monthList = Array.from(monthsToFetch);
-            const [shiftsResults, staffs, prefsResults, classesData, patternsData] = await Promise.all([
+            const yearList = monthList.map(m => parseInt(m.split('-')[0]));
+            const uniqueYears = [...new Set(yearList)];
+
+            // 祝日データを同期（今年と来年分）して、その後データを取得
+            await syncHolidays().catch(err => console.error('Failed to sync holidays', err));
+
+            const [shiftsResults, staffs, prefsResults, classesData, patternsData, holidaysData] = await Promise.all([
                 Promise.all(monthList.map(m => getShiftsByMonth(m))),
                 getStaffList(),
                 Promise.all(monthList.map(m => getPreferencesByMonth(m))),
                 getClasses(),
-                getTimePatterns()
+                getTimePatterns(),
+                // 対象年の祝日を取得
+                getHolidays(uniqueYears[0] || new Date().getFullYear())
             ]);
 
             // 重複を除去して結合
@@ -121,6 +130,7 @@ const SchedulePage = () => {
             setPreferences(combinedPrefs);
             setClasses(classesData);
             setTimePatterns(patternsData);
+            setHolidays(holidaysData);
             mapShiftsToEvents(combinedShifts, staffs, classesData);
         } catch (err) {
             console.error('Failed to load shifts', err);
@@ -266,16 +276,16 @@ const SchedulePage = () => {
         setIsActionExecuting(true);
         setGenerating(true);
         try {
-            const [staffs, prefs, roles, holidays, currentClasses] = await Promise.all([
+            const [staffs, prefs, roles, currentClasses, holidaysData] = await Promise.all([
                 getStaffList(),
                 getPreferencesByMonth(targetYearMonth),
                 getRoles(),
-                [], // TODO: 休祝日の取得
-                getClasses()
+                getClasses(),
+                getHolidays(currentDate.getFullYear())
             ]);
 
             await deleteShiftsByMonth(targetYearMonth);
-            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidays);
+            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidaysData.map(h => h.date));
             const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
 
             await saveShiftsBatch(generatedShifts);
@@ -378,6 +388,22 @@ const SchedulePage = () => {
         style.cursor = 'pointer';
 
         return { style };
+    };
+
+    // 祝日マップを作成（日付→祝日情報のマップ）
+    const holidayMap = new Map(holidays.map(h => [h.date, h]));
+
+    // 指定日の祝日名を取得
+    const getHolidayNameForDate = (date: Date): string => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        return holidayMap.get(dateStr)?.name || '';
+    };
+
+    // 指定日が祝日かどうか
+    const isHolidayDate = (date: Date): boolean => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const holiday = holidayMap.get(dateStr);
+        return holiday !== undefined && !holiday.isWorkday;
     };
 
     return (
@@ -618,6 +644,34 @@ const SchedulePage = () => {
                                     }}
                                     components={{
                                         toolbar: () => null,
+                                        dateCellWrapper: (props: any) => {
+                                            const date = props.value;
+                                            const holidayName = getHolidayNameForDate(date);
+                                            const isHoliday = isHolidayDate(date);
+                                            const dayOfWeek = getDay(date); // 0: 日, 1: 月, ..., 6: 土
+
+                                            // 日曜日または祝日は赤、土曜日は青、それ以外は背景色なし
+                                            let bgColorClass = '';
+                                            if (dayOfWeek === 0 || isHoliday) {
+                                                bgColorClass = 'bg-red-50 dark:bg-red-900/10';
+                                            } else if (dayOfWeek === 6) {
+                                                bgColorClass = 'bg-blue-50 dark:bg-blue-900/10';
+                                            }
+
+                                            return (
+                                                <div
+                                                    className={`rbc-day-bg ${bgColorClass}`}
+                                                    style={{ height: '100%' }}
+                                                >
+                                                    {holidayName && (
+                                                        <div className="text-xs text-red-600 dark:text-red-400 font-medium px-1 py-0.5 truncate">
+                                                            {holidayName}
+                                                        </div>
+                                                    )}
+                                                    {props.children}
+                                                </div>
+                                            );
+                                        }
                                     }}
                                     messages={{
                                         next: "次",

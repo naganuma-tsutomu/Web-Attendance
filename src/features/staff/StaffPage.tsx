@@ -418,44 +418,45 @@ const StaffPage = () => {
                             }),
                         }}>
                             {activeStaff ? (
-                                <table className="w-full text-left border-collapse min-w-[700px]">
-                                    <tbody>
-                                        <SortableRow staff={activeStaff} isOverlay>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="font-bold text-slate-900 dark:text-white">{activeStaff.name}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
-                                                    {activeStaff.role}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {activeStaff.classIds && activeStaff.classIds.length > 0 ? (
-                                                        activeStaff.classIds.map(cid => {
-                                                            const cls = classes.find(c => c.id === cid);
-                                                            return cls ? (
-                                                                <span key={cid} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                                                    {cls.name}
-                                                                </span>
-                                                            ) : null;
-                                                        })
-                                                    ) : (
-                                                        <span className="text-xs text-slate-400 italic">未設定</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 font-medium">
-                                                {activeStaff.hoursTarget !== null ? `${activeStaff.hoursTarget} h` : '設定なし'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
-                                                    {getHolidayDisplay(activeStaff.availableDays)}
-                                                </span>
-                                            </td>
-                                        </SortableRow>
-                                    </tbody>
-                                </table>
+                                <div className="bg-white dark:bg-slate-800 shadow-2xl ring-2 ring-indigo-500 rounded-xl opacity-90 w-full max-w-5xl mx-auto flex items-center px-6 py-4 space-x-4 border border-slate-200 dark:border-slate-700">
+                                    <div className="text-slate-300 p-1">
+                                        <GripVertical className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+                                        <div className="font-bold text-slate-900 dark:text-white truncate">{activeStaff.name}</div>
+                                        <div>
+                                            <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
+                                                {activeStaff.role}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1">
+                                            {activeStaff.classIds && activeStaff.classIds.length > 0 ? (
+                                                activeStaff.classIds.map(cid => {
+                                                    const cls = classes.find(c => c.id === cid);
+                                                    return cls ? (
+                                                        <span key={cid} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                                            {cls.name}
+                                                        </span>
+                                                    ) : null;
+                                                })
+                                            ) : (
+                                                <span className="text-xs text-slate-400 italic">未設定</span>
+                                            )}
+                                        </div>
+                                        <div className="text-sm text-slate-600 dark:text-slate-300 font-medium">
+                                            {activeStaff.hoursTarget !== null ? `${activeStaff.hoursTarget} h` : '設定なし'}
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+                                                {getHolidayDisplay(activeStaff.availableDays)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2 text-slate-400">
+                                        <Edit2 className="w-5 h-5" />
+                                        <Trash2 className="w-5 h-5" />
+                                    </div>
+                                </div>
                             ) : null}
                         </DragOverlay>
                     </DndContext>

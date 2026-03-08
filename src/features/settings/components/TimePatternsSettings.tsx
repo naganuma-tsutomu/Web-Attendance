@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Plus, Trash2, Clock, Loader2 } from 'lucide-react';
-import { createTimePattern, deleteTimePattern } from '../../../lib/api';
+import { Plus, Trash2, Edit2, X, Clock, Loader2 } from 'lucide-react';
+import { createTimePattern, deleteTimePattern, updateTimePattern } from '../../../lib/api';
 import type { ShiftTimePattern } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 
@@ -15,15 +15,21 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [newPattern, setNewPattern] = useState({ name: '', startTime: '09:00', endTime: '18:00' });
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formData, setFormData] = useState({ name: '', startTime: '09:00', endTime: '18:00' });
 
-    const handleAddPattern = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await createTimePattern(newPattern);
-            setNewPattern({ name: '', startTime: '09:00', endTime: '18:00' });
-            showMessage('パターンを追加しました');
+            if (editingId) {
+                await updateTimePattern(editingId, formData);
+                showMessage('パターンを更新しました');
+            } else {
+                await createTimePattern(formData);
+                showMessage('パターンを追加しました');
+            }
+            cancelEdit();
             onUpdate();
         } catch (err) {
             console.error(err);
@@ -32,12 +38,29 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
         }
     };
 
+    const handleEditClick = (pattern: ShiftTimePattern) => {
+        setEditingId(pattern.id);
+        setFormData({
+            name: pattern.name,
+            startTime: pattern.startTime,
+            endTime: pattern.endTime
+        });
+        // Scroll to form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setFormData({ name: '', startTime: '09:00', endTime: '18:00' });
+    };
+
     const handleDeletePattern = async () => {
         if (!deleteConfirmId) return;
         setIsDeleting(true);
         try {
             await deleteTimePattern(deleteConfirmId);
             setDeleteConfirmId(null);
+            showMessage('パターンを削除しました');
             onUpdate();
         } catch (err) {
             console.error(err);
@@ -50,17 +73,30 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
             {/* Pattern form */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-4 text-sm uppercase tracking-wide">新規作成</h4>
-                <form onSubmit={handleAddPattern} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+            <div className={`bg-white dark:bg-slate-800 p-6 rounded-2xl border ${editingId ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-slate-700'} shadow-sm transition-all`}>
+                <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm uppercase tracking-wide">
+                        {editingId ? 'パターンの編集' : '新規作成'}
+                    </h4>
+                    {editingId && (
+                        <button
+                            onClick={cancelEdit}
+                            className="text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center space-x-1"
+                        >
+                            <X className="w-3 h-3" />
+                            <span>キャンセル</span>
+                        </button>
+                    )}
+                </div>
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                     <div className="space-y-1 sm:col-span-2">
                         <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">パターン名 (必須)</label>
                         <input
                             type="text"
                             required
                             placeholder="例: 早番, 遅番, Aシフト..."
-                            value={newPattern.name}
-                            onChange={e => setNewPattern({ ...newPattern, name: e.target.value })}
+                            value={formData.name}
+                            onChange={e => setFormData({ ...formData, name: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
                         />
                     </div>
@@ -69,8 +105,8 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
                         <input
                             type="time"
                             required
-                            value={newPattern.startTime}
-                            onChange={e => setNewPattern({ ...newPattern, startTime: e.target.value })}
+                            value={formData.startTime}
+                            onChange={e => setFormData({ ...formData, startTime: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
                         />
                     </div>
@@ -79,17 +115,17 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
                         <input
                             type="time"
                             required
-                            value={newPattern.endTime}
-                            onChange={e => setNewPattern({ ...newPattern, endTime: e.target.value })}
+                            value={formData.endTime}
+                            onChange={e => setFormData({ ...formData, endTime: e.target.value })}
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
                         />
                     </div>
                     <button
                         disabled={isSubmitting}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all h-[38px] flex items-center justify-center space-x-2 sm:col-span-4 md:col-span-1 md:col-start-4 mt-2 md:mt-0 w-full disabled:opacity-50"
+                        className={`${editingId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all h-[38px] flex items-center justify-center space-x-2 sm:col-span-4 md:col-span-1 md:col-start-4 mt-2 md:mt-0 w-full disabled:opacity-50`}
                     >
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        <span>{isSubmitting ? '追加中...' : '追加'}</span>
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingId ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />)}
+                        <span>{isSubmitting ? (editingId ? '更新中...' : '追加中...') : (editingId ? '更新' : '追加')}</span>
                     </button>
                 </form>
             </div>
@@ -107,26 +143,38 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
                         <div className="p-8 text-center text-slate-400 text-sm">パターンが登録されていません。</div>
                     ) : (
                         patterns.map(p => (
-                            <div key={p.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group">
+                            <div key={p.id} className={`px-6 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group ${editingId === p.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
                                 <div className="flex items-center space-x-4">
                                     <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg flex items-center justify-center font-bold text-lg shadow-sm border border-indigo-100 dark:border-indigo-800">
                                         {p.name.charAt(0)}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{p.name}</p>
+                                        <div className="flex items-center space-x-2">
+                                            <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{p.name}</p>
+                                            {editingId === p.id && <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold uppercase">編集中...</span>}
+                                        </div>
                                         <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-1 mt-0.5">
                                             <Clock className="w-3 h-3" />
                                             <span>{p.startTime} 〜 {p.endTime}</span>
                                         </p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setDeleteConfirmId(p.id)}
-                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                    title="削除"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center space-x-1">
+                                    <button
+                                        onClick={() => handleEditClick(p)}
+                                        className="p-2 text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all md:opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                        title="編集"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setDeleteConfirmId(p.id)}
+                                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all md:opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                        title="削除"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         ))
                     )}

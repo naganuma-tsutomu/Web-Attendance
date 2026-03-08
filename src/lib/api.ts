@@ -142,6 +142,14 @@ export const deleteTimePattern = async (id: string): Promise<void> => {
     } as RequestInit);
 };
 
+export const updateTimePattern = async (id: string, pattern: Partial<Omit<ShiftTimePattern, 'id'>>): Promise<void> => {
+    await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(pattern),
+        credentials: 'include'
+    } as RequestInit);
+};
+
 // ==========================================
 // Roles API (動的役職管理)
 // ==========================================

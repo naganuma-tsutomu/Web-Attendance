@@ -234,27 +234,22 @@ export const deleteClass = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getShiftRequirements = async (): Promise<ShiftRequirement[]> => {
-    const res = await fetch(`${API_BASE}/settings/shift-requirements`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch shift requirements');
-    return res.json();
+    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', { credentials: 'include' } as RequestInit);
 };
 
 export const saveShiftRequirements = async (requirements: ShiftRequirement[]): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/shift-requirements`, {
+    await apiFetch('/settings/shift-requirements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requirements),
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to save shift requirements');
+    } as RequestInit);
 };
 
 export const deleteShiftRequirement = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/shift-requirements/${encodeURIComponent(id)}`, {
+    await apiFetch(`/settings/shift-requirements/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to delete shift requirement');
+    } as RequestInit);
 };
 
 // ==========================================
@@ -263,48 +258,38 @@ export const deleteShiftRequirement = async (id: string): Promise<void> => {
 
 export const getHolidays = async (year?: number): Promise<Holiday[]> => {
     const url = year
-        ? `${API_BASE}/settings/holidays?year=${year}`
-        : `${API_BASE}/settings/holidays`;
-    const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch holidays');
-    return res.json();
+        ? `/settings/holidays?year=${year}`
+        : '/settings/holidays';
+    return apiFetch<Holiday[]>(url, { credentials: 'include' } as RequestInit);
 };
 
 export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
-    const res = await fetch(`${API_BASE}/settings/holidays`, {
+    const { id } = await apiFetch<{ id: string }>('/settings/holidays', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(holiday),
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to create holiday');
-    const { id } = await res.json();
+    } as RequestInit);
     return id;
 };
 
 export const updateHoliday = async (id: string, data: Partial<Holiday>): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/holidays/${encodeURIComponent(id)}`, {
+    await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to update holiday');
+    } as RequestInit);
 };
 
 export const deleteHoliday = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/holidays/${encodeURIComponent(id)}`, {
+    await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to delete holiday');
+    } as RequestInit);
 };
 
 export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
     const url = year
-        ? `${API_BASE}/settings/holidays/sync?year=${year}`
-        : `${API_BASE}/settings/holidays/sync`;
-    const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to sync holidays');
-    return res.json();
+        ? `/settings/holidays/sync?year=${year}`
+        : '/settings/holidays/sync';
+    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, { credentials: 'include' } as RequestInit);
 };

@@ -44,17 +44,6 @@ export interface Shift {
     isError?: boolean;
 }
 
-// シフト要件（必要人数設定）
-export interface ShiftRequirement {
-    id: string;
-    classId: string;
-    dayOfWeek: number; // 0-6 for Sun-Sat, 7 for weekdays
-    startTime: string;
-    endTime: string;
-    minStaffCount: number;
-    priority: number;
-}
-
 // 勤務時間パターン (役職と無関係な時間定義)
 export interface ShiftTimePattern {
     id: string;

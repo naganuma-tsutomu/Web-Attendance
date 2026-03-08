@@ -4,7 +4,7 @@ import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, sub
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays } from '../../lib/api';
+import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
 import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
 import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday } from '../../types';
@@ -279,16 +279,17 @@ const SchedulePage = () => {
         setIsActionExecuting(true);
         setGenerating(true);
         try {
-            const [staffs, prefs, roles, currentClasses, holidaysData] = await Promise.all([
+            const [staffs, prefs, roles, currentClasses, holidaysData, requirements] = await Promise.all([
                 getStaffList(),
                 getPreferencesByMonth(targetYearMonth),
                 getRoles(),
                 getClasses(),
-                getHolidays(currentDate.getFullYear())
+                getHolidays(currentDate.getFullYear()),
+                getShiftRequirements()
             ]);
 
             await deleteShiftsByMonth(targetYearMonth);
-            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidaysData.map(h => h.date));
+            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidaysData.map(h => h.date), requirements);
             const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
 
             await saveShiftsBatch(generatedShifts);

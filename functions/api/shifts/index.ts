@@ -30,25 +30,35 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const shiftsData: any[] = await context.request.json();
+        if (!shiftsData || shiftsData.length === 0) {
+            return Response.json({ success: true, message: 'No data to insert' });
+        }
+
         const stmt = context.env.DB.prepare(
             `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         );
 
-        const batch = shiftsData.map((shift, i) => stmt.bind(
-            `shift_${Date.now()}_${i}`,
-            shift.date,
-            shift.staffId,
-            shift.startTime,
-            shift.endTime,
-            shift.classType,
-            shift.isEarlyShift ? 1 : 0,
-            shift.isError ? 1 : 0
-        ));
+        // D1 batch limit is 100 statements. Split data into chunks of 100.
+        const chunkSize = 100;
+        for (let i = 0; i < shiftsData.length; i += chunkSize) {
+            const chunk = shiftsData.slice(i, i + chunkSize);
+            const batch = chunk.map((shift, j) => stmt.bind(
+                `shift_${Date.now()}_${i + j}`,
+                shift.date,
+                shift.staffId,
+                shift.startTime,
+                shift.endTime,
+                shift.classType,
+                shift.isEarlyShift ? 1 : 0,
+                shift.isError ? 1 : 0
+            ));
+            await context.env.DB.batch(batch);
+        }
 
-        await context.env.DB.batch(batch);
-        return Response.json({ success: true, message: 'Batch inserted' });
+        return Response.json({ success: true, message: `Successfully inserted ${shiftsData.length} shifts` });
     } catch (e) {
+        console.error('Batch insert error:', e);
         return new Response((e as Error).message, { status: 500 });
     }
 };

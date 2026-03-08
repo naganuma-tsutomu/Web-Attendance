@@ -82,7 +82,8 @@ const ShiftRequirementsPage = () => {
             try {
                 const classesData = await getClasses();
                 setClasses(classesData);
-                setRequirements(mockRequirements);
+                const requirementsData = await getShiftRequirements();
+                setRequirements(requirementsData);
                 if (classesData.length > 0) {
                     setSelectedClass(classesData[0].id);
                 }

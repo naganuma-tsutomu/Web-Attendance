@@ -81,6 +81,7 @@ const ShiftRequirementsPage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [requirements, setRequirements] = useState<ShiftRequirement[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingError, setLoadingError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
@@ -90,6 +91,7 @@ const ShiftRequirementsPage = () => {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
+            setLoadingError(null);
             try {
                 // クラス一覧を取得
                 const classesData = await getClasses();
@@ -106,7 +108,7 @@ const ShiftRequirementsPage = () => {
                 }
             } catch (err) {
                 console.error('Failed to load data', err);
-                setError('データの読み込みに失敗しました');
+                setLoadingError('データの読み込みに失敗しました。');
             } finally {
                 setLoading(false);
             }
@@ -114,6 +116,28 @@ const ShiftRequirementsPage = () => {
 
         fetchData();
     }, []);
+
+    // データ再読み込み
+    const handleRetry = () => {
+        const fetchData = async () => {
+            setLoading(true);
+            setLoadingError(null);
+            try {
+                const classesData = await getClasses();
+                setClasses(classesData);
+                setRequirements(mockRequirements);
+                if (classesData.length > 0) {
+                    setSelectedClass(classesData[0].id);
+                }
+            } catch (err) {
+                console.error('Failed to load data', err);
+                setLoadingError('データの読み込みに失敗しました。');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    };
 
     // メッセージ表示（自動非表示）
     const showMessage = (msg: string) => {
@@ -225,6 +249,26 @@ const ShiftRequirementsPage = () => {
                 <div className="flex items-center space-x-3 text-indigo-600 dark:text-indigo-400">
                     <Loader2 className="w-6 h-6 animate-spin" />
                     <span className="font-medium">読み込み中...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (loadingError) {
+        return (
+            <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 md:p-8 flex items-center justify-center">
+                <div className="text-center max-w-md">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 flex flex-col items-center animate-in fade-in">
+                        <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mb-3" />
+                        <p className="text-red-800 dark:text-red-300 font-medium mb-4">{loadingError}</p>
+                        <button
+                            onClick={handleRetry}
+                            className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors flex items-center gap-2"
+                        >
+                            <Loader2 className="w-4 h-4" />
+                            再試行
+                        </button>
+                    </div>
                 </div>
             </div>
         );

@@ -71,6 +71,7 @@ const SchedulePage = () => {
     });
 
     const [isDayModified, setIsDayModified] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const daySaveRef = useRef<(() => Promise<void>) | null>(null);
 
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
@@ -92,6 +93,7 @@ const SchedulePage = () => {
     // Load shifts from DB
     const loadShifts = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const monthsToFetch = new Set<string>();
             monthsToFetch.add(format(currentDate, 'yyyy-MM'));
@@ -124,6 +126,7 @@ const SchedulePage = () => {
             mapShiftsToEvents(combinedShifts, staffs, classesData);
         } catch (err) {
             console.error('Failed to load shifts', err);
+            setLoadError('シフトデータの読み込みに失敗しました。');
         } finally {
             setLoading(false);
         }
@@ -517,6 +520,24 @@ const SchedulePage = () => {
                         <div className="text-sm border-l-2 border-red-500 pl-3">
                             <p className="text-red-900 dark:text-red-200 font-medium">シフトエラーがあります ({errorCount}件)</p>
                         </div>
+                    </div>
+                )}
+
+                {/* Error Banner with Retry */}
+                {loadError && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl p-4 flex items-start space-x-3 animate-in fade-in" role="alert">
+                        <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                            <p className="text-red-900 dark:text-red-200 font-medium">{loadError}</p>
+                        </div>
+                        <button
+                            onClick={loadShifts}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                            aria-label="再試行"
+                        >
+                            <Loader2 className="w-4 h-4" />
+                            再試行
+                        </button>
                     </div>
                 )}
             </div>

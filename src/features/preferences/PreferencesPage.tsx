@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, RefreshCw } from 'lucide-react';
+import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw } from 'lucide-react';
 import { getPreferencesByMonth, savePreference, getStaffList, syncHolidays } from '../../lib/api';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -43,6 +43,7 @@ const PreferencesPage = () => {
     const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, string[]>>({}); // staffId -> unavailableDates
     const [staffLoading, setStaffLoading] = useState(true);
     const [prefLoading, setPrefLoading] = useState(false);
+    const [prefError, setPrefError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [syncingHolidays, setSyncingHolidays] = useState(false);
@@ -70,6 +71,7 @@ const PreferencesPage = () => {
     // 月が変わったら、その月の全スタッフの希望休をまとめて取得
     const fetchAllPrefsForMonth = useCallback(async () => {
         setPrefLoading(true);
+        setPrefError(null);
         try {
             const allPrefs = await getPreferencesByMonth(yearMonth);
             const map: Record<string, string[]> = {};
@@ -79,10 +81,15 @@ const PreferencesPage = () => {
             setAllPrefsForMonth(map);
         } catch (err) {
             console.error(err);
+            setPrefError('希望休データの読み込みに失敗しました。');
         } finally {
             setPrefLoading(false);
         }
     }, [yearMonth]);
+
+    const handleRetryPrefs = () => {
+        fetchAllPrefsForMonth();
+    };
 
     useEffect(() => {
         fetchAllPrefsForMonth();
@@ -333,6 +340,25 @@ const PreferencesPage = () => {
                                     }`}>
                                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                     {message.text}
+                                </div>
+                            )}
+
+                            {/* エラー表示 */}
+                            {prefError && (
+                                <div className="mx-5 mt-4 p-3 rounded-xl flex items-center justify-between gap-2 text-sm font-medium border bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300" role="alert">
+                                    <div className="flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        {prefError}
+                                    </div>
+                                    <button
+                                        onClick={handleRetryPrefs}
+                                        disabled={prefLoading}
+                                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
+                                        aria-label="再試行"
+                                    >
+                                        {prefLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                        再試行
+                                    </button>
                                 </div>
                             )}
 

@@ -111,8 +111,11 @@ const StaffPage = () => {
         classIds: []
     });
 
+    const [retrying, setRetrying] = useState(false);
+
     const fetchData = async () => {
         setLoading(true);
+        setRetrying(true);
         try {
             const [staffData, rolesData, classesData] = await Promise.all([
                 getStaffList(),
@@ -134,7 +137,12 @@ const StaffPage = () => {
             setError('データの読み込みに失敗しました。設定で役職が登録されているか確認してください。');
         } finally {
             setLoading(false);
+            setRetrying(false);
         }
+    };
+
+    const handleRetry = () => {
+        fetchData();
     };
 
     useEffect(() => {
@@ -299,9 +307,20 @@ const StaffPage = () => {
             </div>
 
             {error && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start space-x-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-amber-800 font-medium dark:text-amber-300">{error}</span>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start justify-between gap-3 animate-in fade-in" role="alert">
+                    <div className="flex items-start space-x-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-amber-800 font-medium dark:text-amber-300">{error}</span>
+                    </div>
+                    <button
+                        onClick={handleRetry}
+                        disabled={retrying}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
+                        aria-label="再試行"
+                    >
+                        {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        再試行
+                    </button>
                 </div>
             )}
 

@@ -25,3 +25,12 @@ dist-ssr
 # Wrangler
 .wrangler
 test-algo.mjs
+
+# Test coverage
+coverage/
+
+# Work reports (saved to Obsidian instead)
+work_report.md
+uiux-test-coverage-report.md
+休祝日対応-実装報告.md
+*report.md

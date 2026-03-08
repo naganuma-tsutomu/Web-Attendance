@@ -1,6 +1,6 @@
 export interface Env { DB: D1Database; }
 
-import { handleServerError, createValidationError, validateName } from '../../../../utils/validation';
+import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
 
 // GET /api/holidays — 祝日一覧取得
 // Query: ?year=2025 (年指定、省略時は全件)

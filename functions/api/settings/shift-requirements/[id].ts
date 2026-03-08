@@ -1,4 +1,4 @@
-import type { ShiftRequirement } from '../../../src/types';
+import type { ShiftRequirement } from '../../../../src/types';
 import { 
     handleServerError, 
     createValidationError, 
@@ -7,13 +7,13 @@ import {
     validateDayOfWeek, 
     validateMinStaffCount, 
     validateMaxStaffCount 
-} from '../../utils/validation';
+} from '../../../utils/validation';
 
 export interface Env {
     DB: D1Database;
 }
 
-// PUT /api/shift-requirements/:id
+// PUT /api/settings/shift-requirements/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
@@ -121,7 +121,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
 };
 
-// DELETE /api/shift-requirements/:id
+// DELETE /api/settings/shift-requirements/:id
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;

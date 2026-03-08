@@ -136,3 +136,51 @@ CREATE TABLE IF NOT EXISTS shift_requirements (
 -- Example: Niji class needs 2 staff on weekdays 9:00-12:00
 INSERT OR IGNORE INTO shift_requirements (id, classId, dayOfWeek, startTime, endTime, minStaffCount, priority)
 VALUES ('req_001', 'class_niji', 1, '09:00', '12:00', 2, 1);
+
+-- ======================================================
+-- 祝日管理テーブル
+-- ======================================================
+
+CREATE TABLE IF NOT EXISTS holidays (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,      -- YYYY-MM-DD形式
+    name TEXT NOT NULL,              -- 祝日名
+    type TEXT NOT NULL,              -- 'national', 'observance', 'company'等
+    is_workday INTEGER DEFAULT 0,    -- 振替休日など特別対応用 (0: 休日, 1: 出勤日)
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- 日付検索用インデックス
+CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
+CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
+
+-- 初期データ: 2025年-2026年の祝日
+INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday) VALUES
+('hol_2025_01', '2025-01-01', '元日', 'national', 0),
+('hol_2025_02', '2025-01-13', '成人の日', 'national', 0),
+('hol_2025_03', '2025-02-11', '建国記念の日', 'national', 0),
+('hol_2025_04', '2025-02-23', '天皇誕生日', 'national', 0),
+('hol_2025_05', '2025-02-24', '天皇誕生日 振替休日', 'national', 0),
+('hol_2025_06', '2025-03-20', '春分の日', 'national', 0),
+('hol_2025_12', '2025-07-21', '海の日', 'national', 0),
+('hol_2025_13', '2025-08-11', '山の日', 'national', 0),
+('hol_2025_14', '2025-09-15', '敬老の日', 'national', 0),
+('hol_2025_15', '2025-09-23', '秋分の日', 'national', 0),
+('hol_2025_16', '2025-10-13', 'スポーツの日', 'national', 0),
+('hol_2025_17', '2025-11-03', '文化の日', 'national', 0),
+('hol_2025_18', '2025-11-23', '勤労感謝の日', 'national', 0),
+('hol_2025_19', '2025-11-24', '勤労感謝の日 振替休日', 'national', 0),
+('hol_2026_01', '2026-01-01', '元日', 'national', 0),
+('hol_2026_02', '2026-01-12', '成人の日', 'national', 0),
+('hol_2026_03', '2026-02-11', '建国記念の日', 'national', 0),
+('hol_2026_04', '2026-02-23', '天皇誕生日', 'national', 0),
+('hol_2026_05', '2026-03-20', '春分の日', 'national', 0),
+('hol_2026_11', '2026-07-20', '海の日', 'national', 0),
+('hol_2026_12', '2026-08-11', '山の日', 'national', 0),
+('hol_2026_13', '2026-09-21', '敬老の日', 'national', 0),
+('hol_2026_14', '2026-09-22', '国民の休日', 'national', 0),
+('hol_2026_15', '2026-09-23', '秋分の日', 'national', 0),
+('hol_2026_16', '2026-10-12', 'スポーツの日', 'national', 0),
+('hol_2026_17', '2026-11-03', '文化の日', 'national', 0),
+('hol_2026_18', '2026-11-23', '勤労感謝の日', 'national', 0);

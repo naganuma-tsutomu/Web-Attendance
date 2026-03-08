@@ -4,7 +4,7 @@ import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, sub
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays } from '../../lib/api';
+import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays } from '../../lib/api';
 import { generateShiftsForMonth } from '../../lib/algorithm';
 import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
 import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday } from '../../types';
@@ -98,14 +98,17 @@ const SchedulePage = () => {
             const monthList = Array.from(monthsToFetch);
             const yearList = monthList.map(m => parseInt(m.split('-')[0]));
             const uniqueYears = [...new Set(yearList)];
-            
+
+            // 祝日データを同期（今年と来年分）して、その後データを取得
+            await syncHolidays().catch(err => console.error('Failed to sync holidays', err));
+
             const [shiftsResults, staffs, prefsResults, classesData, patternsData, holidaysData] = await Promise.all([
                 Promise.all(monthList.map(m => getShiftsByMonth(m))),
                 getStaffList(),
                 Promise.all(monthList.map(m => getPreferencesByMonth(m))),
                 getClasses(),
                 getTimePatterns(),
-                // 対象年の祝日を取得（複数年にまたがる場合は最初の年を使用）
+                // 対象年の祝日を取得
                 getHolidays(uniqueYears[0] || new Date().getFullYear())
             ]);
 
@@ -359,13 +362,13 @@ const SchedulePage = () => {
 
     // 祝日マップを作成（日付→祝日情報のマップ）
     const holidayMap = new Map(holidays.map(h => [h.date, h]));
-    
+
     // 指定日の祝日名を取得
     const getHolidayNameForDate = (date: Date): string => {
         const dateStr = format(date, 'yyyy-MM-dd');
         return holidayMap.get(dateStr)?.name || '';
     };
-    
+
     // 指定日が祝日かどうか
     const isHolidayDate = (date: Date): boolean => {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -605,10 +608,19 @@ const SchedulePage = () => {
                                             const date = props.value;
                                             const holidayName = getHolidayNameForDate(date);
                                             const isHoliday = isHolidayDate(date);
-                                            
+                                            const dayOfWeek = getDay(date); // 0: 日, 1: 月, ..., 6: 土
+
+                                            // 日曜日または祝日は赤、土曜日は青、それ以外は背景色なし
+                                            let bgColorClass = '';
+                                            if (dayOfWeek === 0 || isHoliday) {
+                                                bgColorClass = 'bg-red-50 dark:bg-red-900/10';
+                                            } else if (dayOfWeek === 6) {
+                                                bgColorClass = 'bg-blue-50 dark:bg-blue-900/10';
+                                            }
+
                                             return (
-                                                <div 
-                                                    className={`rbc-day-bg ${isHoliday ? 'bg-red-50 dark:bg-red-900/10' : ''}`}
+                                                <div
+                                                    className={`rbc-day-bg ${bgColorClass}`}
                                                     style={{ height: '100%' }}
                                                 >
                                                     {holidayName && (

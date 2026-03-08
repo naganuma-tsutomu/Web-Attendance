@@ -265,16 +265,16 @@ export const deleteShiftRequirement = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getHolidays = async (year?: number): Promise<Holiday[]> => {
-    const url = year 
-        ? `${API_BASE}/holidays?year=${year}` 
-        : `${API_BASE}/holidays`;
+    const url = year
+        ? `${API_BASE}/settings/holidays?year=${year}`
+        : `${API_BASE}/settings/holidays`;
     const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) throw new Error('Failed to fetch holidays');
     return res.json();
 };
 
 export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
-    const res = await fetch(`${API_BASE}/holidays`, {
+    const res = await fetch(`${API_BASE}/settings/holidays`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(holiday),
@@ -286,7 +286,7 @@ export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' |
 };
 
 export const updateHoliday = async (id: string, data: Partial<Holiday>): Promise<void> => {
-    const res = await fetch(`${API_BASE}/holidays/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${API_BASE}/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -296,7 +296,7 @@ export const updateHoliday = async (id: string, data: Partial<Holiday>): Promise
 };
 
 export const deleteHoliday = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/holidays/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${API_BASE}/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
     });
@@ -304,9 +304,9 @@ export const deleteHoliday = async (id: string): Promise<void> => {
 };
 
 export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
-    const url = year 
-        ? `${API_BASE}/holidays/sync?year=${year}` 
-        : `${API_BASE}/holidays/sync`;
+    const url = year
+        ? `${API_BASE}/settings/holidays/sync?year=${year}`
+        : `${API_BASE}/settings/holidays/sync`;
     const res = await fetch(url, { credentials: 'include' });
     if (!res.ok) throw new Error('Failed to sync holidays');
     return res.json();

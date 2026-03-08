@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users } from 'lucide-react';
-import { getPreferencesByMonth, savePreference, getStaffList } from '../../lib/api';
+import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, RefreshCw } from 'lucide-react';
+import { getPreferencesByMonth, savePreference, getStaffList, syncHolidays } from '../../lib/api';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Staff } from '../../types';
@@ -45,6 +45,7 @@ const PreferencesPage = () => {
     const [prefLoading, setPrefLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
+    const [syncingHolidays, setSyncingHolidays] = useState(false);
 
     const yearMonth = format(targetDate, 'yyyy-MM');
 
@@ -158,6 +159,22 @@ const PreferencesPage = () => {
         }
     };
 
+    const handleSyncHolidays = async () => {
+        setSyncingHolidays(true);
+        try {
+            const res = await syncHolidays();
+            if (res.success) {
+                setMessage({ text: `祝日を同期しました（${res.synced}件追加）`, type: 'success' });
+            }
+        } catch (err) {
+            console.error(err);
+            setMessage({ text: '祝日の同期に失敗しました。', type: 'error' });
+        } finally {
+            setSyncingHolidays(false);
+            setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+        }
+    };
+
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
 
     const submittedCount = staffList.filter(s => {
@@ -186,11 +203,21 @@ const PreferencesPage = () => {
                     </span>
                     <button
                         onClick={() => setTargetDate(d => addMonths(d, 1))}
-                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     >
                         <ChevronRight className="w-5 h-5" />
                     </button>
                 </div>
+                {/* 祝日同期ボタン */}
+                <button
+                    onClick={handleSyncHolidays}
+                    disabled={syncingHolidays}
+                    className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm disabled:opacity-50"
+                    title="今年と来年の祝日データを最新に更新します"
+                >
+                    <RefreshCw className={`w-4 h-4 text-indigo-500 ${syncingHolidays ? 'animate-spin' : ''}`} />
+                    <span>{syncingHolidays ? '同期中...' : '祝日を同期'}</span>
+                </button>
             </div>
 
             {/* 提出状況サマリー */}

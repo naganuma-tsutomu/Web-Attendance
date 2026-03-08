@@ -263,17 +263,6 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div>
-                <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2 flex items-center space-x-2">
-                    <div className="p-2 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none">
-                        <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <span>クラス（グループ）管理</span>
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                    スタッフが所属するクラスを管理します。ドラッグで表示順を自由に変更できます。
-                </p>
-            </div>
 
             {/* Class form */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm ring-1 ring-slate-200/50">

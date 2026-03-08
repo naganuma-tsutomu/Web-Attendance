@@ -1,4 +1,4 @@
-import { Moon, Sun, Palette } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const AppearanceSettings = () => {
@@ -24,15 +24,6 @@ const AppearanceSettings = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center space-x-2">
-                    <Palette className="w-5 h-5 text-indigo-500" />
-                    <span>外観設定</span>
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                    アプリケーションの表示テーマやカレンダーの設定を変更します。
-                </p>
-            </div>
 
             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                 <div className="space-y-8">
@@ -60,10 +51,6 @@ const AppearanceSettings = () => {
                     </div>
 
                     <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div>
-                            <p className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">週の開始日</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">カレンダーの表示を開始する曜日を選択します。</p>
-                        </div>
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl self-start sm:self-auto">
                             <button
                                 onClick={() => setWeekStartsOn(0)}

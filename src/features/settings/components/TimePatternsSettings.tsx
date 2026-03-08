@@ -48,15 +48,6 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center space-x-2">
-                    <Clock className="w-5 h-5 text-indigo-500" />
-                    <span>勤務時間パターン設定</span>
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                    シフト作成時に選択可能な勤務時間帯を定義します。
-                </p>
-            </div>
 
             {/* Pattern form */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">

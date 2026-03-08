@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Users, Loader2, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Loader2, CheckCircle } from 'lucide-react';
 import { createRole, deleteRole, updateRole, updateRolePatterns } from '../../../lib/api';
 import type { DynamicRole, ShiftTimePattern } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
@@ -78,15 +78,6 @@ const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: 
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center space-x-2">
-                    <Users className="w-5 h-5 text-indigo-500" />
-                    <span>役職・役割の設定</span>
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                    スタッフに割り当てる役職（役割）を作成し、それぞれの役職で利用可能な勤務時間パターンを制限します。
-                </p>
-            </div>
 
             {/* Role form */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">

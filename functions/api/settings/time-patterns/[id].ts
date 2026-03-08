@@ -7,13 +7,13 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
         const body = await context.request.json() as { name?: string; startTime?: string; endTime?: string };
-        
+
         // Validate name if provided
         if (body.name !== undefined) {
             const nameError = validateName(body.name, '名前', 50);
             if (nameError) return createValidationError(nameError);
         }
-        
+
         // Validate time range if both provided
         if (body.startTime !== undefined && body.endTime !== undefined) {
             const timeError = validateTimeRange(body.startTime, body.endTime);
@@ -37,11 +37,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 if (timeError) return createValidationError(timeError);
             }
         }
-        
+
         // Build update query dynamically
         const updates: string[] = [];
         const values: any[] = [];
-        
+
         if (body.name !== undefined) {
             updates.push('name = ?');
             values.push(body.name.trim());
@@ -54,19 +54,19 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             updates.push('endTime = ?');
             values.push(body.endTime);
         }
-        
+
         if (updates.length === 0) {
             return createValidationError('更新するデータがありません');
         }
-        
+
         values.push(id);
         await context.env.DB.prepare(
             `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
         ).bind(...values).run();
-        
+
         return Response.json({ success: true });
-    } catch (e) { 
-        return handleServerError(e, 'Database error updating time pattern'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error updating time pattern');
     }
 };
 
@@ -76,7 +76,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = context.params.id as string;
         await context.env.DB.prepare('DELETE FROM shift_time_patterns WHERE id = ?').bind(id).run();
         return Response.json({ success: true });
-    } catch (e) { 
-        return handleServerError(e, 'Database error deleting time pattern'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error deleting time pattern');
     }
 };

@@ -81,7 +81,9 @@ CREATE TABLE IF NOT EXISTS shift_time_patterns (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,       -- 例: "早番", "遅番", "中番"
     startTime TEXT NOT NULL,  -- "HH:MM"
-    endTime TEXT NOT NULL     -- "HH:MM"
+    endTime TEXT NOT NULL,    -- "HH:MM"
+    display_order INTEGER DEFAULT 0,
+    applicable_days TEXT      -- JSON配列: ["mon","tue","wed","thu","fri","sat","sun"] または null（毎日）
 );
 
 -- 役職マスタ (自由に追加・削除可能)
@@ -108,9 +110,9 @@ INSERT OR IGNORE INTO roles (id, name) VALUES ('role_part', 'パート');
 INSERT OR IGNORE INTO roles (id, name) VALUES ('role_special', '特殊スタッフ');
 
 -- 初期データ: 標準的な勤務時間パターン
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_early', '早番', '09:00', '17:00');
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_late', '遅番', '12:00', '20:00');
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_short', '短時間', '10:00', '15:00');
+INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime, display_order, applicable_days) VALUES ('stp_early', '早番', '09:00', '17:00', 1, NULL);
+INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime, display_order, applicable_days) VALUES ('stp_late', '遅番', '12:00', '20:00', 2, NULL);
+INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime, display_order, applicable_days) VALUES ('stp_short', '短時間', '10:00', '15:00', 3, '["sat","sun"]');
 
 -- 廃止: role_settings, shift_patterns (既に存在する場合は残しても無害)
 -- DROP TABLE IF EXISTS role_settings;

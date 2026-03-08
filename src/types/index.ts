@@ -50,6 +50,8 @@ export interface ShiftTimePattern {
     name: string;     // 例: "早番", "遅番"
     startTime: string;
     endTime: string;
+    display_order?: number;
+    applicable_days?: string[] | null; // ["mon","tue","wed","thu","fri","sat","sun"] または null（毎日）
 }
 
 // 役職 (DB管理・動的)

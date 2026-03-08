@@ -6,7 +6,13 @@ import { handleServerError, createValidationError, validateTimeRange, validateNa
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string; startTime?: string; endTime?: string };
+        const body = await context.request.json() as { 
+            name?: string; 
+            startTime?: string; 
+            endTime?: string;
+            applicable_days?: string[] | null;
+            display_order?: number;
+        };
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -53,6 +59,14 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (body.endTime !== undefined) {
             updates.push('endTime = ?');
             values.push(body.endTime);
+        }
+        if (body.applicable_days !== undefined) {
+            updates.push('applicable_days = ?');
+            values.push(body.applicable_days ? JSON.stringify(body.applicable_days) : null);
+        }
+        if (body.display_order !== undefined) {
+            updates.push('display_order = ?');
+            values.push(body.display_order);
         }
 
         if (updates.length === 0) {

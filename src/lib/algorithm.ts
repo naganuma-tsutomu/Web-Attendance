@@ -1,6 +1,32 @@
 import { differenceInMinutes, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
+// Map day of week (0=Sun to 6=Sat) to day keys
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+/**
+ * Check if a time pattern is applicable on a given date
+ */
+const isPatternApplicableOnDay = (
+    pattern: ShiftTimePattern,
+    date: Date
+): boolean => {
+    const dayOfWeek = getDay(date);
+    const dayKey = DAY_KEYS[dayOfWeek];
+    
+    // If applicable_days is null/undefined/empty, pattern applies every day
+    if (!pattern.applicable_days || pattern.applicable_days.length === 0) {
+        return true;
+    }
+    
+    // Parse applicable_days if it's a string (from DB)
+    const applicableDays = typeof pattern.applicable_days === 'string'
+        ? JSON.parse(pattern.applicable_days)
+        : pattern.applicable_days;
+    
+    return applicableDays.includes(dayKey);
+};
+
 /**
  * Check if a staff member is available for a specific date
  */
@@ -44,9 +70,11 @@ const isStaffAvailableForTimeSlot = (
     let matchedPattern: ShiftTimePattern | undefined;
 
     if (roleRecord && roleRecord.patterns && roleRecord.patterns.length > 0) {
-        // Find a pattern that contains the requested time slot
+        // Find a pattern that contains the requested time slot AND is applicable on this day
         matchedPattern = roleRecord.patterns.find(p =>
-            p.startTime <= startTime && p.endTime >= endTime
+            p.startTime <= startTime && 
+            p.endTime >= endTime &&
+            isPatternApplicableOnDay(p, date)
         );
         if (!matchedPattern) return { available: false };
     }

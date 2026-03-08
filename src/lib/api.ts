@@ -150,6 +150,14 @@ export const updateTimePattern = async (id: string, pattern: Partial<Omit<ShiftT
     } as RequestInit);
 };
 
+export const reorderTimePatterns = async (order: Array<{ id: string; display_order: number }>): Promise<void> => {
+    await apiFetch('/settings/time-patterns/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ order }),
+        credentials: 'include'
+    } as RequestInit);
+};
+
 // ==========================================
 // Roles API (動的役職管理)
 // ==========================================

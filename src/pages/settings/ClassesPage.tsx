@@ -1,21 +1,26 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, GraduationCap } from 'lucide-react';
-import { getClasses } from '../../lib/api';
-import type { ShiftClass } from '../../types';
+import { getClasses, getStaffList } from '../../lib/api';
+import type { ShiftClass, Staff } from '../../types';
 import ClassesSettings from '../../features/settings/components/ClassesSettings';
 
 const ClassesPage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
+    const [staffs, setStaffs] = useState<Staff[]>([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const classesData = await getClasses();
+            const [classesData, staffsData] = await Promise.all([
+                getClasses(),
+                getStaffList()
+            ]);
             setClasses(classesData);
+            setStaffs(staffsData);
         } catch (err) {
-            console.error('Failed to load classes', err);
+            console.error('Failed to load classes or staffs', err);
         } finally {
             setLoading(false);
         }
@@ -54,6 +59,7 @@ const ClassesPage = () => {
 
                 <ClassesSettings
                     classes={classes}
+                    staffs={staffs}
                     loading={loading}
                     onUpdate={fetchData}
                     setClasses={setClasses}

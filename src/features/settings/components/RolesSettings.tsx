@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, CheckCircle } from 'lucide-react';
 import { createRole, deleteRole, updateRole, updateRolePatterns } from '../../../lib/api';
 import type { DynamicRole, ShiftTimePattern } from '../../../types';
+import ConfirmModal from '../../../components/ui/ConfirmModal';
 
 interface RolesSettingsProps {
     roles: DynamicRole[];
@@ -12,6 +13,10 @@ interface RolesSettingsProps {
 }
 
 const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: RolesSettingsProps) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
     const [newRole, setNewRole] = useState<{
         name: string;
         hoursTarget: number | null;
@@ -24,12 +29,17 @@ const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: 
 
     const handleAddRole = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             await createRole(newRole.name, newRole.hoursTarget, newRole.patternIds);
             setNewRole({ name: '', hoursTarget: null, patternIds: [] });
             showMessage('役職を追加しました');
             onUpdate();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleUpdateRoleHours = async (roleId: string, hours: number | null) => {
@@ -40,12 +50,18 @@ const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: 
         } catch (err) { console.error(err); }
     };
 
-    const handleDeleteRole = async (id: string) => {
-        if (!confirm('この役職を削除しますか？スタッフの割り当ては解除されませんが、新規選択はできなくなります。')) return;
+    const handleDeleteRole = async () => {
+        if (!deleteConfirmId) return;
+        setIsDeleting(true);
         try {
-            await deleteRole(id);
+            await deleteRole(deleteConfirmId);
+            setDeleteConfirmId(null);
             onUpdate();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const handleTogglePattern = async (roleId: string, patternId: string, currentPatterns: ShiftTimePattern[]) => {
@@ -155,10 +171,11 @@ const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: 
                     <div className="flex justify-end pt-2">
                         <button
                             type="submit"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center space-x-2"
+                            disabled={isSubmitting}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center space-x-2 disabled:opacity-50"
                         >
-                            <Plus className="w-4 h-4" />
-                            <span>役職を登録する</span>
+                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            <span>{isSubmitting ? '登録中...' : '役職を登録する'}</span>
                         </button>
                     </div>
                 </form>
@@ -178,7 +195,10 @@ const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: 
                                     </div>
                                     <h4 className="font-bold text-slate-800 dark:text-white text-sm">{role.name}</h4>
                                 </div>
-                                <button onClick={() => handleDeleteRole(role.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all">
+                                <button
+                                    onClick={() => setDeleteConfirmId(role.id)}
+                                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all"
+                                >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -240,6 +260,18 @@ const RolesSettings = ({ roles, timePatterns, loading, onUpdate, showMessage }: 
                     ))}
                 </div>
             )}
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={!!deleteConfirmId}
+                title="役職の削除"
+                message="この役職を削除しますか？スタッフの割り当ては自動では解除されませんが、今後新規に選択することはできなくなります。"
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={handleDeleteRole}
+                onCancel={() => setDeleteConfirmId(null)}
+                isLoading={isDeleting}
+                variant="danger"
+            />
         </div>
     );
 };

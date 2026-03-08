@@ -9,7 +9,10 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    type DragEndEvent
+    DragOverlay,
+    defaultDropAnimationSideEffects,
+    type DragEndEvent,
+    type DragStartEvent
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -20,12 +23,14 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 // --- Sortable Row Component ---
-const SortableRow = ({ staff, onEdit, onDelete, children }: {
+const SortableRow = ({ staff, onEdit, onDelete, isOverlay = false, children }: {
     staff: Staff,
-    onEdit: (staff: Staff) => void,
-    onDelete: (id: string, name: string) => void,
+    onEdit?: (staff: Staff) => void,
+    onDelete?: (id: string, name: string) => void,
+    isOverlay?: boolean,
     children: React.ReactNode
 }) => {
     const {
@@ -35,45 +40,51 @@ const SortableRow = ({ staff, onEdit, onDelete, children }: {
         transform,
         transition,
         isDragging
-    } = useSortable({ id: staff.id });
+    } = useSortable({ id: staff.id, disabled: isOverlay });
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : 'auto',
         position: 'relative' as const,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging && !isOverlay ? 0.3 : 1,
     };
 
     return (
         <tr
             ref={setNodeRef}
             style={style}
-            className={`hover:bg-slate-50/50 transition-colors ${isDragging ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
+            className={`${isOverlay ? 'bg-white dark:bg-slate-800 shadow-2xl opacity-90 ring-2 ring-indigo-500 rounded-xl' : 'hover:bg-slate-50/50 transition-colors'} ${isDragging && !isOverlay ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
         >
             <td className="pl-4 pr-2 py-4 w-10">
-                <button
-                    {...attributes}
-                    {...listeners}
-                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 p-1 rounded-lg hover:bg-white transition-all"
-                >
-                    <GripVertical className="w-5 h-5" />
-                </button>
+                {!isOverlay && (
+                    <button
+                        {...attributes}
+                        {...listeners}
+                        className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 p-1 rounded-lg hover:bg-white transition-all"
+                    >
+                        <GripVertical className="w-5 h-5" />
+                    </button>
+                )}
             </td>
             {children}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                <button
-                    onClick={() => onEdit(staff)}
-                    className="text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
-                >
-                    <Edit2 className="w-5 h-5" />
-                </button>
-                <button
-                    onClick={() => onDelete(staff.id, staff.name)}
-                    className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
-                >
-                    <Trash2 className="w-5 h-5" />
-                </button>
+                {!isOverlay && (
+                    <>
+                        <button
+                            onClick={() => onEdit?.(staff)}
+                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+                        >
+                            <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => onDelete?.(staff.id, staff.name)}
+                            className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </button>
+                    </>
+                )}
             </td>
         </tr>
     );
@@ -88,6 +99,11 @@ const StaffPage = () => {
     const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
+    const [activeId, setActiveId] = useState<string | null>(null);
+
     const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
         name: '',
         role: '',
@@ -125,14 +141,22 @@ const StaffPage = () => {
         fetchData();
     }, []);
 
-    const handleDelete = async (id: string, name: string) => {
-        if (!window.confirm(`${name} さんを削除してもよろしいですか？`)) return;
+    const handleDeleteClick = (id: string, name: string) => {
+        setDeleteConfirm({ id, name });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteConfirm) return;
+        setIsDeleting(true);
         try {
-            await deleteStaff(id);
-            setStaffList(prev => prev.filter(s => s.id !== id));
+            await deleteStaff(deleteConfirm.id);
+            setStaffList(prev => prev.filter(s => s.id !== deleteConfirm.id));
+            setDeleteConfirm(null);
         } catch (err) {
             console.error(err);
             alert("削除に失敗しました。");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -178,6 +202,7 @@ const StaffPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             if (editingStaff) {
                 await updateStaff(editingStaff.id, formData);
@@ -189,11 +214,18 @@ const StaffPage = () => {
         } catch (err) {
             console.error(err);
             alert("保存に失敗しました。");
+        } finally {
+            setIsSubmitting(false);
         }
+    };
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+        setActiveId(null);
         if (over && active.id !== over.id) {
             setStaffList((items) => {
                 const oldIndex = items.findIndex((i) => i.id === active.id);
@@ -248,6 +280,7 @@ const StaffPage = () => {
     };
 
     const filteredStaff = staffList.filter(s => s.name.includes(searchTerm));
+    const activeStaff = activeId ? staffList.find(s => s.id === activeId) : null;
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
@@ -292,6 +325,7 @@ const StaffPage = () => {
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                         modifiers={[restrictToVerticalAxis]}
                         accessibility={{ screenReaderInstructions: { draggable: '' } }}
@@ -333,7 +367,7 @@ const StaffPage = () => {
                                                 key={staff.id}
                                                 staff={staff}
                                                 onEdit={handleOpenEditModal}
-                                                onDelete={handleDelete}
+                                                onDelete={handleDeleteClick}
                                             >
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="font-bold text-slate-900 dark:text-white">{staff.name}</div>
@@ -373,6 +407,57 @@ const StaffPage = () => {
                                 </tbody>
                             </table>
                         </SortableContext>
+
+                        <DragOverlay dropAnimation={{
+                            sideEffects: defaultDropAnimationSideEffects({
+                                styles: {
+                                    active: {
+                                        opacity: '0.3',
+                                    },
+                                },
+                            }),
+                        }}>
+                            {activeStaff ? (
+                                <table className="w-full text-left border-collapse min-w-[700px]">
+                                    <tbody>
+                                        <SortableRow staff={activeStaff} isOverlay>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="font-bold text-slate-900 dark:text-white">{activeStaff.name}</div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
+                                                    {activeStaff.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {activeStaff.classIds && activeStaff.classIds.length > 0 ? (
+                                                        activeStaff.classIds.map(cid => {
+                                                            const cls = classes.find(c => c.id === cid);
+                                                            return cls ? (
+                                                                <span key={cid} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                                                    {cls.name}
+                                                                </span>
+                                                            ) : null;
+                                                        })
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400 italic">未設定</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 font-medium">
+                                                {activeStaff.hoursTarget !== null ? `${activeStaff.hoursTarget} h` : '設定なし'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">
+                                                    {getHolidayDisplay(activeStaff.availableDays)}
+                                                </span>
+                                            </td>
+                                        </SortableRow>
+                                    </tbody>
+                                </table>
+                            ) : null}
+                        </DragOverlay>
                     </DndContext>
                 </div>
             </div>
@@ -606,15 +691,35 @@ const StaffPage = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-bold uppercase tracking-widest text-xs"
+                                    disabled={isSubmitting}
+                                    className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-bold uppercase tracking-widest text-xs flex items-center justify-center space-x-2 disabled:opacity-50"
                                 >
-                                    Confirm & Save
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <span>Confirm & Save</span>
+                                    )}
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={!!deleteConfirm}
+                title="スタッフの削除"
+                message={`${deleteConfirm?.name} さんを削除してもよろしいですか？この操作は取り消せません。`}
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setDeleteConfirm(null)}
+                isLoading={isDeleting}
+                variant="danger"
+            />
         </div>
     );
 };

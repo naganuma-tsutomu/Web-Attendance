@@ -2,50 +2,65 @@ import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, Shif
 
 const API_BASE = '/api';
 
+/**
+ * 共通のAPIリクエスト関数
+ */
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
+    }
+
+    // No content
+    if (response.status === 204) return {} as T;
+
+    return response.json();
+}
+
 // ==========================================
 // Staff API
 // ==========================================
 
 export const getStaffList = async (): Promise<Staff[]> => {
-    const res = await fetch(`${API_BASE}/staffs`);
-    if (!res.ok) throw new Error('Failed to fetch staffs');
-    return res.json();
+    return apiFetch<Staff[]>('/staffs');
 };
 
 export const createStaff = async (staffData: Omit<Staff, 'id'>): Promise<string> => {
-    const res = await fetch(`${API_BASE}/staffs`, {
+    const { id } = await apiFetch<{ id: string }>('/staffs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(staffData)
     });
-    if (!res.ok) throw new Error('Failed to create staff');
-    const { id } = await res.json();
     return id;
 };
 
 export const updateStaff = async (staffId: string, staffData: Partial<Staff>): Promise<void> => {
-    const res = await fetch(`${API_BASE}/staffs/${staffId}`, {
+    await apiFetch(`/staffs/${staffId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(staffData)
     });
-    if (!res.ok) throw new Error('Failed to update staff');
 };
 
 export const deleteStaff = async (staffId: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/staffs/${staffId}`, {
+    await apiFetch(`/staffs/${staffId}`, {
         method: 'DELETE'
     });
-    if (!res.ok) throw new Error('Failed to delete staff');
 };
 
 export const updateStaffOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
-    const res = await fetch(`${API_BASE}/staffs/reorder`, {
+    await apiFetch('/staffs/reorder', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orders })
     });
-    if (!res.ok) throw new Error('Failed to update staff order');
 };
 
 // ==========================================
@@ -53,19 +68,14 @@ export const updateStaffOrder = async (orders: { id: string, order: number }[]):
 // ==========================================
 
 export const getPreferencesByMonth = async (yearMonth: string): Promise<ShiftPreference[]> => {
-    const res = await fetch(`${API_BASE}/preferences?yearMonth=${yearMonth}`);
-    if (!res.ok) throw new Error('Failed to fetch preferences');
-    return res.json();
+    return apiFetch<ShiftPreference[]>(`/preferences?yearMonth=${yearMonth}`);
 };
 
 export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): Promise<string> => {
-    const res = await fetch(`${API_BASE}/preferences`, {
+    const { id } = await apiFetch<{ id: string }>('/preferences', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(preference)
     });
-    if (!res.ok) throw new Error('Failed to save preference');
-    const { id } = await res.json();
     return id;
 };
 
@@ -74,42 +84,34 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
 // ==========================================
 
 export const getShiftsByMonth = async (yearMonth: string): Promise<Shift[]> => {
-    const res = await fetch(`${API_BASE}/shifts?yearMonth=${yearMonth}`);
-    if (!res.ok) throw new Error('Failed to fetch shifts');
-    return res.json();
+    return apiFetch<Shift[]>(`/shifts?yearMonth=${yearMonth}`);
 };
 
 export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void> => {
-    const res = await fetch(`${API_BASE}/shifts`, {
+    await apiFetch('/shifts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shifts)
     });
-    if (!res.ok) throw new Error('Failed to batch insert shifts');
 };
 
 export const deleteShiftsByMonth = async (yearMonth: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/shifts?yearMonth=${yearMonth}`, {
+    await apiFetch(`/shifts?yearMonth=${yearMonth}`, {
         method: 'DELETE',
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to delete shifts');
+    } as RequestInit);
 };
 
 export const updateShift = async (id: string, shiftData: Partial<Shift>): Promise<void> => {
-    const res = await fetch(`${API_BASE}/shifts/${encodeURIComponent(id)}`, {
+    await apiFetch(`/shifts/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(shiftData)
     });
-    if (!res.ok) throw new Error('Failed to update shift');
 };
 
 export const deleteShift = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/shifts/${encodeURIComponent(id)}`, {
+    await apiFetch(`/shifts/${encodeURIComponent(id)}`, {
         method: 'DELETE'
     });
-    if (!res.ok) throw new Error('Failed to delete shift');
 };
 
 // ==========================================
@@ -117,29 +119,23 @@ export const deleteShift = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getTimePatterns = async (): Promise<ShiftTimePattern[]> => {
-    const res = await fetch(`${API_BASE}/settings/time-patterns`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch time patterns');
-    return res.json();
+    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', { credentials: 'include' } as RequestInit);
 };
 
 export const createTimePattern = async (pattern: Omit<ShiftTimePattern, 'id'>): Promise<string> => {
-    const res = await fetch(`${API_BASE}/settings/time-patterns`, {
+    const { id } = await apiFetch<{ id: string }>('/settings/time-patterns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pattern),
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to create time pattern');
-    const { id } = await res.json();
+    } as RequestInit);
     return id;
 };
 
 export const deleteTimePattern = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/time-patterns/${encodeURIComponent(id)}`, {
+    await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to delete time pattern');
+    } as RequestInit);
 };
 
 // ==========================================
@@ -147,39 +143,31 @@ export const deleteTimePattern = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getRoles = async (): Promise<DynamicRole[]> => {
-    const res = await fetch(`${API_BASE}/settings/roles`, { credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch roles');
-    return res.json();
+    return apiFetch<DynamicRole[]>('/settings/roles', { credentials: 'include' } as RequestInit);
 };
 
 export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = []): Promise<string> => {
-    const res = await fetch(`${API_BASE}/settings/roles`, {
+    const { id } = await apiFetch<{ id: string }>('/settings/roles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, targetHours, patternIds }),
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to create role');
-    const { id } = await res.json();
+    } as RequestInit);
     return id;
 };
 
 export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, patternIds?: string[] }): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(roleId)}`, {
+    await apiFetch(`/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to update role');
+    } as RequestInit);
 };
 
 export const deleteRole = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/roles/${encodeURIComponent(id)}`, {
+    await apiFetch(`/settings/roles/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to delete role');
+    } as RequestInit);
 };
 
 export const updateRolePatterns = async (roleId: string, patternIds: string[]): Promise<void> => {
@@ -191,43 +179,33 @@ export const updateRolePatterns = async (roleId: string, patternIds: string[]): 
 // ==========================================
 
 export const getClasses = async (): Promise<ShiftClass[]> => {
-    const res = await fetch('/api/settings/classes');
-    if (!res.ok) throw new Error('Failed to fetch classes');
-    return res.json();
+    return apiFetch<ShiftClass[]>('/settings/classes');
 };
 
 export const createClass = async (name: string, autoAllocate: number = 1): Promise<{ id: string }> => {
-    const res = await fetch('/api/settings/classes', {
+    return apiFetch<{ id: string }>('/settings/classes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, auto_allocate: autoAllocate })
     });
-    if (!res.ok) throw new Error('Failed to create class');
-    return res.json();
 };
 
 export const updateClass = async (id: string, data: { name?: string, display_order?: number, auto_allocate?: number }): Promise<void> => {
-    const res = await fetch(`/api/settings/classes/${id}`, {
+    await apiFetch(`/settings/classes/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update class');
 };
 
 export const updateClassOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/classes/reorder`, {
+    await apiFetch('/settings/classes/reorder', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orders })
     });
-    if (!res.ok) throw new Error('Failed to update class order');
 };
 
 export const deleteClass = async (id: string): Promise<void> => {
-    const res = await fetch(`${API_BASE}/settings/classes/${encodeURIComponent(id)}`, {
+    await apiFetch(`/settings/classes/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to delete class');
+    } as RequestInit);
 };

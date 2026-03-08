@@ -4,6 +4,7 @@ import { ja } from 'date-fns/locale';
 import { X, Save } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 interface DailyTimelineModalProps {
     date: Date;
@@ -26,6 +27,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const saveRef = useRef<(() => Promise<void>) | null>(null);
 
     const handleSave = async () => {
@@ -43,9 +45,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
 
     const handleClose = useCallback(() => {
         if (isModified) {
-            if (window.confirm('変更が保存されていません。変更を破棄してよろしいですか？')) {
-                onClose();
-            }
+            setShowCloseConfirm(true);
         } else {
             onClose();
         }
@@ -126,6 +126,18 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Close Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showCloseConfirm}
+                title="変更の破棄"
+                message="変更が保存されていません。変更を破棄してよろしいですか？"
+                confirmLabel="破棄して閉じる"
+                cancelLabel="戻る"
+                onConfirm={onClose}
+                onCancel={() => setShowCloseConfirm(false)}
+                variant="danger"
+            />
         </div >
     );
 };

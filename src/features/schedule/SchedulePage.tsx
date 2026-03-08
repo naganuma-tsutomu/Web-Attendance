@@ -11,6 +11,7 @@ import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern } from
 import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
 import WeeklyTimelineView from './WeeklyTimelineView';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const locales = {
     'ja': ja,
@@ -77,6 +78,14 @@ const SchedulePage = () => {
 
     const [currentDate, setCurrentDate] = useState(addMonths(new Date(), 1));
     const [view, setView] = useState<View>(Views.MONTH);
+
+    const [confirmAction, setConfirmAction] = useState<{
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'info';
+    } | null>(null);
+    const [isActionExecuting, setIsActionExecuting] = useState(false);
 
     const targetYearMonth = format(currentDate, 'yyyy-MM');
 
@@ -231,9 +240,17 @@ const SchedulePage = () => {
         return summaries;
     })() : events;
 
-    const handleGenerate = async () => {
-        if (!window.confirm(`${format(currentDate, 'yyyy年M月')} のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`)) return;
+    const handleGenerate = () => {
+        setConfirmAction({
+            title: 'シフトの自動生成',
+            message: `${format(currentDate, 'yyyy年M月')} のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`,
+            onConfirm: executeGenerate,
+            variant: 'info'
+        });
+    };
 
+    const executeGenerate = async () => {
+        setIsActionExecuting(true);
         setGenerating(true);
         try {
             const [staffs, prefs, roles, holidays, currentClasses] = await Promise.all([
@@ -244,14 +261,13 @@ const SchedulePage = () => {
                 getClasses()
             ]);
 
-            // 既存シフトを先に削除してから新規挿入（重複防止）
             await deleteShiftsByMonth(targetYearMonth);
-
             const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidays);
             const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
 
             await saveShiftsBatch(generatedShifts);
             await loadShifts();
+            setConfirmAction(null);
 
             if (errCount > 0) {
                 alert(`シフトの自動生成が完了しましたが、${errCount}件の割り当て不足が発生しました。手動で調整してください。`);
@@ -263,6 +279,7 @@ const SchedulePage = () => {
             alert('シフト生成中にエラーが発生しました。');
         } finally {
             setGenerating(false);
+            setIsActionExecuting(false);
         }
     };
 
@@ -419,15 +436,25 @@ const SchedulePage = () => {
                             <span className="whitespace-nowrap">{generating ? '生成中...' : '自動生成'}</span>
                         </button>
                         <button
-                            onClick={async () => {
-                                if (!window.confirm('この月のシフトをすべて削除してよろしいですか？')) return;
-                                try {
-                                    await deleteShiftsByMonth(targetYearMonth);
-                                    await loadShifts();
-                                } catch (err) {
-                                    console.error(err);
-                                    alert('削除に失敗しました。');
-                                }
+                            onClick={() => {
+                                setConfirmAction({
+                                    title: 'シフトの消去',
+                                    message: 'この月のシフトをすべて削除してよろしいですか？',
+                                    onConfirm: async () => {
+                                        setIsActionExecuting(true);
+                                        try {
+                                            await deleteShiftsByMonth(targetYearMonth);
+                                            await loadShifts();
+                                            setConfirmAction(null);
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert('削除に失敗しました。');
+                                        } finally {
+                                            setIsActionExecuting(false);
+                                        }
+                                    },
+                                    variant: 'danger'
+                                });
                             }}
                             className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center"
                         >
@@ -694,6 +721,19 @@ const SchedulePage = () => {
                     onShiftUpdate={loadShifts}
                 />
             )}
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={!!confirmAction}
+                title={confirmAction?.title || ''}
+                message={confirmAction?.message || ''}
+                confirmLabel="実行する"
+                cancelLabel="キャンセル"
+                onConfirm={confirmAction?.onConfirm || (() => { })}
+                onCancel={() => setConfirmAction(null)}
+                isLoading={isActionExecuting}
+                variant={confirmAction?.variant || 'info'}
+            />
         </div>
     );
 };

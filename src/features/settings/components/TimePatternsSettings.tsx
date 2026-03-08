@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Clock, Loader2 } from 'lucide-react';
 import { createTimePattern, deleteTimePattern } from '../../../lib/api';
 import type { ShiftTimePattern } from '../../../types';
+import ConfirmModal from '../../../components/ui/ConfirmModal';
 
 interface TimePatternsSettingsProps {
     patterns: ShiftTimePattern[];
@@ -11,24 +12,38 @@ interface TimePatternsSettingsProps {
 }
 
 const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: TimePatternsSettingsProps) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [newPattern, setNewPattern] = useState({ name: '', startTime: '09:00', endTime: '18:00' });
 
     const handleAddPattern = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
         try {
             await createTimePattern(newPattern);
             setNewPattern({ name: '', startTime: '09:00', endTime: '18:00' });
             showMessage('パターンを追加しました');
             onUpdate();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const handleDeletePattern = async (id: string) => {
-        if (!confirm('このパターンを削除しますか？')) return;
+    const handleDeletePattern = async () => {
+        if (!deleteConfirmId) return;
+        setIsDeleting(true);
         try {
-            await deleteTimePattern(id);
+            await deleteTimePattern(deleteConfirmId);
+            setDeleteConfirmId(null);
             onUpdate();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     return (
@@ -78,9 +93,12 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white"
                         />
                     </div>
-                    <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all h-[38px] flex items-center justify-center space-x-2 sm:col-span-4 md:col-span-1 md:col-start-4 mt-2 md:mt-0 w-full">
-                        <Plus className="w-4 h-4" />
-                        <span>追加</span>
+                    <button
+                        disabled={isSubmitting}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all h-[38px] flex items-center justify-center space-x-2 sm:col-span-4 md:col-span-1 md:col-start-4 mt-2 md:mt-0 w-full disabled:opacity-50"
+                    >
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        <span>{isSubmitting ? '追加中...' : '追加'}</span>
                     </button>
                 </form>
             </div>
@@ -112,7 +130,7 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
                                     </div>
                                 </div>
                                 <button
-                                    onClick={() => handleDeletePattern(p.id)}
+                                    onClick={() => setDeleteConfirmId(p.id)}
                                     className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                                     title="削除"
                                 >
@@ -123,6 +141,19 @@ const TimePatternsSettings = ({ patterns, loading, onUpdate, showMessage }: Time
                     )}
                 </div>
             </div>
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={!!deleteConfirmId}
+                title="パターンの削除"
+                message="この勤務時間パターンを削除しますか？"
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={handleDeletePattern}
+                onCancel={() => setDeleteConfirmId(null)}
+                isLoading={isDeleting}
+                variant="danger"
+            />
         </div>
     );
 };

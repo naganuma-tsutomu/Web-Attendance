@@ -1,237 +1,122 @@
 import { describe, it, expect } from 'vitest';
 import {
-    getHolidayName,
-    isSunday,
-    isSaturday,
-    isWeekday,
+    createHolidayMap,
     isHoliday,
-    isWorkingDay,
-    getEquinoxDay,
-    getHolidaysInRange,
-    getNthWeekdayOfMonth,
-    FIXED_HOLIDAYS
+    getHolidayInfo,
+    getDayOfWeek,
+    isWeekendOrHoliday,
+    getHolidayName,
 } from '../holidayUtils';
+import type { Holiday } from '../../types';
 
 describe('holidayUtils', () => {
-    describe('getHolidayName', () => {
-        it('元日を正しく判定する', () => {
-            const newYear = new Date(2025, 0, 1); // 2025年1月1日
-            expect(getHolidayName(newYear)).toBe('元日');
+    const mockHolidays: Holiday[] = [
+        { id: '1', date: '2025-01-01', name: '元日', type: 'national', isWorkday: false },
+        { id: '2', date: '2025-01-13', name: '成人の日', type: 'national', isWorkday: false },
+        { id: '3', date: '2025-02-11', name: '建国記念の日', type: 'national', isWorkday: false },
+        { id: '4', date: '2025-02-23', name: '天皇誕生日', type: 'national', isWorkday: false },
+        { id: '5', date: '2025-02-24', name: '天皇誕生日 振替休日', type: 'national', isWorkday: false },
+        { id: '6', date: '2025-03-20', name: '春分の日', type: 'national', isWorkday: false },
+    ];
+
+    describe('createHolidayMap', () => {
+        it('祝日配列からマップを作成する', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(map.size).toBe(6);
+            expect(map.get('2025-01-01')?.name).toBe('元日');
+            expect(map.get('2025-01-13')?.name).toBe('成人の日');
         });
 
-        it('固定祝日の建国記念の日を正しく判定する', () => {
-            const nationalFoundation = new Date(2025, 1, 11); // 2025年2月11日
-            expect(getHolidayName(nationalFoundation)).toBe('建国記念の日');
-        });
-
-        it('憲法記念日を正しく判定する', () => {
-            const constitution = new Date(2025, 4, 3); // 2025年5月3日
-            expect(getHolidayName(constitution)).toBe('憲法記念日');
-        });
-
-        it('こどもの日を正しく判定する', () => {
-            const children = new Date(2025, 4, 5); // 2025年5月5日
-            expect(getHolidayName(children)).toBe('こどもの日');
-        });
-
-        it('文化の日を正しく判定する', () => {
-            const culture = new Date(2025, 10, 3); // 2025年11月3日
-            expect(getHolidayName(culture)).toBe('文化の日');
-        });
-
-        it('勤労感謝の日を正しく判定する', () => {
-            const labor = new Date(2025, 10, 23); // 2025年11月23日
-            expect(getHolidayName(labor)).toBe('勤労感謝の日');
-        });
-
-        it('非祝日の場合はnullを返す', () => {
-            const normalDay = new Date(2025, 4, 6); // 2025年5月6日（平日）
-            expect(getHolidayName(normalDay)).toBeNull();
-        });
-
-        it('天皇誕生日（現行）を正しく判定する', () => {
-            // 2025年2月23日
-            const emperorsBirthday = new Date(2025, 1, 23);
-            expect(getHolidayName(emperorsBirthday)).toBe('天皇誕生日');
-        });
-    });
-
-    describe('isSunday', () => {
-        it('日曜日を正しく判定する', () => {
-            const sunday = new Date(2025, 0, 5); // 2025年1月5日
-            expect(isSunday(sunday)).toBe(true);
-        });
-
-        it('日曜日以外はfalseを返す', () => {
-            const monday = new Date(2025, 0, 6); // 2025年1月6日
-            expect(isSunday(monday)).toBe(false);
-        });
-    });
-
-    describe('isSaturday', () => {
-        it('土曜日を正しく判定する', () => {
-            const saturday = new Date(2025, 0, 4); // 2025年1月4日
-            expect(isSaturday(saturday)).toBe(true);
-        });
-
-        it('土曜日以外はfalseを返す', () => {
-            const friday = new Date(2025, 0, 3); // 2025年1月3日
-            expect(isSaturday(friday)).toBe(false);
-        });
-    });
-
-    describe('isWeekday', () => {
-        it('月曜日から金曜日を正しく判定する', () => {
-            // 2025年1月6日（月）
-            expect(isWeekday(new Date(2025, 0, 6))).toBe(true);
-            // 2025年1月7日（火）
-            expect(isWeekday(new Date(2025, 0, 7))).toBe(true);
-            // 2025年1月8日（水）
-            expect(isWeekday(new Date(2025, 0, 8))).toBe(true);
-            // 2025年1月9日（木）
-            expect(isWeekday(new Date(2025, 0, 9))).toBe(true);
-            // 2025年1月10日（金）
-            expect(isWeekday(new Date(2025, 0, 10))).toBe(true);
-        });
-
-        it('土曜日と日曜日はfalseを返す', () => {
-            // 2025年1月4日（土）
-            expect(isWeekday(new Date(2025, 0, 4))).toBe(false);
-            // 2025年1月5日（日）
-            expect(isWeekday(new Date(2025, 0, 5))).toBe(false);
+        it('空の配列から空のマップを作成する', () => {
+            const map = createHolidayMap([]);
+            expect(map.size).toBe(0);
         });
     });
 
     describe('isHoliday', () => {
-        it('日曜日を祝祭日として判定する', () => {
-            const sunday = new Date(2025, 0, 5);
-            expect(isHoliday(sunday)).toBe(true);
+        it('祝日の日付はtrueを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(isHoliday('2025-01-01', map)).toBe(true);
+            expect(isHoliday('2025-03-20', map)).toBe(true);
         });
 
-        it('土曜日を祝祭日として判定する', () => {
-            const saturday = new Date(2025, 0, 4);
-            expect(isHoliday(saturday)).toBe(true);
+        it('祝日でない日付はfalseを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(isHoliday('2025-01-02', map)).toBe(false);
+            expect(isHoliday('2025-01-14', map)).toBe(false);
         });
 
-        it('祝日は祝祭日として判定する', () => {
-            const newYear = new Date(2025, 0, 1);
-            expect(isHoliday(newYear)).toBe(true);
-        });
-
-        it('平日（非祝祭日）はfalseを返す', () => {
-            const weekday = new Date(2025, 0, 6); // 月曜日だが平日
-            expect(isHoliday(weekday)).toBe(false);
-        });
-    });
-
-    describe('isWorkingDay', () => {
-        it('平日の場合はtrueを返す', () => {
-            const weekday = new Date(2025, 0, 6); // 月曜日
-            expect(isWorkingDay(weekday)).toBe(true);
-        });
-
-        it('日曜日はfalseを返す', () => {
-            const sunday = new Date(2025, 0, 5);
-            expect(isWorkingDay(sunday)).toBe(false);
-        });
-
-        it('土曜日はfalseを返す', () => {
-            const saturday = new Date(2025, 0, 4);
-            expect(isWorkingDay(saturday)).toBe(false);
-        });
-
-        it('祝日はfalseを返す', () => {
-            const newYear = new Date(2025, 0, 1);
-            expect(isWorkingDay(newYear)).toBe(false);
+        it('isWorkday=trueの場合は祝日とみなさない', () => {
+            const workdayHoliday: Holiday[] = [
+                { id: '7', date: '2025-04-01', name: '振替出勤日', type: 'company', isWorkday: true },
+            ];
+            const map = createHolidayMap(workdayHoliday);
+            expect(isHoliday('2025-04-01', map)).toBe(false);
         });
     });
 
-    describe('getEquinoxDay', () => {
-        it('春分の日を取得できる', () => {
-            const spring = getEquinoxDay(2025, 'spring');
-            expect(spring.getMonth()).toBe(2); // 3月
-            expect(spring.getDate()).toBeGreaterThanOrEqual(20);
-            expect(spring.getDate()).toBeLessThanOrEqual(21);
+    describe('getHolidayInfo', () => {
+        it('祝日の情報を取得する', () => {
+            const map = createHolidayMap(mockHolidays);
+            const info = getHolidayInfo('2025-01-01', map);
+            expect(info).toBeDefined();
+            expect(info?.name).toBe('元日');
+            expect(info?.type).toBe('national');
         });
 
-        it('秋分の日を取得できる', () => {
-            const autumn = getEquinoxDay(2025, 'autumn');
-            expect(autumn.getMonth()).toBe(8); // 9月
-            expect(autumn.getDate()).toBeGreaterThanOrEqual(22);
-            expect(autumn.getDate()).toBeLessThanOrEqual(24);
-        });
-    });
-
-    describe('getHolidaysInRange', () => {
-        it('指定範囲内の祝祭日を取得できる', () => {
-            // 2025年1月1日（元日）から2025年1月7日までの範囲
-            const start = new Date(2025, 0, 1);
-            const end = new Date(2025, 0, 7);
-            const holidays = getHolidaysInRange(start, end);
-            
-            // 1月1日（元日）、1月5日（日）が含まれる
-            expect(holidays.length).toBeGreaterThan(0);
-        });
-
-        it('祝祭日がない場合は空配列を返す', () => {
-            // 2025年5月6日（火：平日）から2025年5月9日（金）までの範囲
-            const start = new Date(2025, 4, 6);
-            const end = new Date(2025, 4, 9);
-            const holidays = getHolidaysInRange(start, end);
-            
-            // 祝祭日がない（5月6日〜9日は平日）
-            expect(holidays.length).toBe(0);
+        it('祝日でない日付はundefinedを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            const info = getHolidayInfo('2025-01-02', map);
+            expect(info).toBeUndefined();
         });
     });
 
-    describe('getNthWeekdayOfMonth', () => {
-        it('第2月曜日を取得できる（成人の日）', () => {
-            // 2025年1月の第2月曜日
-            const result = getNthWeekdayOfMonth(2025, 0, 1, 2);
-            expect(result).not.toBeNull();
-            expect(result?.getDate()).toBe(13);
+    describe('getDayOfWeek', () => {
+        it('日曜日は0を返す', () => {
+            expect(getDayOfWeek('2025-01-05')).toBe(0); // 日曜日
         });
 
-        it('第3月曜日を取得できる（敬老の日）', () => {
-            // 2025年9月の第3月曜日
-            const result = getNthWeekdayOfMonth(2025, 8, 1, 3);
-            expect(result).not.toBeNull();
-            expect(result?.getDate()).toBe(15);
+        it('月曜日は1を返す', () => {
+            expect(getDayOfWeek('2025-01-06')).toBe(1); // 月曜日
         });
 
-        it('第3月曜日を取得できる（海の日）', () => {
-            // 2025年7月の第3月曜日
-            const result = getNthWeekdayOfMonth(2025, 6, 1, 3);
-            expect(result).not.toBeNull();
-            expect(result?.getDate()).toBe(21);
-        });
-
-        it('存在しない回の場合はnullを返す', () => {
-            // 2月は第5月曜日がないことが多い
-            const result = getNthWeekdayOfMonth(2025, 1, 1, 5);
-            expect(result).toBeNull();
-        });
-
-        it('最終月曜日を取得できる', () => {
-            // 2025年1月の最終月曜日
-            const result = getNthWeekdayOfMonth(2025, 0, 1, -1);
-            expect(result).not.toBeNull();
-            expect(result?.getDate()).toBe(27);
+        it('土曜日は6を返す', () => {
+            expect(getDayOfWeek('2025-01-04')).toBe(6); // 土曜日
         });
     });
 
-    describe('FIXED_HOLIDAYS', () => {
-        it('固定祝日のリストが存在する', () => {
-            expect(FIXED_HOLIDAYS.length).toBeGreaterThan(0);
+    describe('isWeekendOrHoliday', () => {
+        it('日曜日はtrueを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(isWeekendOrHoliday('2025-01-05', map)).toBe(true); // 日曜日
         });
 
-        it('主要な祝日は含まれている', () => {
-            const holidayNames = FIXED_HOLIDAYS.map(h => h.name);
-            expect(holidayNames).toContain('元日');
-            expect(holidayNames).toContain('憲法記念日');
-            expect(holidayNames).toContain('こどもの日');
-            expect(holidayNames).toContain('文化の日');
-            expect(holidayNames).toContain('勤労感謝の日');
+        it('土曜日はtrueを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(isWeekendOrHoliday('2025-01-04', map)).toBe(true); // 土曜日
+        });
+
+        it('祝日はtrueを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(isWeekendOrHoliday('2025-01-01', map)).toBe(true); // 元日
+        });
+
+        it('平日かつ祝日でない日はfalseを返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(isWeekendOrHoliday('2025-01-02', map)).toBe(false); // 平日
+        });
+    });
+
+    describe('getHolidayName', () => {
+        it('祝日の名前を返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(getHolidayName('2025-01-01', map)).toBe('元日');
+            expect(getHolidayName('2025-03-20', map)).toBe('春分の日');
+        });
+
+        it('祝日でない日は空文字を返す', () => {
+            const map = createHolidayMap(mockHolidays);
+            expect(getHolidayName('2025-01-02', map)).toBe('');
         });
     });
 });

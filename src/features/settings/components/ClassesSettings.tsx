@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Users, Loader2, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, Check, X } from 'lucide-react';
 import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
 import type { ShiftClass } from '../../../types';
 import {
@@ -30,9 +30,10 @@ interface ClassesSettingsProps {
     showMessage: (msg: string) => void;
 }
 
-const SortableClassRow = ({ cls, onDelete, children }: {
+const SortableClassRow = ({ cls, onDelete, onEdit, children }: {
     cls: ShiftClass,
     onDelete: (id: string) => void,
+    onEdit: () => void,
     children: React.ReactNode
 }) => {
     const {
@@ -68,9 +69,20 @@ const SortableClassRow = ({ cls, onDelete, children }: {
                 </button>
                 {children}
             </div>
-            <div className="flex items-center space-x-2">
-                <button onClick={() => onDelete(cls.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
-                    <Trash2 className="w-5 h-5" />
+            <div className="flex items-center space-x-1">
+                <button
+                    onClick={onEdit}
+                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                    title="編集"
+                >
+                    <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={() => onDelete(cls.id)}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                    title="削除"
+                >
+                    <Trash2 className="w-4 h-4" />
                 </button>
             </div>
         </div>
@@ -79,6 +91,8 @@ const SortableClassRow = ({ cls, onDelete, children }: {
 
 const ClassesSettings = ({ classes, loading, onUpdate, setClasses, showMessage }: ClassesSettingsProps) => {
     const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1 });
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -111,6 +125,26 @@ const ClassesSettings = ({ classes, loading, onUpdate, setClasses, showMessage }
         if (!confirm('このクラスを削除しますか？')) return;
         try {
             await deleteClass(id);
+            onUpdate();
+        } catch (err) { console.error(err); }
+    };
+
+    const handleStartEdit = (cls: ShiftClass) => {
+        setEditingId(cls.id);
+        setEditName(cls.name);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setEditName('');
+    };
+
+    const handleSaveEdit = async (id: string) => {
+        if (!editName.trim()) return;
+        try {
+            await updateClass(id, { name: editName });
+            setEditingId(null);
+            showMessage('クラス名を更新しました');
             onUpdate();
         } catch (err) { console.error(err); }
     };
@@ -213,12 +247,35 @@ const ClassesSettings = ({ classes, loading, onUpdate, setClasses, showMessage }
                                         key={c.id}
                                         cls={c}
                                         onDelete={handleDeleteClass}
+                                        onEdit={() => handleStartEdit(c)}
                                     >
                                         <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg flex items-center justify-center font-bold">
                                             {c.name.charAt(0)}
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-slate-800 dark:text-slate-100">{c.name}</p>
+                                        <div className="flex-1">
+                                            {editingId === c.id ? (
+                                                <div className="flex items-center space-x-2">
+                                                    <input
+                                                        type="text"
+                                                        value={editName}
+                                                        onChange={(e) => setEditName(e.target.value)}
+                                                        className="px-2 py-1 border border-indigo-300 dark:border-indigo-600 rounded bg-white dark:bg-slate-900 text-sm focus:ring-1 focus:ring-indigo-500 outline-none w-full max-w-[200px]"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleSaveEdit(c.id);
+                                                            if (e.key === 'Escape') handleCancelEdit();
+                                                        }}
+                                                    />
+                                                    <button onClick={() => handleSaveEdit(c.id)} className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded">
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={handleCancelEdit} className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <p className="font-bold text-slate-800 dark:text-slate-100">{c.name}</p>
+                                            )}
                                             <div className="flex items-center space-x-2 mt-1">
                                                 <label className="relative inline-flex items-center cursor-pointer scale-75 origin-left">
                                                     <input

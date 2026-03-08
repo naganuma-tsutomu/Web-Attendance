@@ -59,6 +59,7 @@ const RolesPage = () => {
 
                 <RolesSettings
                     roles={roles}
+                    setRoles={setRoles}
                     timePatterns={timePatterns}
                     loading={loading}
                     onUpdate={fetchData}

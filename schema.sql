@@ -88,7 +88,8 @@ CREATE TABLE IF NOT EXISTS shift_time_patterns (
 CREATE TABLE IF NOT EXISTS roles (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,  -- 例: "正社員", "短時間パートA"
-    targetHours INTEGER DEFAULT 0 -- 月間目標時間
+    targetHours INTEGER DEFAULT 0, -- 月間目標時間
+    display_order INTEGER DEFAULT 0
 );
 
 -- 役職とパターンの中間テーブル (役職に使えるパターンを紐付ける)

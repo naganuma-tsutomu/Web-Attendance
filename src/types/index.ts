@@ -68,6 +68,7 @@ export interface DynamicRole {
     id: string;
     name: string;
     targetHours: number | null;
+    display_order: number;
     patterns: ShiftTimePattern[];
 }
 

@@ -186,6 +186,13 @@ export const updateRolePatterns = async (roleId: string, patternIds: string[]): 
     return updateRole(roleId, { patternIds });
 };
 
+export const updateRoleOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
+    await apiFetch('/settings/roles/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ orders })
+    });
+};
+
 // ==========================================
 // Classes API (クラス管理)
 // ==========================================

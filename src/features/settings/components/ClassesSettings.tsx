@@ -35,11 +35,12 @@ interface ClassesSettingsProps {
     showMessage: (msg: string) => void;
 }
 
-const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, isOverlay = false }: {
+const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocation, isOverlay = false }: {
     cls: ShiftClass,
     staffCount: number,
     onDelete?: (id: string) => void,
     onEdit?: () => void,
+    onToggleAllocation?: () => void,
     isOverlay?: boolean
 }) => {
     const {
@@ -79,8 +80,17 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, isOverlay = false
                         </div>
                     )}
                 </div>
-                <div className="flex items-center space-x-2 mt-0.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${cls.auto_allocate === 1 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                <div className="flex items-center space-x-3 mt-1">
+                    <label className={`relative inline-flex items-center ${onToggleAllocation ? 'cursor-pointer' : 'cursor-default'} scale-75 origin-left`}>
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={cls.auto_allocate === 1}
+                            onChange={() => onToggleAllocation?.()}
+                            disabled={!onToggleAllocation}
+                        />
+                        <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 shadow-sm border border-slate-200 dark:border-slate-600"></div>
+                    </label>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
                         自動割り当て: {cls.auto_allocate === 1 ? '有効' : '無効'}
                     </span>
@@ -386,18 +396,8 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
                                                     staffCount={staffs.filter(s => s.classIds?.includes(c.id)).length}
                                                     onDelete={() => handleDeleteClick(c)}
                                                     onEdit={() => handleStartEdit(c)}
+                                                    onToggleAllocation={() => handleToggleClassAllocation(c)}
                                                 />
-                                                <div className="absolute left-16 bottom-3 flex items-center space-x-3 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                    <label className="relative inline-flex items-center cursor-pointer scale-[0.6] origin-left pointer-events-auto">
-                                                        <input
-                                                            type="checkbox"
-                                                            className="sr-only peer"
-                                                            checked={c.auto_allocate === 1}
-                                                            onChange={() => handleToggleClassAllocation(c)}
-                                                        />
-                                                        <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                                                    </label>
-                                                </div>
                                             </div>
                                         )}
                                     </div>

@@ -423,14 +423,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className="flex-1 overflow-auto min-h-0 select-none touch-none"
+            className={`select-none touch-none ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
         >
             <div className="min-w-full md:min-w-[800px] border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden flex flex-col bg-white dark:bg-slate-800">
                 {/* Header Row */}
-                <div className="flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20">
+                <div className={`flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 ${readOnly ? '' : 'sticky top-0 z-20'}`}>
                     <div className="hidden sm:flex w-[330px] flex-shrink-0">
                         <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
                         <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">開始</div>

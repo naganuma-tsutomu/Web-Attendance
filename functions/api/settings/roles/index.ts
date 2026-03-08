@@ -6,7 +6,7 @@ import { handleServerError, createValidationError, validateName, validateTargetH
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const { results: roles } = await context.env.DB.prepare(
-            'SELECT * FROM roles ORDER BY name'
+            'SELECT * FROM roles ORDER BY display_order ASC, name ASC'
         ).all();
 
         // 各役職に紐付くパターンも一緒に返す
@@ -22,8 +22,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         }));
 
         return Response.json(enriched);
-    } catch (e) { 
-        return handleServerError(e, 'Database error fetching roles'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error fetching roles');
     }
 };
 
@@ -31,21 +31,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const body = await context.request.json() as { name: string, targetHours?: number | null, patternIds?: string[] };
-        
+
         // Validate name
         const nameError = validateName(body.name, '役職名', 50);
         if (nameError) return createValidationError(nameError);
-        
+
         // Validate targetHours if provided
         const hoursError = validateTargetHours(body.targetHours);
         if (hoursError) return createValidationError(hoursError);
-        
+
         const id = `role_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-        // 1. 役職の追加
+        // 1. 役職の追加 (display_order は既存の最大値 + 1)
+        const { maxOrder } = await context.env.DB.prepare('SELECT MAX(display_order) as maxOrder FROM roles').first<{ maxOrder: number }>();
+        const nextOrder = (maxOrder || 0) + 1;
+
         await context.env.DB.prepare(
-            'INSERT INTO roles (id, name, targetHours) VALUES (?, ?, ?)'
-        ).bind(id, body.name.trim(), body.targetHours === undefined ? null : body.targetHours).run();
+            'INSERT INTO roles (id, name, targetHours, display_order) VALUES (?, ?, ?, ?)'
+        ).bind(id, body.name.trim(), body.targetHours === undefined ? null : body.targetHours, nextOrder).run();
 
         // 2. パターンの紐付け (もしあれば)
         if (body.patternIds && body.patternIds.length > 0) {
@@ -57,7 +60,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         return Response.json({ id });
-    } catch (e) { 
-        return handleServerError(e, 'Database error creating role'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error creating role');
     }
 };

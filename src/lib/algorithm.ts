@@ -1,5 +1,5 @@
 import { differenceInMinutes, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
-import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement } from '../types';
+import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**
  * Check if a staff member is available for a specific date
@@ -33,24 +33,43 @@ const isStaffAvailableForTimeSlot = (
     startTime: string,
     endTime: string,
     preferences: ShiftPreference[],
-    existingShifts: Shift[]
-): boolean => {
+    existingShifts: Shift[],
+    roles: DynamicRole[]
+): { available: boolean; matchingPattern?: ShiftTimePattern } => {
     // First check basic day availability
-    if (!isStaffAvailable(staff, date, dateStr, preferences)) return false;
+    if (!isStaffAvailable(staff, date, dateStr, preferences)) return { available: false };
+
+    // --- New: Shift Pattern Containment ---
+    const roleRecord = roles.find(r => r.name === staff.role || r.id === staff.role);
+    let matchedPattern: ShiftTimePattern | undefined;
+
+    if (roleRecord && roleRecord.patterns && roleRecord.patterns.length > 0) {
+        // Find a pattern that contains the requested time slot
+        matchedPattern = roleRecord.patterns.find(p =>
+            p.startTime <= startTime && p.endTime >= endTime
+        );
+        if (!matchedPattern) return { available: false };
+    }
 
     // Check for overlapping shifts
+    // Note: If we use matchedPattern, we should check overlap with the PATTERN time,
+    // but the caller is checking requirement by requirement.
+    // However, findAvailableStaff will pass the requirement's time.
+    // To be safe, let's use the most restrictive of either req time or pattern time for overlap check?
+    // Actually, the shift will be registered with pattern time, so we must check pattern time overlap.
+    const checkStart = matchedPattern ? matchedPattern.startTime : startTime;
+    const checkEnd = matchedPattern ? matchedPattern.endTime : endTime;
+
     const hasOverlap = existingShifts.some(shift => {
         if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
-        if (shift.isError) return false; // Error shifts don't block
+        if (shift.isError) return false;
 
-        const shiftStart = shift.startTime;
-        const shiftEnd = shift.endTime;
-
-        // Check overlap: (StartA < EndB) and (EndA > StartB)
-        return (startTime < shiftEnd && endTime > shiftStart);
+        return (checkStart < shift.endTime && checkEnd > shift.startTime);
     });
 
-    return !hasOverlap;
+    if (hasOverlap) return { available: false };
+
+    return { available: true, matchingPattern: matchedPattern };
 };
 
 /**
@@ -85,12 +104,29 @@ const findAvailableStaff = (
     endTime: string,
     preferences: ShiftPreference[],
     existingShifts: Shift[],
-    currentHours: Record<string, number>
-): Staff[] => {
+    currentHours: Record<string, number>,
+    roles: DynamicRole[]
+): Array<{ staff: Staff; pattern?: ShiftTimePattern }> => {
     return staffList
-        .filter(staff => isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, existingShifts))
-        .sort((a, b) => currentHours[a.id] - currentHours[b.id]) // Prioritize staff with fewer hours
-        .filter(s => s.hoursTarget === null || currentHours[s.id] < s.hoursTarget);
+        .map(staff => ({
+            staff,
+            result: isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, existingShifts, roles)
+        }))
+        .filter(({ result }) => result.available)
+        .map(({ staff, result }) => ({ staff, pattern: result.matchingPattern }))
+        .sort((a, b) => {
+            // Priority 1: Role display_order
+            const roleA = roles.find(r => r.name === a.staff.role || r.id === a.staff.role);
+            const roleB = roles.find(r => r.name === b.staff.role || r.id === b.staff.role);
+            const orderA = roleA ? roleA.display_order : 999;
+            const orderB = roleB ? roleB.display_order : 999;
+
+            if (orderA !== orderB) return orderA - orderB;
+
+            // Priority 2: Hours balance
+            return currentHours[a.staff.id] - currentHours[b.staff.id];
+        })
+        .filter(({ staff }) => staff.hoursTarget === null || currentHours[staff.id] < staff.hoursTarget);
 };
 
 /**
@@ -134,7 +170,7 @@ export const generateShiftsForMonth = (
     yearMonth: string, // e.g. '2024-04'
     staffList: Staff[],
     preferences: ShiftPreference[],
-    _roles: DynamicRole[],
+    roles: DynamicRole[],
     classes: ShiftClass[],
     holidays: string[] = [], // YYYY-MM-DD format
     requirements: ShiftRequirement[] = [] // New: shift requirements
@@ -191,28 +227,36 @@ export const generateShiftsForMonth = (
                     req.endTime,
                     preferences,
                     generatedShifts,
-                    currentHours
+                    currentHours,
+                    roles
                 );
 
                 for (let i = 0; i < needed; i++) {
                     if (candidates[i]) {
-                        const staff = candidates[i];
+                        const { staff, pattern } = candidates[i];
+                        const shiftStart = pattern ? pattern.startTime : req.startTime;
+                        const shiftEnd = pattern ? pattern.endTime : req.endTime;
+
                         generatedShifts.push({
                             id: `gen_${dateStr}_req_${req.id}_${staff.id}_${i}`,
                             date: dateStr,
                             staffId: staff.id,
-                            startTime: req.startTime,
-                            endTime: req.endTime,
+                            startTime: shiftStart,
+                            endTime: shiftEnd,
                             classType: req.classId,
-                            isEarlyShift: true // 要件ベースは便宜上 early 扱い
+                            isEarlyShift: true
                         });
 
                         // 労働時間を加算
                         const duration = differenceInMinutes(
-                            new Date(`2000-01-01T${req.endTime}`),
-                            new Date(`2000-01-01T${req.startTime}`)
+                            new Date(`2000-01-01T${shiftEnd}`),
+                            new Date(`2000-01-01T${shiftStart}`)
                         ) / 60;
                         currentHours[staff.id] += duration;
+
+                        // 重要: パターンで割り当てた場合、このスタッフが同じ日の他の要件も
+                        // 同時に満たしている可能性があるため、ループの次の反復で
+                        // countStaffInTimeSlot が正しく機能するように既存の配列に追加済み。
                     } else {
                         // スタッフが足りない場合はエラーシフトを作成
                         generatedShifts.push({

@@ -103,4 +103,73 @@ describe('generateShiftsForMonth', () => {
         const targetDayShifts = shifts.filter(s => s.date === '2025-06-02');
         expect(targetDayShifts).toHaveLength(0);
     });
+
+    it('登録されたパターンに合致しない時間は割り当てられない', () => {
+        const roles: DynamicRole[] = [
+            {
+                id: 'role1',
+                name: '正社員',
+                targetHours: 160,
+                display_order: 1,
+                patterns: [
+                    { id: 'p1', name: '早番', startTime: '09:00', endTime: '17:00' }
+                ]
+            }
+        ];
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+
+        // 要件が 09:00-18:00 (パターンの 09:00-17:00 と一致しない)
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '18:00' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles, dummyClasses, [], reqs);
+        const assigned = shifts.filter(s => s.staffId === 's1');
+
+        // 一致しないので割り当てられないはず
+        expect(assigned).toHaveLength(0);
+        expect(shifts.find(s => s.isError)).toBeDefined();
+    });
+
+    it('役職の優先順位（display_order）に従って割り当てられる', () => {
+        const roles: DynamicRole[] = [
+            { id: 'r_high', name: '優先高', targetHours: 160, display_order: 1, patterns: [] },
+            { id: 'r_low', name: '優先低', targetHours: 160, display_order: 10, patterns: [] }
+        ];
+        const staff = [
+            makeStaff({ id: 's_low', name: '後回し', role: '優先低' }),
+            makeStaff({ id: 's_high', name: '優先', role: '優先高' })
+        ];
+        const reqs = [makeReq({ id: 'req1', classId: 'class_niji', minStaffCount: 1 })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles, dummyClasses, [], reqs);
+
+        // 最初の日のシフトを確認
+        const firstDayShift = shifts.find(s => s.date === '2025-06-02' && !s.isError);
+        expect(firstDayShift?.staffId).toBe('s_high'); // 優先度の高いスタッフが選ばれる
+    });
+
+    it('要求時間をカバーするパターンがある場合、そのパターンの時間で割り当てられる', () => {
+        const roles: DynamicRole[] = [
+            {
+                id: 'role1',
+                name: '正社員',
+                targetHours: 160,
+                display_order: 1,
+                patterns: [
+                    { id: 'p1', name: 'フルタイム', startTime: '09:00', endTime: '18:00' }
+                ]
+            }
+        ];
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+
+        // 要件は 11:00-12:00
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', startTime: '11:00', endTime: '12:00' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles, dummyClasses, [], reqs);
+        const assigned = shifts.find(s => s.staffId === 's1');
+
+        // 割り当てに成功し、時間はパターンの 09:00-18:00 になっているはず
+        expect(assigned).toBeDefined();
+        expect(assigned?.startTime).toBe('09:00');
+        expect(assigned?.endTime).toBe('18:00');
+    });
 });

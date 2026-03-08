@@ -196,17 +196,9 @@ export const generateShiftsForMonth = (
             return;
         }
 
-        const availableStaff = staffList.filter(staff => {
-            const pref = preferences.find(p => p.staffId === staff.id);
-            if (pref && pref.unavailableDates.includes(dateStr)) return false;
-            if (!staff.availableDays || staff.availableDays.length === 0) return true;
-
-            const nthWeek = Math.ceil(date.getDate() / 7);
-            const config = staff.availableDays.find(d => (typeof d === 'number' ? d : d.day) === dayOfWeek);
-            if (!config) return false;
-            if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return false;
-            return true;
-        });
+        const availableStaff = staffList.filter(staff =>
+            isStaffAvailable(staff, date, dateStr, preferences)
+        );
 
         // 曜日の必要要件を取得（優先度順）
         const dayRequirements = getRequirementsForDay(requirements, dayOfWeek, classIds);

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern } from '../types';
 
@@ -33,7 +33,7 @@ export const exportToExcelAdvanced = async (
     staffs: Staff[],
     shifts: Shift[],
     classes: ShiftClass[],
-    timePatterns: ShiftTimePattern[]
+    _timePatterns: ShiftTimePattern[]
 ) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('シフト表');
@@ -64,20 +64,6 @@ export const exportToExcelAdvanced = async (
 
     worksheet.columns = columns;
 
-    // 1行目に数値としての時間を隠しデータ的に入れる（条件付き書式用）
-    const timeValueRow = worksheet.getRow(1); // ヘッダー行をそのまま使うか、1点を加味
-    // ヘッダーは既に文字列が入っているので、その上の行を隠し行として使うのが理想だが、
-    // ここではヘッダー行の `t_i` カラムの値を条件付き書式の比較対象にする。
-    // そのため、1行目の各タイムラインセルに数値を埋める。
-    for (let i = 0; i <= TOTAL_SLOTS; i++) {
-        const cell = timeValueRow.getCell(8 + i);
-        const hour = START_HOUR + Math.floor(i / 4);
-        const min = (i % 4) * 15;
-        // セルの値自体は表示用の文字列だが、条件付き書式の中ではこの数値を計算で再現することもできる。
-        // しかし、もっとも確実なのは、特定のセルに数値を置いておくこと。
-        // 今回は数式内で直接 `(8*60 + i*15)/(24*60)` を計算する。
-    }
-
     let currentRow = 2;
 
     days.forEach((day) => {
@@ -86,7 +72,7 @@ export const exportToExcelAdvanced = async (
         const startRowForDay = currentRow;
 
         if (dayShifts.length === 0) {
-            const row = worksheet.addRow({
+            worksheet.addRow({
                 day: format(day, 'd'),
                 dow: format(day, 'E', { locale: ja }),
             });
@@ -145,8 +131,8 @@ export const exportToExcelAdvanced = async (
     worksheet.addConditionalFormatting({
         ref: `A2:G${lastRow}`,
         rules: [
-            { type: 'expression', formulae: ['$B2="日"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
-            { type: 'expression', formulae: ['$B2="土"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
+            { type: 'expression', formulae: ['$B2="日"'], priority: 1, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
+            { type: 'expression', formulae: ['$B2="土"'], priority: 2, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
         ]
     });
 
@@ -167,6 +153,7 @@ export const exportToExcelAdvanced = async (
                         // 数式: (=AND(区分セル=クラス名, 開始セル<=現在のスロット, 終了セル>現在のスロット))
                         // $D2 は区分, $E2 は開始, $F2 は終了
                         formulae: [`AND($D2="${cls.name}", $E2<=${currentSlotTime.toFixed(10)}, $F2>${currentSlotTime.toFixed(10)})`],
+                        priority: 1,
                         style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } } }
                     }
                 ]

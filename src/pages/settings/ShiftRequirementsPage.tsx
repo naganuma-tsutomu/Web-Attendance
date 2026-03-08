@@ -1,18 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
-import { getClasses } from '../../lib/api';
-import type { ShiftClass } from '../../types';
-
-// シフト要件の型定義
-interface ShiftRequirement {
-    id: string;
-    classId: string;
-    dayOfWeek: number; // 0-6 for Sun-Sat, 7 for weekdays
-    startTime: string;
-    endTime: string;
-    minStaffCount: number;
-    priority: number;
-}
+import { getClasses, getShiftRequirements, saveShiftRequirements } from '../../lib/api';
+import type { ShiftClass, ShiftRequirement } from '../../types';
 
 // 曜日パターンの選択肢
 const dayOfWeekOptions = [
@@ -46,37 +35,6 @@ const createEmptyRequirement = (): ShiftRequirement => ({
     priority: 3,
 });
 
-// モックデータ
-const mockRequirements: ShiftRequirement[] = [
-    {
-        id: 'req-1',
-        classId: 'class-1',
-        dayOfWeek: 7,
-        startTime: '08:00',
-        endTime: '12:00',
-        minStaffCount: 2,
-        priority: 5,
-    },
-    {
-        id: 'req-2',
-        classId: 'class-1',
-        dayOfWeek: 7,
-        startTime: '12:00',
-        endTime: '18:00',
-        minStaffCount: 3,
-        priority: 4,
-    },
-    {
-        id: 'req-3',
-        classId: 'class-2',
-        dayOfWeek: 6,
-        startTime: '09:00',
-        endTime: '17:00',
-        minStaffCount: 1,
-        priority: 3,
-    },
-];
-
 const ShiftRequirementsPage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [requirements, setRequirements] = useState<ShiftRequirement[]>([]);
@@ -90,15 +48,15 @@ const ShiftRequirementsPage = () => {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
+            setError('');
             try {
                 // クラス一覧を取得
                 const classesData = await getClasses();
                 setClasses(classesData);
 
-                // TODO: API実装後は実際のデータを取得
-                // const requirementsData = await getShiftRequirements();
-                // 現状はモックデータを使用
-                setRequirements(mockRequirements);
+                // 必要人数設定を取得
+                const requirementsData = await getShiftRequirements();
+                setRequirements(requirementsData);
 
                 // 最初のクラスを選択状態に
                 if (classesData.length > 0) {
@@ -198,13 +156,9 @@ const ShiftRequirementsPage = () => {
         }
 
         setSaving(true);
+        setError('');
         try {
-            // TODO: API実装後に実際の保存処理を実装
-            // await saveShiftRequirements(requirements);
-            
-            // モックの保存遅延
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
+            await saveShiftRequirements(requirements);
             showMessage('保存しました');
         } catch (err) {
             console.error('Failed to save', err);

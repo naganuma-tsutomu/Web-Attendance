@@ -34,7 +34,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                 const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
                 return (
-                    <div key={dateStr} className="flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group">
+                    <div key={dateStr} className="flex-shrink-0 flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group">
                         <div
                             className={`flex items-center justify-between px-4 py-1.5 transition-colors cursor-pointer border-b
                                 ${isToday
@@ -75,9 +75,9 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                 {classes.map(c => (
                     <div key={c.id} className="flex items-center space-x-1">
                         <div className={`w-2.5 h-2.5 rounded-sm border ${c.id === 'class_niji' ? 'bg-amber-300 border-amber-400' :
-                                c.id === 'class_smile' ? 'bg-blue-300 border-blue-400' :
-                                    c.id === 'class_special' ? 'bg-emerald-300 border-emerald-400' :
-                                        'bg-purple-300 border-purple-400'
+                            c.id === 'class_smile' ? 'bg-blue-300 border-blue-400' :
+                                c.id === 'class_special' ? 'bg-emerald-300 border-emerald-400' :
+                                    'bg-purple-300 border-purple-400'
                             }`} />
                         <span>{c.name === '特殊' ? 'ヘルプ' : c.name}</span>
                     </div>

@@ -197,9 +197,12 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             return a.startTime.localeCompare(b.startTime);
         });
 
-    const getBarStyle = (shiftId: string) => {
-        const s = localShifts[shiftId];
-        if (!s) return {};
+    const getBarStyle = (shift: Shift) => {
+        const s = localShifts[shift.id] || {
+            start: toMins(shift.startTime),
+            end: toMins(shift.endTime),
+            classType: shift.classType
+        };
         const clampedStart = Math.max(START_HOUR * 60, s.start);
         const clampedEnd = Math.min(END_HOUR * 60, s.end);
         const left = ((clampedStart - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
@@ -423,7 +426,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className={`select-none touch-none ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
+            className={`select-none touch-none flex-shrink-0 ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
@@ -611,11 +614,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 )}
 
                                                 {/* Timeline Track */}
-                                                <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[32px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`}>
+                                                <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`}>
                                                     {renderGridLines()}
                                                     <div
-                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${getBarColor(isDragging && hoveredGroup ? hoveredGroup : s.classType, s.isError)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
-                                                        style={{ ...getBarStyle(shift.id), transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none' }}
+                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${getBarColor(isDragging && hoveredGroup ? hoveredGroup : (readOnly ? shift.classType : s.classType), readOnly ? shift.isError : s.isError)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
+                                                        style={{ ...getBarStyle(shift), transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none' }}
                                                         onPointerDown={e => {
                                                             if (readOnly) return;
                                                             const trackEl = document.getElementById(`track-${shift.id}`);
@@ -627,9 +630,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         {!readOnly && (
                                                             <div className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-l transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-left', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
                                                         )}
-                                                        <div className="flex-1 px-1 sm:px-3 text-[9px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
+                                                        <div className="flex-1 px-1 sm:px-2 text-[9px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
                                                             {!readOnly && <GripVertical className="inline w-3 h-3 mr-1 opacity-40" />}
-                                                            {getShiftLabel(s.start, s.end)}
+                                                            {getShiftLabel(readOnly ? toMins(shift.startTime) : s.start, readOnly ? toMins(shift.endTime) : s.end)}
                                                         </div>
                                                         {!readOnly && (
                                                             <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>

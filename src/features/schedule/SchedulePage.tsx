@@ -6,7 +6,8 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
-import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
+import { exportToPDF } from '../../lib/exportUtils';
+import { exportToExcelAdvanced } from '../../utils/excelExport';
 import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday } from '../../types';
 import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
@@ -507,7 +508,7 @@ const SchedulePage = () => {
 
                         <div className="flex gap-2 w-full sm:w-auto">
                             <button
-                                onClick={() => exportToExcel(targetYearMonth, staffList, rawShifts)}
+                                onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns)}
                                 className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
                             >
                                 <Download className="w-5 h-5 text-green-600" />

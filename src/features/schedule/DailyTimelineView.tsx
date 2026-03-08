@@ -429,33 +429,56 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             onPointerCancel={handlePointerUp}
         >
             <div className="min-w-full md:min-w-[800px] border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden flex flex-col bg-white dark:bg-slate-800">
-                {/* Header Row */}
-                <div className={`flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 ${readOnly ? '' : 'sticky top-0 z-20'}`}>
-                    <div className="hidden sm:flex w-[330px] flex-shrink-0">
-                        <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
-                        <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">開始</div>
-                        <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">終了</div>
-                        <div className="w-14 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">時間</div>
+                {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
+                {!readOnly && (
+                    <div className={`flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
+                        <div className="hidden sm:flex w-[330px] flex-shrink-0">
+                            <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
+                            <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">開始</div>
+                            <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">終了</div>
+                            <div className="w-14 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">時間</div>
+                        </div>
+                        {/* Mobile Header Column for info */}
+                        <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                            スタッフ
+                        </div>
+                        <div className="flex-1 relative h-8">
+                            {hourLabels.map((h) => {
+                                const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
+                                return (
+                                    <div
+                                        key={h}
+                                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5"
+                                        style={{ left: `${leftPct}%` }}
+                                    >
+                                        {h}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                    {/* Mobile Header Column for info */}
-                    <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                        スタッフ
+                )}
+
+                {/* Simplified Header for readOnly mode */}
+                {readOnly && (
+                    <div className="flex bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 sticky top-0 z-20">
+                        <div className="w-20 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前</div>
+                        <div className="flex-1 relative h-6">
+                            {hourLabels.map((h) => {
+                                const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
+                                return (
+                                    <div
+                                        key={h}
+                                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[9px] text-slate-400"
+                                        style={{ left: `${leftPct}%` }}
+                                    >
+                                        {h}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div className="flex-1 relative h-8">
-                        {hourLabels.map((h) => {
-                            const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
-                            return (
-                                <div
-                                    key={h}
-                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5"
-                                    style={{ left: `${leftPct}%` }}
-                                >
-                                    {h}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
+                )}
 
                 {/* Content Rows */}
                 <div className="pb-2">
@@ -501,15 +524,15 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 ref={el => { groupRefs.current[cls.id] = el; }}
                                 className={`mb-4 last:mb-0 border-x border-b border-slate-200 dark:border-slate-700 shadow-sm rounded-b-lg`}
                             >
-                                <div className={`px-4 py-2 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
-                                    <div className="flex items-center">
+                                <div className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
+                                    <div className="flex items-center text-xs">
                                         {groupTitle}
                                         {hoveredGroup === cls.id && activeDragId && (
                                             <span className="ml-2 text-[10px] text-indigo-500 animate-pulse">ここへ移動</span>
                                         )}
                                     </div>
 
-                                    {cls.id !== 'unassigned' && (
+                                    {!readOnly && cls.id !== 'unassigned' && (
                                         <div className="relative">
                                             <button
                                                 onClick={() => setShowAddMenu(prev => prev === cls.id ? null : (cls.id as ClassType))}
@@ -559,27 +582,39 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                         return (
                                             <div
                                                 key={shift.id}
-                                                className={`flex flex-col sm:flex-row ${!isLast ? 'border-b border-slate-200 dark:border-slate-700' : ''} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                                className={`flex ${readOnly ? 'flex-row items-center border-b border-slate-100 dark:border-slate-700/50' : 'flex-col sm:flex-row border-b border-slate-200 dark:border-slate-700'} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                                             >
-                                                <div className="flex w-full sm:w-[330px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
-                                                    <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center overflow-hidden relative group/name">
-                                                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={staffName}>{staffName}</div>
-                                                        <button onClick={() => handleRemoveShift(shift.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/name:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                {/* Left Info Column */}
+                                                {!readOnly ? (
+                                                    <div className="flex w-full sm:w-[330px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
+                                                        <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center overflow-hidden relative group/name">
+                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={staffName}>{staffName}</div>
+                                                            <button onClick={() => handleRemoveShift(shift.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/name:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        </div>
+                                                        <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
+                                                            <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                        </div>
+                                                        <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
+                                                            <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                        </div>
+                                                        <div className="w-14 p-2 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
+                                                            {calculateDuration(s.start, s.end)}
+                                                        </div>
                                                     </div>
-                                                    <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                        <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                ) : (
+                                                    <div className="w-20 flex-shrink-0 px-2 py-1 border-r border-slate-100 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 flex flex-col justify-center overflow-hidden">
+                                                        <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate" title={staffName}>{staffName}</div>
+                                                        <div className="text-[8px] text-slate-400 font-mono tracking-tighter">
+                                                            {toTimeStr(s.start)}-{toTimeStr(s.end)}
+                                                        </div>
                                                     </div>
-                                                    <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                        <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
-                                                    </div>
-                                                    <div className="w-14 p-2 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
-                                                        {calculateDuration(s.start, s.end)}
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 relative py-2 min-h-[52px] w-full" id={`track-${shift.id}`}>
+                                                )}
+
+                                                {/* Timeline Track */}
+                                                <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[32px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`}>
                                                     {renderGridLines()}
                                                     <div
-                                                        className={`absolute top-2 bottom-2 rounded border shadow flex items-center ${getBarColor(isDragging && hoveredGroup ? hoveredGroup : s.classType, s.isError)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
+                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${getBarColor(isDragging && hoveredGroup ? hoveredGroup : s.classType, s.isError)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
                                                         style={{ ...getBarStyle(shift.id), transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none' }}
                                                         onPointerDown={e => {
                                                             if (readOnly) return;
@@ -589,12 +624,16 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         onPointerUp={handlePointerUp}
                                                         onPointerCancel={handlePointerUp}
                                                     >
-                                                        <div className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-l transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-left', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
-                                                        <div className="flex-1 px-3 text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
-                                                            <GripVertical className="inline w-3 h-3 mr-1 opacity-40" />
+                                                        {!readOnly && (
+                                                            <div className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-l transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-left', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
+                                                        )}
+                                                        <div className="flex-1 px-1 sm:px-3 text-[9px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
+                                                            {!readOnly && <GripVertical className="inline w-3 h-3 mr-1 opacity-40" />}
                                                             {getShiftLabel(s.start, s.end)}
                                                         </div>
-                                                        <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
+                                                        {!readOnly && (
+                                                            <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

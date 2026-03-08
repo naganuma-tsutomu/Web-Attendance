@@ -51,6 +51,10 @@ const AppearanceSettings = () => {
                     </div>
 
                     <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                        <div>
+                            <p className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">週の開始日</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">カレンダーの表示を開始する曜日を選択します。</p>
+                        </div>
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl self-start sm:self-auto">
                             <button
                                 onClick={() => setWeekStartsOn(0)}

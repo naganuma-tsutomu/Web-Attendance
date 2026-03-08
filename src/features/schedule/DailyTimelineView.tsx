@@ -173,9 +173,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         }
     }, [addedShifts, deletedIds, localShifts, initialShifts, onShiftUpdate]);
 
-    if (saveRef) {
-        saveRef.current = handleSave;
-    }
+    useEffect(() => {
+        if (saveRef) {
+            saveRef.current = handleSave;
+        }
+    }, [saveRef, handleSave]);
 
     const hourLabels = Array.from({ length: (END_HOUR - START_HOUR) + 1 }, (_, i) => START_HOUR + i);
 
@@ -307,7 +309,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
             return { ...prev, [drag.shiftId]: { ...prev[drag.shiftId], start: newStart, end: newEnd } };
         });
-    }, [hoveredGroup, classes]);
+    }, [classes]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent) => {
         const drag = dragRef.current;
@@ -354,7 +356,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (!staff) return;
         const startTime = staff.defaultWorkingHoursStart || "10:00";
         const endTime = staff.defaultWorkingHoursEnd || "15:00";
-        const tempId = `temp-${Date.now()}-${staffId}`;
+        const tempId = `temp-${crypto.randomUUID()}-${staffId}`;
         const newShift: Shift = {
             id: tempId,
             date: targetDateStr,

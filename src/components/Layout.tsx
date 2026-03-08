@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
@@ -9,10 +9,11 @@ const Layout = () => {
     const { logout, currentUser } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // 画面遷移時にメニューを閉じる
-    useEffect(() => {
-        setIsMenuOpen(false);
-    }, [location.pathname]);
+    const closeMenu = () => {
+        if (isMenuOpen) {
+            setIsMenuOpen(false);
+        }
+    };
 
     const handleLogout = async () => {
         await logout();
@@ -69,7 +70,7 @@ const Layout = () => {
                 <div className="flex-1 py-6 px-4 space-y-2 flex flex-col overflow-y-auto">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        const isActive = location.pathname === item.path || 
+                        const isActive = location.pathname === item.path ||
                             (item.path !== '/' && location.pathname.startsWith(item.path)) ||
                             // Special case for /settings/patterns - also active on /settings
                             (item.path === '/settings/patterns' && location.pathname === '/settings');
@@ -78,6 +79,7 @@ const Layout = () => {
                             <Link
                                 key={item.path}
                                 to={item.path}
+                                onClick={closeMenu}
                                 className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
                                     ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
                                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'

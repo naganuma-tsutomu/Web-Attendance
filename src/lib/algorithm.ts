@@ -349,7 +349,7 @@ export const generateShiftsForMonth = (
             prevDayLateStaffIds = [];
         } else {
             // Weekday Rule: 6 staff required
-            let assignedStaffIds = new Set<string>();
+            const assignedStaffIds = new Set<string>();
 
             const addShift = (staff: Staff, start: string, end: string, isEarly: boolean) => {
                 const classType = getRandomAssignedClass(staff);

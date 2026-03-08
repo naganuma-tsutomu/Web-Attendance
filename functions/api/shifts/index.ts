@@ -47,7 +47,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ));
 
         await context.env.DB.batch(batch);
-        return new Response('Batch inserted', { status: 200 });
+        return Response.json({ success: true, message: 'Batch inserted' });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }
@@ -63,7 +63,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
             "DELETE FROM shifts WHERE date LIKE ?"
         ).bind(`${yearMonth}%`).run();
 
-        return new Response('Deleted', { status: 200 });
+        return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }

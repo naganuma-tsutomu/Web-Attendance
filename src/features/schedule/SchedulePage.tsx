@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, type Locale } from 'date-fns';
+import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns } from '../../lib/api';
-import { generateShiftsForMonth } from '../../lib/algorithm';
+import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
 import { exportToExcel, exportToPDF } from '../../lib/exportUtils';
 import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern } from '../../types';
 import DailyTimelineModal from './DailyTimelineModal';
@@ -182,13 +182,26 @@ const SchedulePage = () => {
             }
         });
 
-        // 希望休の集計
-        preferences.forEach(pref => {
-            pref.unavailableDates.forEach(dateStr => {
-                if (!dailySummary[dateStr]) {
-                    dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+        // 希望休・固定休日の集計
+        const startDate = startOfMonth(currentDate);
+        const endDate = endOfMonth(currentDate);
+        const daysInMonth = eachDayOfInterval({ start: startDate, end: endDate });
+
+        daysInMonth.forEach(day => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            if (!dailySummary[dateStr]) {
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+            }
+
+            staffList.forEach(staff => {
+                // その日が「平日または土曜」である場合に限り、休み（利用不可）をチェック
+                // (日曜はもともと休みなのでカウントしない)
+                const dayOfWeek = getDay(day);
+                if (dayOfWeek === 0) return;
+
+                if (!isStaffAvailable(staff, day, dateStr, preferences)) {
+                    dailySummary[dateStr].requestedOff++;
                 }
-                dailySummary[dateStr].requestedOff++;
             });
         });
 

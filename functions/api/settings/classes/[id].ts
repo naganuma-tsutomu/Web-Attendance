@@ -39,9 +39,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         params.push(id);
 
         await context.env.DB.prepare(query).bind(...params).run();
-        return new Response(null, { status: 204 });
-    } catch (e) { 
-        return handleServerError(e, 'Database error updating class'); 
+        return Response.json({ success: true });
+    } catch (e) {
+        return handleServerError(e, 'Database error updating class');
     }
 };
 
@@ -50,8 +50,8 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
         await context.env.DB.prepare('DELETE FROM classes WHERE id = ?').bind(id).run();
-        return new Response(null, { status: 204 });
-    } catch (e) { 
-        return handleServerError(e, 'Database error deleting class'); 
+        return Response.json({ success: true });
+    } catch (e) {
+        return handleServerError(e, 'Database error deleting class');
     }
 };

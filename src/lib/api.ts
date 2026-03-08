@@ -21,10 +21,14 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
         throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
     }
 
-    // No content
-    if (response.status === 204) return {} as T;
-
-    return response.json();
+    // 共通のパース処理
+    const text = await response.text();
+    try {
+        return text ? JSON.parse(text) : {} as T;
+    } catch (e) {
+        // JSONでない場合はテキストをそのまま返すか、空オブジェクトを返す
+        return { message: text } as unknown as T;
+    }
 }
 
 // ==========================================

@@ -45,7 +45,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             `UPDATE shifts SET ${setClauses.join(', ')} WHERE id = ?`
         ).bind(...bindings).run();
 
-        return new Response('Updated', { status: 200 });
+        return Response.json({ success: true, message: 'Updated' });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }
@@ -57,7 +57,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         await context.env.DB.prepare(
             'DELETE FROM shifts WHERE id = ?'
         ).bind(id).run();
-        return new Response('Deleted', { status: 200 });
+        return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }

@@ -190,11 +190,11 @@ const StaffPage = () => {
         setFormData({
             name: staff.name,
             role: staff.role,
-            hoursTarget: staff.hoursTarget,
-            isHelpStaff: staff.isHelpStaff,
-            availableDays: staff.availableDays,
-            defaultWorkingHoursStart: staff.defaultWorkingHoursStart,
-            defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd,
+            hoursTarget: staff.hoursTarget ?? null,
+            isHelpStaff: staff.isHelpStaff || false,
+            availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
+            defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',
+            defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || '',
             classIds: staff.classIds || []
         });
         setIsModalOpen(true);
@@ -545,7 +545,7 @@ const StaffPage = () => {
                                         const config = formData.availableDays?.find(d =>
                                             d && (typeof d === 'number' ? d : d.day) === dayNum
                                         );
-                                        const isPartialWorking = typeof config === 'object';
+                                        const isPartialWorking = typeof config === 'object' && Array.isArray((config as any).weeks);
                                         const isHolidayEveryWeek = !config;
                                         const isHoliday = isHolidayEveryWeek || isPartialWorking;
 
@@ -563,8 +563,10 @@ const StaffPage = () => {
                                                                     const checked = e.target.checked;
                                                                     let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
                                                                     if (checked) {
+                                                                        // 出勤→休み：その曜日をリストから削除（＝全週休み）
                                                                         newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                                     } else {
+                                                                        // 休み→出勤：その曜日を数値として追加（＝全週出勤）
                                                                         newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                                         newAvailableDays.push(dayNum);
                                                                     }
@@ -583,7 +585,8 @@ const StaffPage = () => {
                                                                 if (isHolidayEveryWeek) {
                                                                     isWeekHoliday = true;
                                                                 } else if (isPartialWorking) {
-                                                                    isWeekHoliday = !(config as { day: number, weeks: number[] }).weeks.includes(week);
+                                                                    const weeksAvailable = (config as any).weeks || [];
+                                                                    isWeekHoliday = !weeksAvailable.includes(week);
                                                                 }
 
                                                                 return (

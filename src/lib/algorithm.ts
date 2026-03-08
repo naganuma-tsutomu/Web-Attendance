@@ -4,7 +4,7 @@ import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequi
 /**
  * Check if a staff member is available for a specific date
  */
-const isStaffAvailable = (
+export const isStaffAvailable = (
     staff: Staff,
     date: Date,
     dateStr: string,
@@ -370,6 +370,7 @@ export const generateShiftsForMonth = (
 
             const getRankedCandidates = (roleFilter: (s: Staff) => boolean) => {
                 return availableStaff.filter(s => roleFilter(s))
+                    .filter(s => isStaffAvailable(s, date, dateStr, preferences))
                     .sort((a, b) => currentHours[a.id] - currentHours[b.id])
                     .filter(s => s.hoursTarget === null || currentHours[s.id] < s.hoursTarget);
             };

@@ -18,7 +18,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         await context.env.DB.batch(statements);
 
-        return new Response('Reordered', { status: 200 });
+        return Response.json({ success: true, message: 'Reordered' });
     } catch (e) {
         return new Response((e as Error).message, { status: 500 });
     }

@@ -3,7 +3,7 @@ import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'rea
 import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
+import { Settings2, Download, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
 import { exportToPDF } from '../../lib/exportUtils';
@@ -514,8 +514,8 @@ const SchedulePage = () => {
                             <button
                                 onClick={() => setIsSummaryOpen(!isSummaryOpen)}
                                 className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 ${isSummaryOpen
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                                     }`}
                                 title="スタッフ別労働時間を表示"
                             >
@@ -536,22 +536,7 @@ const SchedulePage = () => {
                                 <Download className="w-5 h-5 text-red-600" />
                                 <span className="sm:hidden lg:inline text-xs font-bold">PDF</span>
                             </button>
-                            <button
-                                onClick={() => {
-                                    setSelectedEvent(null);
-                                    setEditFormData({
-                                        staffId: '',
-                                        date: format(currentDate, 'yyyy-MM-01'),
-                                        startTime: '09:00',
-                                        endTime: '18:00'
-                                    });
-                                    setIsEditModalOpen(true);
-                                }}
-                                className="flex items-center justify-center space-x-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-[2] sm:flex-none"
-                            >
-                                <Plus className="w-5 h-5" />
-                                <span className="whitespace-nowrap font-bold">追加</span>
-                            </button>
+
                         </div>
                     </div>
                 </div>

@@ -428,7 +428,7 @@ const SchedulePage = () => {
                                     else if (view === Views.WEEK) setCurrentDate(subWeeks(currentDate, 1));
                                     else setCurrentDate(subDays(currentDate, 1));
                                 }}
-                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                             >
                                 <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                             </button>
@@ -446,7 +446,7 @@ const SchedulePage = () => {
                                     else if (view === Views.WEEK) setCurrentDate(addWeeks(currentDate, 1));
                                     else setCurrentDate(addDays(currentDate, 1));
                                 }}
-                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                             >
                                 <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                             </button>
@@ -455,19 +455,19 @@ const SchedulePage = () => {
                         <div className="flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={() => setView(Views.MONTH)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.MONTH ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${view === Views.MONTH ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
                             >
                                 月
                             </button>
                             <button
                                 onClick={() => setView(Views.WEEK)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.WEEK ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${view === Views.WEEK ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
                             >
                                 週
                             </button>
                             <button
                                 onClick={() => setView(Views.DAY)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.DAY ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${view === Views.DAY ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
                             >
                                 日
                             </button>
@@ -478,7 +478,7 @@ const SchedulePage = () => {
                         <button
                             onClick={handleGenerate}
                             disabled={generating}
-                            className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
+                            className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 hover:cursor-pointer'}`}
                         >
                             {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings2 className="w-5 h-5" />}
                             <span className="whitespace-nowrap">{generating ? '生成中...' : '自動生成'}</span>
@@ -504,37 +504,37 @@ const SchedulePage = () => {
                                     variant: 'danger'
                                 });
                             }}
-                            className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center"
+                            className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
                         >
                             <Trash2 className="w-5 h-5 text-red-500" />
                             <span className="whitespace-nowrap">消去</span>
                         </button>
 
-                        <div className="flex gap-2 w-full sm:w-auto">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                             <button
                                 onClick={() => setIsSummaryOpen(!isSummaryOpen)}
-                                className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 ${isSummaryOpen
+                                className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 cursor-pointer ${isSummaryOpen
                                     ? 'bg-indigo-600 text-white'
                                     : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                                     }`}
                                 title="スタッフ別労働時間を表示"
                             >
                                 <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
-                                <span className="text-sm font-bold">労働時間</span>
+                                <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                             </button>
                             <button
                                 onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns)}
-                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
+                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                             >
                                 <Download className="w-5 h-5 text-green-600" />
-                                <span className="sm:hidden lg:inline text-xs font-bold">Excel</span>
+                                <span className="sm:hidden lg:inline text-xs font-bold whitespace-nowrap">Excel</span>
                             </button>
                             <button
                                 onClick={() => exportToPDF(targetYearMonth, staffList, rawShifts)}
-                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
+                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                             >
                                 <Download className="w-5 h-5 text-red-600" />
-                                <span className="sm:hidden lg:inline text-xs font-bold">PDF</span>
+                                <span className="sm:hidden lg:inline text-xs font-bold whitespace-nowrap">PDF</span>
                             </button>
 
                         </div>

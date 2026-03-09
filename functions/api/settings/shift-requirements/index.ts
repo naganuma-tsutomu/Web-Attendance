@@ -86,7 +86,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             for (const req of requirements) {
                 // Generate ID if missing or temp
                 const id = (!req.id || req.id.startsWith('temp-'))
-                    ? `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+                    ? `req_${crypto.randomUUID()}`
                     : req.id;
 
                 // Insert statement

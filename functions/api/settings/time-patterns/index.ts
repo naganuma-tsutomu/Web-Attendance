@@ -51,7 +51,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const timeError = validateTimeRange(body.startTime, body.endTime);
         if (timeError) return createValidationError(timeError);
 
-        const id = `stp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const id = `stp_${crypto.randomUUID()}`;
 
         // Get max display_order
         const { maxOrder } = await context.env.DB.prepare('SELECT MAX(display_order) as maxOrder FROM shift_time_patterns').first<{ maxOrder: number }>();

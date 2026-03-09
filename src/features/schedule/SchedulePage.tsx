@@ -13,6 +13,7 @@ import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
 import WeeklyTimelineView from './WeeklyTimelineView';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import StaffWorkHoursSummary from './components/StaffWorkHoursSummary';
 
 const locales = {
     'ja': ja,
@@ -89,6 +90,7 @@ const SchedulePage = () => {
         variant?: 'danger' | 'info';
     } | null>(null);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
     const targetYearMonth = format(currentDate, 'yyyy-MM');
 
@@ -711,6 +713,14 @@ const SchedulePage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Staff Work Hours Summary Side Panel */}
+            <StaffWorkHoursSummary
+                staffs={staffList}
+                shifts={rawShifts}
+                isOpen={isSummaryOpen}
+                onToggle={() => setIsSummaryOpen(!isSummaryOpen)}
+            />
 
             {/* Shift Edit Modal */}
             {isEditModalOpen && (

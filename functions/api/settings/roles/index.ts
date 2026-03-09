@@ -52,7 +52,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const hoursError = validateTargetHours(body.targetHours);
         if (hoursError) return createValidationError(hoursError);
 
-        const id = `role_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const id = `stp_${crypto.randomUUID()}`;
 
         // 1. 役職の追加 (display_order は既存の最大値 + 1)
         const { maxOrder } = await context.env.DB.prepare('SELECT MAX(display_order) as maxOrder FROM roles').first<{ maxOrder: number }>();

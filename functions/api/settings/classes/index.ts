@@ -9,8 +9,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             'SELECT * FROM classes ORDER BY display_order, name'
         ).all();
         return Response.json(classes);
-    } catch (e) { 
-        return handleServerError(e, 'Database error fetching classes'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error fetching classes');
     }
 };
 
@@ -18,12 +18,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const body = await context.request.json() as { name: string, auto_allocate?: number };
-        
+
         // Validate name
         const nameError = validateName(body.name, 'クラス名', 50);
         if (nameError) return createValidationError(nameError);
-        
-        const id = `class_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+        const id = `class_${crypto.randomUUID()}`;
         const autoAllocate = body.auto_allocate !== undefined ? body.auto_allocate : 1;
 
         await context.env.DB.prepare(
@@ -31,7 +31,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ).bind(id, body.name.trim(), autoAllocate).run();
 
         return Response.json({ id });
-    } catch (e) { 
-        return handleServerError(e, 'Database error creating class'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error creating class');
     }
 };

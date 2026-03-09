@@ -23,11 +23,12 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 
     // 共通のパース処理
     const text = await response.text();
+    if (!text) return {} as T;
+
     try {
-        return text ? JSON.parse(text) : {} as T;
+        return JSON.parse(text);
     } catch (e) {
-        // JSONでない場合はテキストをそのまま返すか、空オブジェクトを返す
-        return { message: text } as unknown as T;
+        throw new Error(`Invalid JSON response from API: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`);
     }
 }
 

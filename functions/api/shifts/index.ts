@@ -43,8 +43,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const chunkSize = 100;
         for (let i = 0; i < shiftsData.length; i += chunkSize) {
             const chunk = shiftsData.slice(i, i + chunkSize);
-            const batch = chunk.map((shift, j) => stmt.bind(
-                `shift_${Date.now()}_${i + j}`,
+            const batch = chunk.map((shift) => stmt.bind(
+                `shift_${crypto.randomUUID()}`,
                 shift.date,
                 shift.staffId,
                 shift.startTime,

@@ -10,16 +10,32 @@ export const isStaffAvailable = (
     dateStr: string,
     preferences: ShiftPreference[]
 ): boolean => {
-    const dayOfWeek = getDay(date);
+    return isStaffAvailableReason(staff, date, dateStr, preferences) === 'available';
+};
+
+/**
+ * Get the reason why a staff member is unavailable for a specific date
+ */
+export const isStaffAvailableReason = (
+    staff: Staff,
+    date: Date,
+    dateStr: string,
+    preferences: ShiftPreference[]
+): 'available' | 'preference' | 'fixed' => {
+    // 1. Check Shift Preference (休日管理)
     const pref = preferences.find(p => p.staffId === staff.id);
-    if (pref && pref.unavailableDates.includes(dateStr)) return false;
-    if (!staff.availableDays || staff.availableDays.length === 0) return true;
+    if (pref && pref.unavailableDates.includes(dateStr)) return 'preference';
+
+    // 2. Check Staff Base Availability (スタッフ管理)
+    const dayOfWeek = getDay(date);
+    if (!staff.availableDays || staff.availableDays.length === 0) return 'available';
 
     const nthWeek = Math.ceil(date.getDate() / 7);
     const config = staff.availableDays.find(d => (typeof d === 'number' ? d : d.day) === dayOfWeek);
-    if (!config) return false;
-    if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return false;
-    return true;
+    if (!config) return 'fixed';
+    if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return 'fixed';
+
+    return 'available';
 };
 
 /**

@@ -5,7 +5,7 @@ import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Settings2, Download, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
-import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
+import { generateShiftsForMonth, isStaffAvailableReason } from '../../lib/algorithm';
 import { exportToPDF } from '../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../utils/excelExport';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
@@ -183,13 +183,13 @@ const SchedulePage = () => {
 
     // 月間表示用のサマリーイベントを生成
     const summaryEvents = view === Views.MONTH ? (() => {
-        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number }> = {};
+        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number; fixedOff: number }> = {};
 
         // シフトの集計
         events.forEach(event => {
             const dateStr = format(event.start, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, fixedOff: 0 };
             }
 
             if (event.isError) {
@@ -208,17 +208,18 @@ const SchedulePage = () => {
         daysInMonth.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, fixedOff: 0 };
             }
 
             staffList.forEach(staff => {
-                // その日が「平日または土曜」である場合に限り、休み（利用不可）をチェック
-                // (日曜はもともと休みなのでカウントしない)
                 const dayOfWeek = getDay(day);
                 if (dayOfWeek === 0) return;
 
-                if (!isStaffAvailable(staff, day, dateStr, preferences)) {
+                const reason = isStaffAvailableReason(staff, day, dateStr, preferences);
+                if (reason === 'preference') {
                     dailySummary[dateStr].requestedOff++;
+                } else if (reason === 'fixed') {
+                    dailySummary[dateStr].fixedOff++;
                 }
             });
         });
@@ -259,12 +260,24 @@ const SchedulePage = () => {
             // 希望休人数
             if (data.requestedOff > 0) {
                 summaries.push({
-                    id: `summary-off-${dateStr}`,
+                    id: `summary-req-off-${dateStr}`,
                     title: `希望休: ${data.requestedOff}名`,
                     start: baseDate,
                     end: baseDate,
                     isSummary: true,
-                    type: 'off'
+                    type: 'requested-off'
+                });
+            }
+
+            // 固定休人数
+            if (data.fixedOff > 0) {
+                summaries.push({
+                    id: `summary-fixed-off-${dateStr}`,
+                    title: `固定休: ${data.fixedOff}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'fixed-off'
                 });
             }
         });
@@ -380,8 +393,11 @@ const SchedulePage = () => {
 
         if (event.isError || event.type === 'error') {
             style.backgroundColor = '#ef4444';
-        } else if (event.type === 'off') {
+        } else if (event.type === 'requested-off') {
             style.backgroundColor = '#94a3b8'; // Slate 400
+        } else if (event.type === 'fixed-off') {
+            style.backgroundColor = '#cbd5e1'; // Slate 300
+            style.color = '#475569'; // Slate 600 for better contrast on light bg
         } else if (event.type === 'class') {
             const clsName = event.classNameValue;
             if (clsName === '虹組') style.backgroundColor = '#f59e0b'; // Amber 500

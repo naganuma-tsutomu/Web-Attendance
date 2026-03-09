@@ -6,10 +6,7 @@ CREATE TABLE IF NOT EXISTS classes (
     auto_allocate INTEGER DEFAULT 1 -- 1: ON, 0: OFF
 );
 
--- Initial Class Data
-INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_niji', '虹組', 1);
-INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_smile', 'スマイル組', 2);
-INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_special', '特殊', 3);
+
 
 -- Staffs Table
 CREATE TABLE IF NOT EXISTS staffs (
@@ -110,16 +107,7 @@ CREATE TABLE IF NOT EXISTS role_patterns (
     FOREIGN KEY(patternId) REFERENCES shift_time_patterns(id) ON DELETE CASCADE
 );
 
--- 初期データ: 標準的な役職
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_full', '正社員');
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_semi', '準社員');
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_part', 'パート');
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_special', '特殊スタッフ');
 
--- 初期データ: 標準的な勤務時間パターン
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime, display_order) VALUES ('stp_early', '早番', '09:00', '17:00', 1);
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime, display_order) VALUES ('stp_late', '遅番', '12:00', '20:00', 2);
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime, display_order) VALUES ('stp_short', '短時間', '10:00', '15:00', 3);
 
 -- 廃止: role_settings, shift_patterns (既に存在する場合は残しても無害)
 -- DROP TABLE IF EXISTS role_settings;
@@ -142,10 +130,7 @@ CREATE TABLE IF NOT EXISTS shift_requirements (
     FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE
 );
 
--- Initial sample data (optional)
--- Example: Niji class needs 2 staff on weekdays 9:00-12:00
-INSERT OR IGNORE INTO shift_requirements (id, classId, dayOfWeek, startTime, endTime, minStaffCount, priority)
-VALUES ('req_001', 'class_niji', 1, '09:00', '12:00', 2, 1);
+
 
 -- ======================================================
 -- 祝日管理テーブル
@@ -165,35 +150,7 @@ CREATE TABLE IF NOT EXISTS holidays (
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
 
--- 初期データ: 2025年-2026年の祝日
-INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday) VALUES
-('hol_2025_01', '2025-01-01', '元日', 'national', 0),
-('hol_2025_02', '2025-01-13', '成人の日', 'national', 0),
-('hol_2025_03', '2025-02-11', '建国記念の日', 'national', 0),
-('hol_2025_04', '2025-02-23', '天皇誕生日', 'national', 0),
-('hol_2025_05', '2025-02-24', '天皇誕生日 振替休日', 'national', 0),
-('hol_2025_06', '2025-03-20', '春分の日', 'national', 0),
-('hol_2025_12', '2025-07-21', '海の日', 'national', 0),
-('hol_2025_13', '2025-08-11', '山の日', 'national', 0),
-('hol_2025_14', '2025-09-15', '敬老の日', 'national', 0),
-('hol_2025_15', '2025-09-23', '秋分の日', 'national', 0),
-('hol_2025_16', '2025-10-13', 'スポーツの日', 'national', 0),
-('hol_2025_17', '2025-11-03', '文化の日', 'national', 0),
-('hol_2025_18', '2025-11-23', '勤労感謝の日', 'national', 0),
-('hol_2025_19', '2025-11-24', '勤労感謝の日 振替休日', 'national', 0),
-('hol_2026_01', '2026-01-01', '元日', 'national', 0),
-('hol_2026_02', '2026-01-12', '成人の日', 'national', 0),
-('hol_2026_03', '2026-02-11', '建国記念の日', 'national', 0),
-('hol_2026_04', '2026-02-23', '天皇誕生日', 'national', 0),
-('hol_2026_05', '2026-03-20', '春分の日', 'national', 0),
-('hol_2026_11', '2026-07-20', '海の日', 'national', 0),
-('hol_2026_12', '2026-08-11', '山の日', 'national', 0),
-('hol_2026_13', '2026-09-21', '敬老の日', 'national', 0),
-('hol_2026_14', '2026-09-22', '国民の休日', 'national', 0),
-('hol_2026_15', '2026-09-23', '秋分の日', 'national', 0),
-('hol_2026_16', '2026-10-12', 'スポーツの日', 'national', 0),
-('hol_2026_17', '2026-11-03', '文化の日', 'national', 0),
-('hol_2026_18', '2026-11-23', '勤労感謝の日', 'national', 0);
+
 PRAGMA defer_foreign_keys=TRUE;
 INSERT INTO "classes" ("id","name","display_order","auto_allocate") VALUES('class_niji','虹組',0,1);
 INSERT INTO "classes" ("id","name","display_order","auto_allocate") VALUES('class_smile','スマイル組',1,1);

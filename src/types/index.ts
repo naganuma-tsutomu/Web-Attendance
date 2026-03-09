@@ -50,6 +50,16 @@ export interface ShiftTimePattern {
     name: string;     // 例: "早番", "遅番"
     startTime: string;
     endTime: string;
+    display_order?: number;
+    roleIds?: string[];
+    sun: number;
+    mon: number;
+    tue: number;
+    wed: number;
+    thu: number;
+    fri: number;
+    sat: number;
+    holiday: number;
 }
 
 // 役職 (DB管理・動的)

@@ -54,15 +54,36 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             updates.push('endTime = ?');
             values.push(body.endTime);
         }
-
-        if (updates.length === 0) {
-            return createValidationError('更新するデータがありません');
+        // 曜日・祝日フラグの追加
+        const dayFlags = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
+        for (const flag of dayFlags) {
+            if ((body as any)[flag] !== undefined) {
+                updates.push(`${flag} = ?`);
+                values.push((body as any)[flag]);
+            }
         }
 
-        values.push(id);
-        await context.env.DB.prepare(
-            `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
-        ).bind(...values).run();
+        if (updates.length > 0) {
+            values.push(id);
+            await context.env.DB.prepare(
+                `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
+            ).bind(...values).run();
+        }
+
+        // 役職の紐付け同期
+        if ((body as any).roleIds !== undefined) {
+            const roleIds = (body as any).roleIds as string[];
+            // 一旦削除
+            await context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id).run();
+            // 再挿入
+            if (roleIds.length > 0) {
+                const statements = roleIds.map(roleId =>
+                    context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
+                        .bind(roleId, id)
+                );
+                await context.env.DB.batch(statements);
+            }
+        }
 
         return Response.json({ success: true });
     } catch (e) {

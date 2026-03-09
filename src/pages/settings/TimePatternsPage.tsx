@@ -54,6 +54,7 @@ const TimePatternsPage = () => {
 
                 <TimePatternsSettings
                     patterns={timePatterns}
+                    setPatterns={setTimePatterns}
                     loading={loading}
                     onUpdate={fetchData}
                     showMessage={showMessage}

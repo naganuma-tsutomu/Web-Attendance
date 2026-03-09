@@ -142,10 +142,18 @@ export const deleteTimePattern = async (id: string): Promise<void> => {
     } as RequestInit);
 };
 
-export const updateTimePattern = async (id: string, pattern: Partial<Omit<ShiftTimePattern, 'id'>>): Promise<void> => {
+export const updateTimePattern = async (id: string, pattern: Partial<ShiftTimePattern>): Promise<void> => {
     await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
         method: 'PUT',
         body: JSON.stringify(pattern),
+        credentials: 'include'
+    } as RequestInit);
+};
+
+export const updateTimePatternOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
+    await apiFetch('/settings/time-patterns/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ orders }),
         credentials: 'include'
     } as RequestInit);
 };

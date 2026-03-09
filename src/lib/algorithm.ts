@@ -34,42 +34,81 @@ const isStaffAvailableForTimeSlot = (
     endTime: string,
     preferences: ShiftPreference[],
     existingShifts: Shift[],
-    roles: DynamicRole[]
+    roles: DynamicRole[],
+    holidays: string[] = [] // YYYY-MM-DD
 ): { available: boolean; matchingPattern?: ShiftTimePattern } => {
     // First check basic day availability
     if (!isStaffAvailable(staff, date, dateStr, preferences)) return { available: false };
 
-    // --- New: Shift Pattern Containment ---
     const roleRecord = roles.find(r => r.name === staff.role || r.id === staff.role);
-    let matchedPattern: ShiftTimePattern | undefined;
+    const dayOfWeek = getDay(date);
+    const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayOfWeek];
+    const isHolidayDate = holidays.includes(dateStr);
+
+    // Filter patterns based on requirements
+    // 1. Role match (if pattern has roleIds, staff must have one of them)
+    // 2. Day of week match
+    // 3. Holiday match
+    // 4. Time containment
+
+    // We need to look at ALL patterns that could apply to this staff's role
+    // OR patterns that are general (no roleIds)
+    // and then filter by day/holiday and time.
+
+    // Let's assume roles[].patterns contains all patterns (enriched with their metadata)
+    // Wait, roles[].patterns in DynamicRole actually comes from the DB (role_patterns join).
+    // In algorithm.ts, we should probably have access to the full pattern definitions
+    // or the roleRecord.patterns should already contain the new metadata.
+
+    // In our implementation plan, ShiftTimePattern has the new fields.
+    // DynamicRole.patterns is an array of ShiftTimePattern.
 
     if (roleRecord && roleRecord.patterns && roleRecord.patterns.length > 0) {
-        // Find a pattern that contains the requested time slot
-        matchedPattern = roleRecord.patterns.find(p =>
-            p.startTime <= startTime && p.endTime >= endTime
-        );
+        const potentialPatterns = roleRecord.patterns.filter(p => {
+            // 1. Check if it's assigned to this role (handled by roleRecord.patterns)
+
+            // 2. Check Day/Holiday restriction
+            if (isHolidayDate) {
+                if (p.holiday === 0) return false;
+            } else {
+                if ((p as any)[dayKey] === 0) return false;
+            }
+
+            // 3. Time containment
+            return p.startTime <= startTime && p.endTime >= endTime;
+        });
+
+        // Use the first matching pattern (sorted by display_order from API)
+        const matchedPattern = potentialPatterns[0];
         if (!matchedPattern) return { available: false };
+
+        // Check for overlapping shifts
+        const checkStart = matchedPattern.startTime;
+        const checkEnd = matchedPattern.endTime;
+
+        const hasOverlap = existingShifts.some(shift => {
+            if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
+            if (shift.isError) return false;
+            return (checkStart < shift.endTime && checkEnd > shift.startTime);
+        });
+
+        if (hasOverlap) return { available: false };
+
+        return { available: true, matchingPattern: matchedPattern };
     }
 
-    // Check for overlapping shifts
-    // Note: If we use matchedPattern, we should check overlap with the PATTERN time,
-    // but the caller is checking requirement by requirement.
-    // However, findAvailableStaff will pass the requirement's time.
-    // To be safe, let's use the most restrictive of either req time or pattern time for overlap check?
-    // Actually, the shift will be registered with pattern time, so we must check pattern time overlap.
-    const checkStart = matchedPattern ? matchedPattern.startTime : startTime;
-    const checkEnd = matchedPattern ? matchedPattern.endTime : endTime;
-
+    // Default behavior if no role patterns are defined (direct time slot matching)
+    // But usually we want to enforce patterns if they exist.
+    // If no patterns are defined for the role, we fall back to the requirement's time.
     const hasOverlap = existingShifts.some(shift => {
         if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
         if (shift.isError) return false;
-
-        return (checkStart < shift.endTime && checkEnd > shift.startTime);
+        return (startTime < shift.endTime && endTime > shift.startTime);
     });
 
     if (hasOverlap) return { available: false };
 
-    return { available: true, matchingPattern: matchedPattern };
+    return { available: true };
 };
 
 /**
@@ -105,12 +144,13 @@ const findAvailableStaff = (
     preferences: ShiftPreference[],
     existingShifts: Shift[],
     currentHours: Record<string, number>,
-    roles: DynamicRole[]
+    roles: DynamicRole[],
+    holidays: string[] = []
 ): Array<{ staff: Staff; pattern?: ShiftTimePattern }> => {
     return staffList
         .map(staff => ({
             staff,
-            result: isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, existingShifts, roles)
+            result: isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, existingShifts, roles, holidays)
         }))
         .filter(({ result }) => result.available)
         .map(({ staff, result }) => ({ staff, pattern: result.matchingPattern }))
@@ -220,7 +260,8 @@ export const generateShiftsForMonth = (
                     preferences,
                     generatedShifts,
                     currentHours,
-                    roles
+                    roles,
+                    holidays
                 );
 
                 for (let i = 0; i < needed; i++) {

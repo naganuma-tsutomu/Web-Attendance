@@ -11,15 +11,27 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         // 各役職に紐付くパターンも一緒に返す
         const { results: rp } = await context.env.DB.prepare(
-            `SELECT rp.roleId, stp.id, stp.name, stp.startTime, stp.endTime
+            `SELECT rp.roleId, stp.*
              FROM role_patterns rp
-             JOIN shift_time_patterns stp ON rp.patternId = stp.id`
+             JOIN shift_time_patterns stp ON rp.patternId = stp.id
+             ORDER BY stp.display_order ASC`
         ).all();
 
-        const enriched = roles.map((role) => ({
-            ...role,
-            patterns: rp.filter((p) => p.roleId === role.id)
-        }));
+        // 共通パターン（どの役職にも紐付いていないパターン）を取得
+        const { results: commonPatterns } = await context.env.DB.prepare(
+            `SELECT * FROM shift_time_patterns
+             WHERE id NOT IN (SELECT patternId FROM role_patterns)
+             ORDER BY display_order ASC`
+        ).all();
+
+        const enriched = roles.map((role: any) => {
+            const roleSpecificPatterns = rp.filter((p: any) => p.roleId === role.id);
+            return {
+                ...role,
+                patterns: [...roleSpecificPatterns, ...commonPatterns]
+                    .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+            };
+        });
 
         return Response.json(enriched);
     } catch (e) {

@@ -3,6 +3,7 @@ import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2,
 import { getPreferencesByMonth, savePreference, getStaffList, syncHolidays } from '../../lib/api';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
 import type { Staff } from '../../types';
 
 interface DayStatus {
@@ -38,7 +39,7 @@ const ROLE_COLORS: Record<string, string> = {
 const PreferencesPage = () => {
     const [staffList, setStaffList] = useState<Staff[]>([]);
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-    const [targetDate, setTargetDate] = useState<Date>(addMonths(new Date(), 1));
+    const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
     const [preferences, setPreferences] = useState<DayStatus[]>([]);
     const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, string[]>>({}); // staffId -> unavailableDates
     const [staffLoading, setStaffLoading] = useState(true);
@@ -94,6 +95,11 @@ const PreferencesPage = () => {
     useEffect(() => {
         fetchAllPrefsForMonth();
     }, [fetchAllPrefsForMonth]);
+
+    // 月が変更されたら localStorage に保存
+    useEffect(() => {
+        saveActiveMonth(targetDate);
+    }, [targetDate]);
 
     // 選択スタッフか月が変わったら、カレンダーを再生成
     useEffect(() => {

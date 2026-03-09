@@ -112,7 +112,7 @@ describe('generateShiftsForMonth', () => {
                 targetHours: 160,
                 display_order: 1,
                 patterns: [
-                    { id: 'p1', name: '早番', startTime: '09:00', endTime: '17:00' }
+                    { id: 'p1', name: '早番', startTime: '09:00', endTime: '17:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
                 ]
             }
         ];
@@ -155,7 +155,7 @@ describe('generateShiftsForMonth', () => {
                 targetHours: 160,
                 display_order: 1,
                 patterns: [
-                    { id: 'p1', name: 'フルタイム', startTime: '09:00', endTime: '18:00' }
+                    { id: 'p1', name: 'フルタイム', startTime: '09:00', endTime: '18:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
                 ]
             }
         ];

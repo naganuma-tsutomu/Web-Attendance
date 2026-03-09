@@ -3,11 +3,12 @@ import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'rea
 import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
 import { exportToPDF } from '../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../utils/excelExport';
+import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
 import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday } from '../../types';
 import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
@@ -80,7 +81,7 @@ const SchedulePage = () => {
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
     const [selectedDateForTimeline, setSelectedDateForTimeline] = useState<Date | null>(null);
 
-    const [currentDate, setCurrentDate] = useState(addMonths(new Date(), 1));
+    const [currentDate, setCurrentDate] = useState(() => loadActiveMonth());
     const [view, setView] = useState<View>(Views.MONTH);
 
     const [confirmAction, setConfirmAction] = useState<{
@@ -147,6 +148,7 @@ const SchedulePage = () => {
 
     useEffect(() => {
         loadShifts();
+        saveActiveMonth(currentDate);
     }, [currentDate, view]);
 
     const mapShiftsToEvents = (shifts: Shift[], staffs: Staff[], currentClasses: ShiftClass[]) => {
@@ -510,6 +512,17 @@ const SchedulePage = () => {
 
                         <div className="flex gap-2 w-full sm:w-auto">
                             <button
+                                onClick={() => setIsSummaryOpen(!isSummaryOpen)}
+                                className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 ${isSummaryOpen
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    }`}
+                                title="スタッフ別労働時間を表示"
+                            >
+                                <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
+                                <span className="text-sm font-bold">労働時間</span>
+                            </button>
+                            <button
                                 onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns)}
                                 className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
                             >
@@ -572,9 +585,9 @@ const SchedulePage = () => {
                 )}
             </div>
 
-            {/* Calendar Area - Scrollable */}
-            <div className="flex-1 overflow-hidden px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
-                <div className="h-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-2 sm:p-4 relative flex flex-col overflow-hidden">
+            {/* Calendar and Summary Area - Scrollable */}
+            <div className="flex-1 overflow-hidden px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8 flex flex-col lg:flex-row gap-4">
+                <div className="flex-1 h-full min-w-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-2 sm:p-4 relative flex flex-col overflow-hidden">
                     {loading && (
                         <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
                             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
@@ -712,15 +725,41 @@ const SchedulePage = () => {
                         )}
                     </div>
                 </div>
+
+                {/* Staff Work Hours Summary Side Panel (Desktop only side-by-side) */}
+                <div className="hidden lg:block">
+                    <StaffWorkHoursSummary
+                        staffs={staffList}
+                        shifts={rawShifts}
+                        isOpen={isSummaryOpen}
+                    />
+                </div>
             </div>
 
-            {/* Staff Work Hours Summary Side Panel */}
-            <StaffWorkHoursSummary
-                staffs={staffList}
-                shifts={rawShifts}
-                isOpen={isSummaryOpen}
-                onToggle={() => setIsSummaryOpen(!isSummaryOpen)}
-            />
+            {/* Staff Work Hours Summary (Overlay for Mobile/Tablet) */}
+            <div className="lg:hidden">
+                {isSummaryOpen && (
+                    <div className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsSummaryOpen(false)}>
+                        <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-800 animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
+                            <div className="h-full flex flex-col">
+                                <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                                    <h3 className="font-bold text-slate-800 dark:text-white">労働時間サマリー</h3>
+                                    <button onClick={() => setIsSummaryOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                                        <X className="w-5 h-5 text-slate-500" />
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-auto">
+                                    <StaffWorkHoursSummary
+                                        staffs={staffList}
+                                        shifts={rawShifts}
+                                        isOpen={true}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* Shift Edit Modal */}
             {isEditModalOpen && (

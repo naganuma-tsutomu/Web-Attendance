@@ -10,9 +10,10 @@ interface StaffRowProps {
     onDelete?: (id: string, name: string) => void;
     isOverlay?: boolean;
     getHolidayDisplay: (availableDays?: (number | { day: number, weeks?: number[] })[]) => string;
+    currentMonthHours?: number;
 }
 
-const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHolidayDisplay }: StaffRowProps) => {
+const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHolidayDisplay, currentMonthHours = 0 }: StaffRowProps) => {
     const {
         attributes,
         listeners,
@@ -71,8 +72,31 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                     )}
                 </div>
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-300 font-medium">
-                {staff.hoursTarget !== null ? `${staff.hoursTarget} h` : '設定なし'}
+            <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex flex-col gap-1">
+                    <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {staff.hoursTarget !== null ? (
+                            <>
+                                <span className={`font-bold ${currentMonthHours > staff.hoursTarget ? 'text-red-500' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                    {currentMonthHours.toFixed(1)}h
+                                </span>
+                                <span className="text-xs text-slate-400 font-normal ml-1">
+                                    / {staff.hoursTarget}h
+                                </span>
+                            </>
+                        ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{currentMonthHours.toFixed(1)}h</span>
+                        )}
+                    </div>
+                    {staff.hoursTarget !== null && staff.hoursTarget > 0 && (
+                        <div className="h-1.5 w-24 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${currentMonthHours > staff.hoursTarget ? 'bg-red-500' : 'bg-indigo-500'}`}
+                                style={{ width: `${Math.min((currentMonthHours / staff.hoursTarget) * 100, 100)}%` }}
+                            />
+                        </div>
+                    )}
+                </div>
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md">

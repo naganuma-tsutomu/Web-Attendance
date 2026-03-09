@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, AlertCircle, Loader2 } from 'lucide-react';
-import { getStaffList, deleteStaff, createStaff, updateStaff, getRoles, updateStaffOrder, getClasses } from '../../lib/api';
+import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { getStaffList, deleteStaff, createStaff, updateStaff, getRoles, updateStaffOrder, getClasses, getShiftsByMonth } from '../../lib/api';
+import { format, addMonths, subMonths } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import { calculateTotalHours } from '../../utils/timeUtils';
+import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
 import type { Staff, DynamicRole, ShiftClass } from '../../types';
 import {
     DndContext,
@@ -38,6 +42,9 @@ const StaffPage = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [currentMonth, setCurrentMonth] = useState(() => loadActiveMonth());
+    const [shiftTotals, setShiftTotals] = useState<Record<string, number>>({});
+    const [loadingShifts, setLoadingShifts] = useState(false);
 
     const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
         name: '',
@@ -75,13 +82,33 @@ const StaffPage = () => {
         }
     };
 
+    const fetchShifts = async () => {
+        setLoadingShifts(true);
+        try {
+            const monthStr = format(currentMonth, 'yyyy-MM');
+            const shifts = await getShiftsByMonth(monthStr);
+            const totals = calculateTotalHours(shifts);
+            setShiftTotals(totals);
+        } catch (err) {
+            console.error("Fetch shifts error", err);
+        } finally {
+            setLoadingShifts(false);
+        }
+    };
+
     const handleRetry = () => {
         fetchData();
+        fetchShifts();
     };
 
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        fetchShifts();
+        saveActiveMonth(currentMonth);
+    }, [currentMonth]);
 
     const handleDeleteClick = (id: string, name: string) => {
         setDeleteConfirm({ id, name });
@@ -264,6 +291,30 @@ const StaffPage = () => {
                         className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
                     />
                 </div>
+
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
+                    <button
+                        onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
+                        className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-500"
+                        title="前月"
+                    >
+                        <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="px-3 py-1 flex items-center gap-2 min-w-[120px] justify-center">
+                        <Calendar className="w-4 h-4 text-indigo-500" />
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                            {format(currentMonth, 'yyyy年M月', { locale: ja })}
+                        </span>
+                        {loadingShifts && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
+                    </div>
+                    <button
+                        onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
+                        className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-500"
+                        title="次月"
+                    >
+                        <ChevronRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col">
@@ -316,6 +367,7 @@ const StaffPage = () => {
                                                 onEdit={handleOpenEditModal}
                                                 onDelete={handleDeleteClick}
                                                 getHolidayDisplay={getHolidayDisplay}
+                                                currentMonthHours={shiftTotals[staff.id] || 0}
                                             />
                                         ))
                                     )}
@@ -341,6 +393,7 @@ const StaffPage = () => {
                                                 classes={classes}
                                                 isOverlay
                                                 getHolidayDisplay={getHolidayDisplay}
+                                                currentMonthHours={shiftTotals[activeStaff.id] || 0}
                                             />
                                         </tbody>
                                     </table>

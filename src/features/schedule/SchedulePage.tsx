@@ -3,9 +3,9 @@ import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'rea
 import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { Settings2, Download, Plus, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
+import { Settings2, Download, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
-import { generateShiftsForMonth, isStaffAvailable } from '../../lib/algorithm';
+import { generateShiftsForMonth, isStaffAvailableReason } from '../../lib/algorithm';
 import { exportToPDF } from '../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../utils/excelExport';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
@@ -183,13 +183,13 @@ const SchedulePage = () => {
 
     // 月間表示用のサマリーイベントを生成
     const summaryEvents = view === Views.MONTH ? (() => {
-        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number }> = {};
+        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number; fixedOff: number }> = {};
 
         // シフトの集計
         events.forEach(event => {
             const dateStr = format(event.start, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, fixedOff: 0 };
             }
 
             if (event.isError) {
@@ -208,17 +208,18 @@ const SchedulePage = () => {
         daysInMonth.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, fixedOff: 0 };
             }
 
             staffList.forEach(staff => {
-                // その日が「平日または土曜」である場合に限り、休み（利用不可）をチェック
-                // (日曜はもともと休みなのでカウントしない)
                 const dayOfWeek = getDay(day);
                 if (dayOfWeek === 0) return;
 
-                if (!isStaffAvailable(staff, day, dateStr, preferences)) {
+                const reason = isStaffAvailableReason(staff, day, dateStr, preferences);
+                if (reason === 'preference') {
                     dailySummary[dateStr].requestedOff++;
+                } else if (reason === 'fixed') {
+                    dailySummary[dateStr].fixedOff++;
                 }
             });
         });
@@ -259,12 +260,24 @@ const SchedulePage = () => {
             // 希望休人数
             if (data.requestedOff > 0) {
                 summaries.push({
-                    id: `summary-off-${dateStr}`,
+                    id: `summary-req-off-${dateStr}`,
                     title: `希望休: ${data.requestedOff}名`,
                     start: baseDate,
                     end: baseDate,
                     isSummary: true,
-                    type: 'off'
+                    type: 'requested-off'
+                });
+            }
+
+            // 固定休人数
+            if (data.fixedOff > 0) {
+                summaries.push({
+                    id: `summary-fixed-off-${dateStr}`,
+                    title: `固定休: ${data.fixedOff}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'fixed-off'
                 });
             }
         });
@@ -380,8 +393,11 @@ const SchedulePage = () => {
 
         if (event.isError || event.type === 'error') {
             style.backgroundColor = '#ef4444';
-        } else if (event.type === 'off') {
+        } else if (event.type === 'requested-off') {
             style.backgroundColor = '#94a3b8'; // Slate 400
+        } else if (event.type === 'fixed-off') {
+            style.backgroundColor = '#cbd5e1'; // Slate 300
+            style.color = '#475569'; // Slate 600 for better contrast on light bg
         } else if (event.type === 'class') {
             const clsName = event.classNameValue;
             if (clsName === '虹組') style.backgroundColor = '#f59e0b'; // Amber 500
@@ -428,7 +444,7 @@ const SchedulePage = () => {
                                     else if (view === Views.WEEK) setCurrentDate(subWeeks(currentDate, 1));
                                     else setCurrentDate(subDays(currentDate, 1));
                                 }}
-                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                             >
                                 <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                             </button>
@@ -446,7 +462,7 @@ const SchedulePage = () => {
                                     else if (view === Views.WEEK) setCurrentDate(addWeeks(currentDate, 1));
                                     else setCurrentDate(addDays(currentDate, 1));
                                 }}
-                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                             >
                                 <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                             </button>
@@ -455,19 +471,19 @@ const SchedulePage = () => {
                         <div className="flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={() => setView(Views.MONTH)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.MONTH ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${view === Views.MONTH ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
                             >
                                 月
                             </button>
                             <button
                                 onClick={() => setView(Views.WEEK)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.WEEK ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${view === Views.WEEK ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
                             >
                                 週
                             </button>
                             <button
                                 onClick={() => setView(Views.DAY)}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${view === Views.DAY ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all cursor-pointer ${view === Views.DAY ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
                             >
                                 日
                             </button>
@@ -478,7 +494,7 @@ const SchedulePage = () => {
                         <button
                             onClick={handleGenerate}
                             disabled={generating}
-                            className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700'}`}
+                            className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 hover:cursor-pointer'}`}
                         >
                             {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings2 className="w-5 h-5" />}
                             <span className="whitespace-nowrap">{generating ? '生成中...' : '自動生成'}</span>
@@ -504,54 +520,39 @@ const SchedulePage = () => {
                                     variant: 'danger'
                                 });
                             }}
-                            className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center"
+                            className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
                         >
                             <Trash2 className="w-5 h-5 text-red-500" />
                             <span className="whitespace-nowrap">消去</span>
                         </button>
 
-                        <div className="flex gap-2 w-full sm:w-auto">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                             <button
                                 onClick={() => setIsSummaryOpen(!isSummaryOpen)}
-                                className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 ${isSummaryOpen
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 cursor-pointer ${isSummaryOpen
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                                     }`}
                                 title="スタッフ別労働時間を表示"
                             >
                                 <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
-                                <span className="text-sm font-bold">労働時間</span>
+                                <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                             </button>
                             <button
                                 onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns)}
-                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
+                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                             >
                                 <Download className="w-5 h-5 text-green-600" />
-                                <span className="sm:hidden lg:inline text-xs font-bold">Excel</span>
+                                <span className="sm:hidden lg:inline text-xs font-bold whitespace-nowrap">Excel</span>
                             </button>
                             <button
                                 onClick={() => exportToPDF(targetYearMonth, staffList, rawShifts)}
-                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1"
+                                className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                             >
                                 <Download className="w-5 h-5 text-red-600" />
-                                <span className="sm:hidden lg:inline text-xs font-bold">PDF</span>
+                                <span className="sm:hidden lg:inline text-xs font-bold whitespace-nowrap">PDF</span>
                             </button>
-                            <button
-                                onClick={() => {
-                                    setSelectedEvent(null);
-                                    setEditFormData({
-                                        staffId: '',
-                                        date: format(currentDate, 'yyyy-MM-01'),
-                                        startTime: '09:00',
-                                        endTime: '18:00'
-                                    });
-                                    setIsEditModalOpen(true);
-                                }}
-                                className="flex items-center justify-center space-x-2 bg-slate-800 dark:bg-slate-100 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-[2] sm:flex-none"
-                            >
-                                <Plus className="w-5 h-5" />
-                                <span className="whitespace-nowrap font-bold">追加</span>
-                            </button>
+
                         </div>
                     </div>
                 </div>

@@ -1,18 +1,24 @@
 name = "web-attendance"
 compatibility_date = "2024-03-20"
 
+# --- [1] 本番環境（デフォルト）の設定 ---
+[vars]
+# Use .dev.vars for local development
+# Use 'wrangler pages secret put ADMIN_PASSWORD' for production
 
 [[d1_databases]]
 binding = "DB"
 database_name = "web-attendance-db"
 database_id = "eec9a750-a720-4bd6-86ea-b54995c2b78e"
-preview_database_id = "DB"
 
-[[env.production.d1_databases]]
+
+# --- [2] プレビュー環境の設定 ---
+[env.preview]
+# 警告通り、vars も preview 用に別途定義が必要
+[env.preview.vars]
+# プレビュー用の環境変数をここに書く（本番と同じでもOK）
+
+[[env.preview.d1_databases]]
 binding = "DB"
-database_name = "web-attendance-db"
-database_id = "eec9a750-a720-4bd6-86ea-b54995c2b78e"
-
-[vars]
-# Use .dev.vars for local development
-# Use 'wrangler pages secret put ADMIN_PASSWORD' for production
+database_name = "web-attendance-preview-db"
+database_id = "4e4a209f-2892-45a3-b501-8213214bb207"

@@ -297,15 +297,17 @@ export const generateShiftsForMonth = (
                         });
 
                         // 労働時間を加算
-                        let endMinutes = (new Date(`2000-01-01T${shiftEnd}`)).getTime();
-                        let startMinutes = (new Date(`2000-01-01T${shiftStart}`)).getTime();
+                        const [sH, sM] = shiftStart.split(':').map(Number);
+                        const [eH, eM] = shiftEnd.split(':').map(Number);
+                        let startMins = sH * 60 + sM;
+                        let endMins = eH * 60 + eM;
 
                         // 日またぎ対応
                         if (shiftEnd < shiftStart) {
-                            endMinutes += 24 * 60 * 60 * 1000;
+                            endMins += 24 * 60;
                         }
 
-                        const duration = (endMinutes - startMinutes) / (1000 * 60 * 60);
+                        const duration = (endMins - startMins) / 60;
                         currentHours[staff.id] += duration;
 
                         // 重要: パターンで割り当てた場合、このスタッフが同じ日の他の要件も

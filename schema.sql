@@ -150,6 +150,11 @@ CREATE TABLE IF NOT EXISTS holidays (
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
 
+-- シフト・希望休検索用インデックス
+CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
+CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);
+CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yearMonth);
+
 
 PRAGMA defer_foreign_keys=TRUE;
 INSERT INTO "classes" ("id","name","display_order","auto_allocate") VALUES('class_niji','虹組',0,1);

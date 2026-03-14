@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -130,8 +130,8 @@ const SchedulePage = () => {
             ]);
 
             // 重複を除去して結合
-            const combinedShifts = shiftsResults.flat().filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-            const combinedPrefs = prefsResults.flat().filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+            const combinedShifts = Array.from(new Map(shiftsResults.flat().map(v => [v.id, v])).values());
+            const combinedPrefs = Array.from(new Map(prefsResults.flat().map(v => [v.id, v])).values());
 
             setRawShifts(combinedShifts);
             setStaffList(staffs);
@@ -185,7 +185,9 @@ const SchedulePage = () => {
     };
 
     // 月間表示用のサマリーイベントを生成
-    const summaryEvents = view === Views.MONTH ? (() => {
+    const summaryEvents = useMemo(() => {
+        if (view !== Views.MONTH) return events;
+
         const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number; fixedOff: number }> = {};
 
         // シフトの集計
@@ -285,7 +287,7 @@ const SchedulePage = () => {
             }
         });
         return summaries;
-    })() : events;
+    }, [view, events, currentDate, staffList, preferences, classes]);
 
     const handleGenerate = () => {
         setConfirmAction({

@@ -2,7 +2,7 @@ import React from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ExternalLink } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 
 interface WeeklyTimelineViewProps {
@@ -11,6 +11,7 @@ interface WeeklyTimelineViewProps {
     staffList: Staff[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
     onDateClick: (date: Date) => void;
 }
 
@@ -20,6 +21,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
     staffList,
     classes,
     timePatterns,
+    roles,
     onDateClick
 }) => {
     // 週の開始日を取得
@@ -63,6 +65,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                                 staffList={staffList}
                                 classes={classes}
                                 timePatterns={timePatterns}
+                                roles={roles}
                                 readOnly={true}
                             />
                         </div>

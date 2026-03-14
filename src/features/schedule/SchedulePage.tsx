@@ -9,7 +9,7 @@ import { generateShiftsForMonth, isStaffAvailableReason } from '../../lib/algori
 import { exportToPDF } from '../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../utils/excelExport';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday } from '../../types';
+import type { Shift, Staff, ShiftPreference, ShiftClass, ShiftTimePattern, Holiday, DynamicRole } from '../../types';
 import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
 import WeeklyTimelineView from './WeeklyTimelineView';
@@ -64,6 +64,7 @@ const SchedulePage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [timePatterns, setTimePatterns] = useState<ShiftTimePattern[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreference[]>([]);
+    const [roles, setRoles] = useState<DynamicRole[]>([]); // 追加
     const [holidays, setHolidays] = useState<Holiday[]>([]); // 祝日データ（カレンダー表示・シフト生成に使用）
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -117,14 +118,15 @@ const SchedulePage = () => {
             // 祝日データを同期（今年と来年分）して、その後データを取得
             await syncHolidays().catch(err => console.error('Failed to sync holidays', err));
 
-            const [shiftsResults, staffs, prefsResults, classesData, patternsData, holidaysData] = await Promise.all([
+            const [shiftsResults, staffs, prefsResults, classesData, patternsData, holidaysData, rolesData] = await Promise.all([
                 Promise.all(monthList.map(m => getShiftsByMonth(m))),
                 getStaffList(),
                 Promise.all(monthList.map(m => getPreferencesByMonth(m))),
                 getClasses(),
                 getTimePatterns(),
                 // 対象年の祝日を取得
-                getHolidays(uniqueYears[0] || new Date().getFullYear())
+                getHolidays(uniqueYears[0] || new Date().getFullYear()),
+                getRoles() // 追加
             ]);
 
             // 重複を除去して結合
@@ -137,6 +139,7 @@ const SchedulePage = () => {
             setClasses(classesData);
             setTimePatterns(patternsData);
             setHolidays(holidaysData);
+            setRoles(rolesData); // 追加
             mapShiftsToEvents(combinedShifts, staffs, classesData);
         } catch (err) {
             console.error('Failed to load shifts', err);
@@ -603,6 +606,7 @@ const SchedulePage = () => {
                                     staffList={staffList}
                                     classes={classes}
                                     timePatterns={timePatterns}
+                                    roles={roles}
                                     onShiftUpdate={loadShifts}
                                     onModifiedChange={setIsDayModified}
                                     saveRef={daySaveRef}
@@ -646,6 +650,7 @@ const SchedulePage = () => {
                                     staffList={staffList}
                                     classes={classes}
                                     timePatterns={timePatterns}
+                                    roles={roles}
                                     onDateClick={(date) => {
                                         handleOpenTimeline(date);
                                     }}
@@ -857,6 +862,7 @@ const SchedulePage = () => {
                     staffList={staffList}
                     classes={classes}
                     timePatterns={timePatterns}
+                    roles={roles}
                     onClose={() => setIsTimelineModalOpen(false)}
                     onShiftUpdate={loadShifts}
                 />

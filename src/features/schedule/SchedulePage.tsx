@@ -3,6 +3,7 @@ import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'rea
 import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { toast } from 'sonner';
 import { Settings2, Download, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
 import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailableReason } from '../../lib/algorithm';
@@ -320,13 +321,13 @@ const SchedulePage = () => {
             setConfirmAction(null);
 
             if (errCount > 0) {
-                alert(`シフトの自動生成が完了しましたが、${errCount}件の割り当て不足が発生しました。手動で調整してください。`);
+                toast.warning(`自動生成完了: ${errCount}件の割り当て不足があります。`);
             } else {
-                alert('シフトの自動生成が完了しました！');
+                toast.success('シフトの自動生成が完了しました！');
             }
         } catch (err) {
             console.error(err);
-            alert('シフト生成中にエラーが発生しました。');
+            toast.error('シフト生成中にエラーが発生しました。');
         } finally {
             setGenerating(false);
             setIsActionExecuting(false);
@@ -373,10 +374,11 @@ const SchedulePage = () => {
                 }]);
             }
             setIsEditModalOpen(false);
+            toast.success('保存しました');
             await loadShifts();
         } catch (err) {
             console.error(err);
-            alert('保存に失敗しました。');
+            toast.error('保存に失敗しました。');
         }
     };
 
@@ -514,10 +516,11 @@ const SchedulePage = () => {
                                         try {
                                             await deleteShiftsByMonth(targetYearMonth);
                                             await loadShifts();
+                                            toast.success('削除しました');
                                             setConfirmAction(null);
                                         } catch (err) {
                                             console.error(err);
-                                            alert('削除に失敗しました。');
+                                            toast.error('削除に失敗しました。');
                                         } finally {
                                             setIsActionExecuting(false);
                                         }
@@ -630,9 +633,10 @@ const SchedulePage = () => {
                                                 if (daySaveRef.current) {
                                                     try {
                                                         await daySaveRef.current();
-                                                        alert('保存しました');
+                                                        toast.success('保存しました');
                                                     } catch (e) {
-                                                        alert('保存に失敗しました');
+                                                        console.error(e);
+                                                        toast.error('保存に失敗しました');
                                                     }
                                                 }
                                             }}

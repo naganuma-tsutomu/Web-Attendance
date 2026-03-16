@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { getStaffList, deleteStaff, createStaff, updateStaff, getRoles, updateStaffOrder, getClasses, getShiftsByMonth } from '../../lib/api';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { calculateTotalHours } from '../../utils/timeUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import type { Staff, DynamicRole, ShiftClass } from '../../types';
+import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder } from '../../lib/hooks';
+import type { Staff } from '../../types';
 import {
     DndContext,
     closestCenter,
@@ -30,21 +31,13 @@ import StaffRow from './components/StaffRow';
 import StaffFormModal from './components/StaffFormModal';
 
 const StaffPage = () => {
-    const [staffList, setStaffList] = useState<Staff[]>([]);
-    const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [classes, setClasses] = useState<ShiftClass[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [currentMonth, setCurrentMonth] = useState(() => loadActiveMonth());
-    const [shiftTotals, setShiftTotals] = useState<Record<string, number>>({});
-    const [loadingShifts, setLoadingShifts] = useState(false);
 
     const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
         name: '',
@@ -53,62 +46,34 @@ const StaffPage = () => {
         classIds: []
     });
 
-    const [retrying, setRetrying] = useState(false);
+    // --- React Query Hooks ---
+    const { data: staffList = [], isLoading: isStaffLoading, isError: isStaffError, refetch: refetchStaff } = useStaffList();
+    const { data: roles = [], isLoading: isRolesLoading, isError: isRolesError, refetch: refetchRoles } = useRoles();
+    const { data: classes = [], isLoading: isClassesLoading, isError: isClassesError, refetch: refetchClasses } = useClasses();
 
-    const fetchData = async () => {
-        setLoading(true);
-        setRetrying(true);
-        try {
-            const [staffData, rolesData, classesData] = await Promise.all([
-                getStaffList(),
-                getRoles(),
-                getClasses()
-            ]);
-            setStaffList(staffData);
-            setRoles(rolesData);
-            setClasses(classesData);
+    const monthStr = format(currentMonth, 'yyyy-MM');
+    const { data: shifts = [], isLoading: loadingShifts, isFetching: isShiftsFetching, refetch: refetchShifts } = useShiftsByMonth(monthStr);
 
-            if (rolesData.length > 0 && !formData.role) {
-                setFormData(prev => ({ ...prev, role: rolesData[0].name }));
-            }
+    const createStaffMut = useCreateStaff();
+    const updateStaffMut = useUpdateStaff();
+    const deleteStaffMut = useDeleteStaff();
+    const updateOrderMut = useUpdateStaffOrder();
 
-            setError('');
-        } catch (err) {
-            console.error("Fetch error", err);
-            setError('データの読み込みに失敗しました。設定で役職が登録されているか確認してください。');
-        } finally {
-            setLoading(false);
-            setRetrying(false);
-        }
-    };
+    const shiftTotals = useMemo(() => calculateTotalHours(shifts), [shifts]);
 
-    const fetchShifts = async () => {
-        setLoadingShifts(true);
-        try {
-            const monthStr = format(currentMonth, 'yyyy-MM');
-            const shifts = await getShiftsByMonth(monthStr);
-            const totals = calculateTotalHours(shifts);
-            setShiftTotals(totals);
-        } catch (err) {
-            console.error("Fetch shifts error", err);
-        } finally {
-            setLoadingShifts(false);
-        }
-    };
+    const loading = isStaffLoading || isRolesLoading || isClassesLoading;
+    const error = (isStaffError || isRolesError || isClassesError) ? 'データの読み込みに失敗しました。' : '';
+    const isSubmitting = createStaffMut.isPending || updateStaffMut.isPending;
 
     const handleRetry = () => {
-        fetchData();
-        fetchShifts();
+        refetchStaff();
+        refetchRoles();
+        refetchClasses();
+        refetchShifts();
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    useEffect(() => {
-        fetchShifts();
-        saveActiveMonth(currentMonth);
-    }, [currentMonth]);
+    // Update active month when currentMonth changes
+    useMemo(() => saveActiveMonth(currentMonth), [currentMonth]);
 
     const handleDeleteClick = (id: string, name: string) => {
         setDeleteConfirm({ id, name });
@@ -118,12 +83,12 @@ const StaffPage = () => {
         if (!deleteConfirm) return;
         setIsDeleting(true);
         try {
-            await deleteStaff(deleteConfirm.id);
-            setStaffList(prev => prev.filter(s => s.id !== deleteConfirm.id));
+            await deleteStaffMut.mutateAsync(deleteConfirm.id);
             setDeleteConfirm(null);
+            toast.success("スタッフを削除しました。");
         } catch (err) {
             console.error(err);
-            alert("削除に失敗しました。");
+            toast.error("削除に失敗しました。");
         } finally {
             setIsDeleting(false);
         }
@@ -171,20 +136,17 @@ const StaffPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
         try {
             if (editingStaff) {
-                await updateStaff(editingStaff.id, formData);
+                await updateStaffMut.mutateAsync({ id: editingStaff.id, data: formData });
             } else {
-                await createStaff(formData);
+                await createStaffMut.mutateAsync(formData);
             }
             setIsModalOpen(false);
-            fetchData();
+            toast.success(editingStaff ? "スタッフ情報を更新しました。" : "スタッフを追加しました。");
         } catch (err) {
             console.error(err);
-            alert("保存に失敗しました。");
-        } finally {
-            setIsSubmitting(false);
+            toast.error("保存に失敗しました。");
         }
     };
 
@@ -196,18 +158,18 @@ const StaffPage = () => {
         const { active, over } = event;
         setActiveId(null);
         if (over && active.id !== over.id) {
-            setStaffList((items) => {
-                const oldIndex = items.findIndex((i) => i.id === active.id);
-                const newIndex = items.findIndex((i) => i.id === over.id);
-                const newList = arrayMove(items, oldIndex, newIndex);
+            const oldIndex = staffList.findIndex((i) => i.id === active.id);
+            const newIndex = staffList.findIndex((i) => i.id === over.id);
+            const newList = arrayMove(staffList, oldIndex, newIndex);
 
-                const orders = newList.map((s, idx) => ({ id: s.id, order: idx + 1 }));
-                updateStaffOrder(orders).catch(err => {
+            const orders = newList.map((s, idx) => ({ id: s.id, order: idx + 1 }));
+            
+            // 楽観的更新のためにキャッシュを直接操作することも可能だが、ここでは再フェッチに任せるか直接mutationを実行
+            updateOrderMut.mutate(orders, {
+                onError: (err) => {
                     console.error("Failed to save order", err);
-                    alert("並び替えの保存に失敗しました。");
-                });
-
-                return newList;
+                    toast.error("並び替えの保存に失敗しました。");
+                }
             });
         }
     };
@@ -274,7 +236,7 @@ const StaffPage = () => {
                         onClick={handleRetry}
                         className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
                     >
-                        {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                         再試行
                     </button>
                 </div>
@@ -305,7 +267,7 @@ const StaffPage = () => {
                         <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                             {format(currentMonth, 'yyyy年M月', { locale: ja })}
                         </span>
-                        {loadingShifts && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
+                        {(loadingShifts || isShiftsFetching) && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
                     </div>
                     <button
                         onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}

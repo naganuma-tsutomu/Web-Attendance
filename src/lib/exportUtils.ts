@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, eachDayOfInterval, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Staff, Shift } from '../types';
+import { toast } from 'sonner';
 
 /**
  * シフトデータをExcel形式で書き出す
@@ -120,5 +121,5 @@ export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[])
 
     doc.save(`シフト表_${yearMonth}.pdf`);
 
-    alert('日本語フォントの制約により、PDFでの日本語表示には制限がある場合があります。表の形が崩れる場合はブラウザの「印刷」機能からPDF保存をお試しください。');
+    toast.warning('PDFの日本語表示には制限がある場合があります。きれいに印刷する場合はブラウザの印刷機能をご利用ください。', { duration: 6000 });
 };

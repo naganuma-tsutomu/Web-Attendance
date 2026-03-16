@@ -34,8 +34,9 @@ interface RolesSettingsProps {
     showMessage: (msg: string) => void;
 }
 
-const SortableRoleItem = ({ role, timePatterns, onDelete, onUpdateRoleHours, onTogglePattern, isOverlay = false }: {
+const SortableRoleItem = ({ role, index, timePatterns, onDelete, onUpdateRoleHours, onTogglePattern, isOverlay = false }: {
     role: DynamicRole,
+    index: number,
     timePatterns: ShiftTimePattern[],
     onDelete?: (id: string) => void,
     onUpdateRoleHours: (id: string, h: number | null) => void,
@@ -75,7 +76,7 @@ const SortableRoleItem = ({ role, timePatterns, onDelete, onUpdateRoleHours, onT
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mb-1">優先順位</span>
                     <div className="w-10 h-10 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-white dark:border-slate-800">
-                        {role.display_order}
+                        {index + 1}
                     </div>
                 </div>
             </div>
@@ -386,10 +387,11 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
                         strategy={verticalListSortingStrategy}
                     >
                         <div className="flex flex-col gap-4 max-w-4xl mx-auto">
-                            {roles.map(role => (
+                            {roles.map((role, index) => (
                                 <SortableRoleItem
                                     key={role.id}
                                     role={role}
+                                    index={index}
                                     timePatterns={timePatterns}
                                     onDelete={setDeleteConfirmId}
                                     onUpdateRoleHours={handleUpdateRoleHours}
@@ -408,6 +410,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
                         {activeRole ? (
                             <SortableRoleItem
                                 role={activeRole}
+                                index={roles.findIndex(r => r.id === activeId)}
                                 timePatterns={timePatterns}
                                 onUpdateRoleHours={handleUpdateRoleHours}
                                 onTogglePattern={handleTogglePattern}

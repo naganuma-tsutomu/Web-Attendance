@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, Clock, Loader2, GripVertical, Calendar, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Clock, Loader2, GripVertical, Calendar, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { createTimePattern, deleteTimePattern, updateTimePattern, updateTimePatternOrder, getRoles } from '../../../lib/api';
 import type { ShiftTimePattern, DynamicRole } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
+import TimePatternEditModal from './TimePatternEditModal';
 import {
     DndContext,
     closestCenter,
@@ -143,9 +144,19 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [editingId, setEditingId] = useState<string | null>(null);
     const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
+
+    // Modal state
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        name: '',
+        startTime: '09:00',
+        endTime: '18:00',
+        roleIds: [] as string[],
+        sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
+    });
 
     const [formData, setFormData] = useState({
         name: '',
@@ -164,18 +175,33 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
         getRoles().then(setRoles).catch(console.error);
     }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            if (editingId) {
-                await updateTimePattern(editingId, formData);
-                showMessage('パターンを更新しました');
-            } else {
-                await createTimePattern(formData);
-                showMessage('パターンを追加しました');
-            }
-            cancelEdit();
+            await createTimePattern(formData);
+            showMessage('パターンを追加しました');
+            setFormData({
+                name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
+                sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
+            });
+            onUpdate();
+        } catch (err) {
+            console.error(err);
+            showMessage('エラーが発生しました');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingId) return;
+        setIsSubmitting(true);
+        try {
+            await updateTimePattern(editingId, editFormData);
+            showMessage('パターンを更新しました');
+            setIsEditModalOpen(false);
             onUpdate();
         } catch (err) {
             console.error(err);
@@ -187,22 +213,14 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
 
     const handleEditClick = (p: ShiftTimePattern) => {
         setEditingId(p.id);
-        setFormData({
+        setEditFormData({
             name: p.name,
             startTime: p.startTime,
             endTime: p.endTime,
             roleIds: p.roleIds || [],
             sun: p.sun, mon: p.mon, tue: p.tue, wed: p.wed, thu: p.thu, fri: p.fri, sat: p.sat, holiday: p.holiday
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const cancelEdit = () => {
-        setEditingId(null);
-        setFormData({
-            name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
-            sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
-        });
+        setIsEditModalOpen(true);
     };
 
     const handleDeletePattern = async () => {
@@ -220,11 +238,12 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
         }
     };
 
-    const toggleRole = (roleId: string) => {
-        setFormData(prev => ({
+    const toggleRole = (roleId: string, isEdit: boolean = false) => {
+        const updater = isEdit ? setEditFormData : setFormData;
+        updater((prev: any) => ({
             ...prev,
             roleIds: prev.roleIds.includes(roleId)
-                ? prev.roleIds.filter(id => id !== roleId)
+                ? prev.roleIds.filter((id: string) => id !== roleId)
                 : [...prev.roleIds, roleId]
         }));
     };
@@ -258,22 +277,16 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
-            {/* Pattern form */}
-            <div className={`bg-white dark:bg-slate-800 p-6 rounded-2xl border ${editingId ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-700'} shadow-sm transition-all`}>
+            {/* Create Pattern form */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition-all">
                 <div className="flex justify-between items-center mb-6">
                     <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider flex items-center">
-                        <span className={`w-1 h-4 ${editingId ? 'bg-indigo-500' : 'bg-slate-300'} rounded-full mr-2`}></span>
-                        {editingId ? 'パターンの編集' : '新しい勤務パターン'}
+                        <span className="w-1 h-4 bg-indigo-500 rounded-full mr-2"></span>
+                        新しい勤務パターン
                     </h4>
-                    {editingId && (
-                        <button onClick={cancelEdit} className="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center space-x-1 px-2 py-1 hover:bg-slate-100 rounded-lg transition-all">
-                            <X className="w-3.5 h-3.5" />
-                            <span>キャンセル</span>
-                        </button>
-                    )}
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleCreateSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                             <div className="space-y-1.5">
@@ -324,7 +337,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
                                         <button
                                             key={r.id}
                                             type="button"
-                                            onClick={() => toggleRole(r.id)}
+                                            onClick={() => toggleRole(r.id, false)}
                                             className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${formData.roleIds.includes(r.id)
                                                 ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                                                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300'
@@ -363,14 +376,14 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
                     <div className="pt-2">
                         <button
                             disabled={isSubmitting}
-                            className={`w-full ${editingId ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'} text-white py-3 rounded-xl text-sm font-bold shadow-lg dark:shadow-none transition-all flex items-center justify-center space-x-2 disabled:opacity-50`}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 text-white py-3 rounded-xl text-sm font-bold shadow-lg dark:shadow-none transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
                         >
                             {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                editingId ? <Edit2 className="w-4 h-4 text-white/50" /> : <Plus className="w-4 h-4 text-white/50" />
+                                <Plus className="w-4 h-4 text-white/50" />
                             )}
-                            <span>{isSubmitting ? '処理中...' : (editingId ? 'パターンを更新する' : '新しく登録する')}</span>
+                            <span>{isSubmitting ? '処理中...' : '新しく登録する'}</span>
                         </button>
                     </div>
                 </form>
@@ -444,6 +457,16 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
                     )}
                 </div>
             </div>
+
+            <TimePatternEditModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSubmit={handleEditSubmit}
+                formData={editFormData}
+                setFormData={setEditFormData}
+                roles={roles}
+                isSubmitting={isSubmitting}
+            />
 
             <ConfirmModal
                 isOpen={!!deleteConfirmId}

@@ -20,6 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@holiday-jp/holiday_jp": "^2.5.1",
+    "@tanstack/react-query": "^5.90.21",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
@@ -30,6 +31,7 @@
     "react-big-calendar": "^1.19.4",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
+    "sonner": "^2.0.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

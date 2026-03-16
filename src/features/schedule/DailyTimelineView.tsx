@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
@@ -183,21 +183,23 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const hourLabels = Array.from({ length: (END_HOUR - START_HOUR) + 1 }, (_, i) => START_HOUR + i);
 
-    const dayShifts = [...shifts.filter(s => s.date === targetDateStr), ...addedShifts]
-        .filter(s => !deletedIds.has(s.id))
-        .sort((a, b) => {
-            if (a.classType !== b.classType) return a.classType.localeCompare(b.classType);
-            const indexA = staffList.findIndex(s => s.id === a.staffId);
-            const indexB = staffList.findIndex(s => s.id === b.staffId);
-            if (indexA !== -1 && indexB !== -1) {
-                if (indexA !== indexB) return indexA - indexB;
-            } else if (indexA !== -1) {
-                return -1;
-            } else if (indexB !== -1) {
-                return 1;
-            }
-            return a.startTime.localeCompare(b.startTime);
-        });
+    const dayShifts = useMemo<Shift[]>(() => {
+        return [...shifts.filter(s => s.date === targetDateStr), ...addedShifts]
+            .filter(s => !deletedIds.has(s.id))
+            .sort((a, b) => {
+                if (a.classType !== b.classType) return a.classType.localeCompare(b.classType);
+                const indexA = staffList.findIndex(s => s.id === a.staffId);
+                const indexB = staffList.findIndex(s => s.id === b.staffId);
+                if (indexA !== -1 && indexB !== -1) {
+                    if (indexA !== indexB) return indexA - indexB;
+                } else if (indexA !== -1) {
+                    return -1;
+                } else if (indexB !== -1) {
+                    return 1;
+                }
+                return a.startTime.localeCompare(b.startTime);
+            });
+    }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
 
     const getBarStyle = (shift: Shift) => {
         const s = localShifts[shift.id] || {

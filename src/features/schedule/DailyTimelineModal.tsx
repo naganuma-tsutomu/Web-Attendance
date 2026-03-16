@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { toast } from 'sonner';
 import { X, Save } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
@@ -37,9 +38,11 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
         setSavingAll(true);
         try {
             await saveRef.current();
+            toast.success('保存しました');
             onClose();
         } catch (error) {
-            alert('保存に失敗しました。');
+            console.error(error);
+            toast.error('保存に失敗しました。');
         } finally {
             setSavingAll(false);
         }

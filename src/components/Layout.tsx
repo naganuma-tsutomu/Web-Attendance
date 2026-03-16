@@ -70,10 +70,11 @@ const Layout = () => {
                 <div className="flex-1 py-6 px-4 space-y-2 flex flex-col overflow-y-auto">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        const isActive = location.pathname === item.path ||
-                            (item.path !== '/' && location.pathname.startsWith(item.path)) ||
-                            // Special case for /settings/patterns - also active on /settings
-                            (item.path === '/settings/patterns' && location.pathname === '/settings');
+                        const isActive = item.path === '/admin'
+                            ? location.pathname === '/admin'
+                            : (location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))) ||
+                            // Special case for /admin/settings/patterns - also active on /admin/settings
+                            (item.path === '/admin/settings/patterns' && location.pathname === '/admin/settings');
 
                         return (
                             <Link

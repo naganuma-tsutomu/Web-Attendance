@@ -28,7 +28,7 @@ const LandingPage = () => {
                 {/* 管理者用入口 */}
                 <button
                     onClick={() => navigate('/login')}
-                    className="group relative bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl shadow-indigo-100 dark:shadow-none border border-white dark:border-slate-800 text-left transition-all hover:-translate-y-2 hover:ring-2 hover:ring-indigo-500"
+                    className="group relative bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl shadow-indigo-100 dark:shadow-none border border-white dark:border-slate-800 text-left transition-all hover:-translate-y-2 hover:ring-2 hover:ring-indigo-500 cursor-pointer"
                 >
                     <div className="w-20 h-20 rounded-3xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                         <ShieldCheck className="w-10 h-10" />
@@ -46,7 +46,7 @@ const LandingPage = () => {
                 {/* 従業員用入口 */}
                 <button
                     onClick={() => navigate('/staff/login')}
-                    className="group relative bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl shadow-indigo-100 dark:shadow-none border border-white dark:border-slate-800 text-left transition-all hover:-translate-y-2 hover:ring-2 hover:ring-emerald-500"
+                    className="group relative bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl shadow-indigo-100 dark:shadow-none border border-white dark:border-slate-800 text-left transition-all hover:-translate-y-2 hover:ring-2 hover:ring-emerald-500 cursor-pointer"
                 >
                     <div className="w-20 h-20 rounded-3xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                         <UserCircle2 className="w-10 h-10" />

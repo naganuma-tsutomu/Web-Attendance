@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { X, Save } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
@@ -14,6 +14,7 @@ interface DailyTimelineModalProps {
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
     roles: DynamicRole[];
+    preferences: ShiftPreference[];
     onClose: () => void;
     onShiftUpdate?: () => void;
 }
@@ -25,6 +26,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     classes,
     timePatterns,
     roles,
+    preferences,
     onClose,
     onShiftUpdate
 }) => {
@@ -56,12 +58,26 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
         }
     }, [isModified, onClose]);
 
+    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
+
+    const handleBackdropMouseDown = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            setMouseDownOnBackdrop(true);
+        }
+    };
+
+    const handleBackdropMouseUp = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+            handleClose();
+        }
+        setMouseDownOnBackdrop(false);
+    };
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-auto select-none"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) handleClose();
-            }}
+            onMouseDown={handleBackdropMouseDown}
+            onMouseUp={handleBackdropMouseUp}
         >
             <div
                 className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700"
@@ -92,6 +108,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         classes={classes}
                         timePatterns={timePatterns}
                         roles={roles}
+                        preferences={preferences}
                         onShiftUpdate={onShiftUpdate}
                         onModifiedChange={setIsModified}
                         saveRef={saveRef}

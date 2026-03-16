@@ -94,6 +94,20 @@ const SchedulePage = () => {
     } | null>(null);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
+
+    const handleBackdropMouseDown = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            setMouseDownOnBackdrop(true);
+        }
+    };
+
+    const handleBackdropMouseUp = (e: React.MouseEvent, onClose: () => void) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+            onClose();
+        }
+        setMouseDownOnBackdrop(false);
+    };
 
     const targetYearMonth = format(currentDate, 'yyyy-MM');
 
@@ -612,6 +626,7 @@ const SchedulePage = () => {
                                     classes={classes}
                                     timePatterns={timePatterns}
                                     roles={roles}
+                                    preferences={preferences}
                                     onShiftUpdate={loadShifts}
                                     onModifiedChange={setIsDayModified}
                                     saveRef={daySaveRef}
@@ -751,8 +766,12 @@ const SchedulePage = () => {
             {/* Staff Work Hours Summary (Overlay for Mobile/Tablet) */}
             <div className="lg:hidden">
                 {isSummaryOpen && (
-                    <div className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsSummaryOpen(false)}>
-                        <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-800 animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
+                    <div
+                        className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm"
+                        onMouseDown={handleBackdropMouseDown}
+                        onMouseUp={(e) => handleBackdropMouseUp(e, () => setIsSummaryOpen(false))}
+                    >
+                        <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-800 animate-in slide-in-from-right duration-300" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
                             <div className="h-full flex flex-col">
                                 <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                                     <h3 className="font-bold text-slate-800 dark:text-white">労働時間サマリー</h3>
@@ -777,9 +796,8 @@ const SchedulePage = () => {
             {isEditModalOpen && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) setIsEditModalOpen(false);
-                    }}
+                    onMouseDown={handleBackdropMouseDown}
+                    onMouseUp={(e) => handleBackdropMouseUp(e, () => setIsEditModalOpen(false))}
                 >
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
@@ -869,6 +887,7 @@ const SchedulePage = () => {
                     classes={classes}
                     timePatterns={timePatterns}
                     roles={roles}
+                    preferences={preferences}
                     onClose={() => setIsTimelineModalOpen(false)}
                     onShiftUpdate={loadShifts}
                 />

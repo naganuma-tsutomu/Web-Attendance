@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, type Locale } from 'date-fns';
+import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, subWeeks, addDays, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { toast } from 'sonner';
@@ -124,6 +124,15 @@ const SchedulePage = () => {
                 const weekEnd = addDays(weekStart, 6);
                 monthsToFetch.add(format(weekStart, 'yyyy-MM'));
                 monthsToFetch.add(format(weekEnd, 'yyyy-MM'));
+            } else if (view === Views.MONTH) {
+                // 月間表示でも週の端（前後の月）を取得する
+                const monthStart = startOfMonth(currentDate);
+                const monthEnd = endOfMonth(currentDate);
+                const weekStartOfFirstDay = startOfWeek(monthStart, { locale: ja, weekStartsOn: getWeekStartsOn() });
+                const weekEndOfLastDay = addDays(startOfWeek(monthEnd, { locale: ja, weekStartsOn: getWeekStartsOn() }), 6);
+                
+                monthsToFetch.add(format(weekStartOfFirstDay, 'yyyy-MM'));
+                monthsToFetch.add(format(weekEndOfLastDay, 'yyyy-MM'));
             }
 
             const monthList = Array.from(monthsToFetch);
@@ -326,8 +335,26 @@ const SchedulePage = () => {
                 getShiftRequirements()
             ]);
 
+            // 自動生成前に、前月や当月に既に確定しているシフトがあれば（固定シフトなどの将来的な拡張を考慮し）
+            // コンテキストとして取得。ここでは単に直近前後の月のシフトを取得。
+            const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
+            const nextMonth = format(addMonths(currentDate, 1), 'yyyy-MM');
+            const existingContextShifts = await Promise.all([
+                getShiftsByMonth(prevMonth),
+                getShiftsByMonth(nextMonth)
+            ]).then(results => results.flat());
+
             await deleteShiftsByMonth(targetYearMonth);
-            const generatedShifts = generateShiftsForMonth(targetYearMonth, staffs, prefs, roles, currentClasses, holidaysData.map(h => h.date), requirements);
+            const generatedShifts = generateShiftsForMonth(
+                targetYearMonth,
+                staffs,
+                prefs,
+                roles,
+                currentClasses,
+                holidaysData.map(h => h.date),
+                requirements,
+                existingContextShifts
+            );
             const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
 
             await saveShiftsBatch(generatedShifts);
@@ -404,7 +431,7 @@ const SchedulePage = () => {
     const eventStyleGetter = (event: any) => {
         let style: any = {
             borderRadius: '4px',
-            opacity: 0.9,
+            opacity: (view === Views.MONTH && !isSameMonth(event.start, currentDate)) ? 0.4 : 0.9,
             color: 'white',
             border: '0px',
             display: 'block',
@@ -759,6 +786,7 @@ const SchedulePage = () => {
                         staffs={staffList}
                         shifts={rawShifts}
                         isOpen={isSummaryOpen}
+                        viewDate={currentDate}
                     />
                 </div>
             </div>
@@ -784,6 +812,7 @@ const SchedulePage = () => {
                                         staffs={staffList}
                                         shifts={rawShifts}
                                         isOpen={true}
+                                        viewDate={currentDate}
                                     />
                                 </div>
                             </div>

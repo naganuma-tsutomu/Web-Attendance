@@ -40,6 +40,10 @@ export const getStaffList = async (): Promise<Staff[]> => {
     return apiFetch<Staff[]>('/staffs');
 };
 
+export const getStaffNameList = async (): Promise<{ id: string, name: string }[]> => {
+    return apiFetch<{ id: string, name: string }[]>('/staffs/list');
+};
+
 export const createStaff = async (staffData: Omit<Staff, 'id'>): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/staffs', {
         method: 'POST',

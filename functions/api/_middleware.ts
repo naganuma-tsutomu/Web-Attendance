@@ -12,6 +12,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         return context.next();
     }
 
+    // Allow staff-related endpoints (minimal protection for now)
+    const isStaffEndpoint = 
+        url.pathname === '/api/preferences' ||
+        url.pathname === '/api/staffs/list' ||
+        (url.pathname === '/api/staffs' && context.request.method === 'GET') ||
+        (url.pathname === '/api/shifts' && context.request.method === 'GET') ||
+        (url.pathname === '/api/settings/classes' && context.request.method === 'GET');
+
+    if (isStaffEndpoint) {
+        return context.next();
+    }
+
     const cookieHeader = context.request.headers.get('Cookie');
     const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
 

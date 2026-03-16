@@ -460,10 +460,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
         >
-            <div className="min-w-full md:min-w-[800px] border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden flex flex-col bg-white dark:bg-slate-800">
+            <div className="min-w-full md:min-w-[800px] overflow-hidden flex flex-col bg-white dark:bg-slate-800">
                 {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
                 {!readOnly && (
-                    <div className={`flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
+                    <div className={`flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
                         <div className="hidden sm:flex w-[480px] flex-shrink-0">
                             <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
                             <div className="w-36 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">シフトパターン</div>
@@ -475,17 +475,22 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                         <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">
                             スタッフ
                         </div>
-                        <div className="flex-1 relative h-8">
+                        <div className="flex-1 relative h-8 border-l border-slate-300 dark:border-slate-600">
                             {hourLabels.map((h) => {
                                 const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
                                 return (
-                                    <div
-                                        key={h}
-                                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5"
-                                        style={{ left: `${leftPct}%` }}
-                                    >
-                                        {h}
-                                    </div>
+                                    <React.Fragment key={h}>
+                                        <div
+                                            className="absolute top-0 bottom-0 border-l border-slate-300/50 dark:border-slate-600/50"
+                                            style={{ left: `${leftPct}%` }}
+                                        />
+                                        <div
+                                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5 z-10"
+                                            style={{ left: `${leftPct}%` }}
+                                        >
+                                            {h}
+                                        </div>
+                                    </React.Fragment>
                                 );
                             })}
                         </div>
@@ -555,7 +560,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             <div
                                 key={cls.id}
                                 ref={el => { groupRefs.current[cls.id] = el; }}
-                                className={`mb-4 last:mb-0 border-x border-b border-slate-200 dark:border-slate-700 shadow-sm rounded-b-lg`}
+                                className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden`}
                             >
                                 <div className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
                                     <div className="flex items-center text-xs">

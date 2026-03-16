@@ -1,4 +1,4 @@
-import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
+import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek } from 'date-fns';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**
@@ -160,6 +160,7 @@ const findAvailableStaff = (
     preferences: ShiftPreference[],
     existingShifts: Shift[],
     currentHours: Record<string, number>,
+    currentWeeklyHours: Record<string, Record<string, number>>,
     roles: DynamicRole[],
     holidays: string[] = []
 ): Array<{ staff: Staff; pattern?: ShiftTimePattern }> => {
@@ -182,7 +183,30 @@ const findAvailableStaff = (
             // Priority 2: Hours balance
             return currentHours[a.staff.id] - currentHours[b.staff.id];
         })
-        .filter(({ staff }) => staff.hoursTarget === null || currentHours[staff.id] < staff.hoursTarget);
+        .filter(({ staff, pattern }) => {
+            const shiftStart = pattern ? pattern.startTime : startTime;
+            const shiftEnd = pattern ? pattern.endTime : endTime;
+            const [sH, sM] = shiftStart.split(':').map(Number);
+            const [eH, eM] = shiftEnd.split(':').map(Number);
+            let startMins = sH * 60 + sM;
+            let endMins = eH * 60 + eM;
+            if (shiftEnd < shiftStart) endMins += 24 * 60;
+            const duration = (endMins - startMins) / 60;
+
+            if (staff.hoursTarget !== null && currentHours[staff.id] + duration > staff.hoursTarget) {
+                return false;
+            }
+
+            if (staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) {
+                const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+                const currentWeekHrs = currentWeeklyHours[staff.id][weekKey] || 0;
+                if (currentWeekHrs + duration > staff.weeklyHoursTarget) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
 };
 
 /**
@@ -229,7 +253,8 @@ export const generateShiftsForMonth = (
     roles: DynamicRole[],
     classes: ShiftClass[],
     holidays: string[] = [], // YYYY-MM-DD format
-    requirements: ShiftRequirement[] = [] // New: shift requirements
+    requirements: ShiftRequirement[] = [], // New: shift requirements
+    existingShifts: Shift[] = [] // New: shifts from adjacent months for weekly hours context
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
@@ -240,7 +265,30 @@ export const generateShiftsForMonth = (
 
     // Tracking staff hours for the month to balance
     const currentHours: Record<string, number> = {};
-    staffList.forEach(s => currentHours[s.id] = 0);
+    const currentWeeklyHours: Record<string, Record<string, number>> = {};
+    staffList.forEach(s => {
+        currentHours[s.id] = 0;
+        currentWeeklyHours[s.id] = {};
+    });
+
+    // Populate currentWeeklyHours with context from existing shifts
+    existingShifts.forEach(shift => {
+        if (!shift.staffId || shift.staffId === 'UNASSIGNED' || shift.isError) return;
+        const shiftDate = new Date(shift.date);
+        const weekKey = `w-${format(startOfISOWeek(shiftDate), 'yyyy-MM-dd')}`;
+        
+        const [sH, sM] = shift.startTime.split(':').map(Number);
+        const [eH, eM] = shift.endTime.split(':').map(Number);
+        let startMins = sH * 60 + sM;
+        let endMins = eH * 60 + eM;
+        if (shift.endTime < shift.startTime) endMins += 24 * 60;
+        const duration = (endMins - startMins) / 60;
+        
+        if (!currentWeeklyHours[shift.staffId]) {
+            currentWeeklyHours[shift.staffId] = {};
+        }
+        currentWeeklyHours[shift.staffId][weekKey] = (currentWeeklyHours[shift.staffId][weekKey] || 0) + duration;
+    });
 
     const classIds = classes.map(c => c.id);
 
@@ -276,6 +324,7 @@ export const generateShiftsForMonth = (
                     preferences,
                     generatedShifts,
                     currentHours,
+                    currentWeeklyHours,
                     roles,
                     holidays
                 );
@@ -309,6 +358,9 @@ export const generateShiftsForMonth = (
 
                         const duration = (endMins - startMins) / 60;
                         currentHours[staff.id] += duration;
+                        
+                        const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+                        currentWeeklyHours[staff.id][weekKey] = (currentWeeklyHours[staff.id][weekKey] || 0) + duration;
 
                         // 重要: パターンで割り当てた場合、このスタッフが同じ日の他の要件も
                         // 同時に満たしている可能性があるため、ループの次の反復で

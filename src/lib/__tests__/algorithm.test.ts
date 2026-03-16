@@ -233,4 +233,20 @@ describe('generateShiftsForMonth', () => {
         const monShifts = shifts.filter(s => s.date === '2025-06-02');
         expect(monShifts.length).toBeGreaterThan(0);
     });
+
+    it('weeklyHoursTargetを尊重して週間の割り当てが抑制される', () => {
+        const staff = [
+            makeStaff({ id: 'sw1', name: 'スタッフW', role: 'パート', weeklyHoursTarget: 20 }) // 週20時間まで
+        ];
+        // 毎日9時間（9-18）の要件
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+
+        const assignedShifts = shifts.filter(s => s.staffId === 'sw1' && !s.isError);
+        
+        // 第1週 (6/2 - 6/8) のシフトを集計
+        const week1Shifts = assignedShifts.filter(s => s.date >= '2025-06-02' && s.date <= '2025-06-08');
+        // 9時間/日 x 2日 = 18時間。3日目は27時間になりNG。なので週に最大2日まで。
+        expect(week1Shifts.length).toBeLessThanOrEqual(2);
+    });
 });

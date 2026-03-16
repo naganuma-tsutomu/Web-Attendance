@@ -18,7 +18,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string, targetHours?: number, patternIds?: string[] };
+        const body = await context.request.json() as { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -33,7 +33,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
 
         // 役職情報の更新
-        if (body.name !== undefined || body.targetHours !== undefined) {
+        if (body.name !== undefined || body.targetHours !== undefined || body.weeklyHoursTarget !== undefined) {
             const updates: string[] = [];
             const values: any[] = [];
             if (body.name !== undefined) {
@@ -43,6 +43,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             if (body.targetHours !== undefined) {
                 updates.push('targetHours = ?');
                 values.push(body.targetHours);
+            }
+            if (body.weeklyHoursTarget !== undefined) {
+                updates.push('weeklyHoursTarget = ?');
+                values.push(body.weeklyHoursTarget);
             }
             values.push(id);
             await context.env.DB.prepare(

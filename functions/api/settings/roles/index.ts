@@ -42,7 +42,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/roles — 役職追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string, targetHours?: number | null, patternIds?: string[] };
+        const body = await context.request.json() as { name: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
 
         // Validate name
         const nameError = validateName(body.name, '役職名', 50);
@@ -59,8 +59,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const nextOrder = (maxOrder || 0) + 1;
 
         await context.env.DB.prepare(
-            'INSERT INTO roles (id, name, targetHours, display_order) VALUES (?, ?, ?, ?)'
-        ).bind(id, body.name.trim(), body.targetHours === undefined ? null : body.targetHours, nextOrder).run();
+            'INSERT INTO roles (id, name, targetHours, weeklyHoursTarget, display_order) VALUES (?, ?, ?, ?, ?)'
+        ).bind(id, body.name.trim(), body.targetHours === undefined ? null : body.targetHours, body.weeklyHoursTarget === undefined ? null : body.weeklyHoursTarget, nextOrder).run();
 
         // 2. パターンの紐付け (もしあれば)
         if (body.patternIds && body.patternIds.length > 0) {

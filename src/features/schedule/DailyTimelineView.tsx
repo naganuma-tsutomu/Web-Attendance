@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2, CalendarX } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
-import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
+import { isStaffAvailableReason } from '../../lib/algorithm';
+import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
     date: Date;
@@ -11,6 +12,7 @@ interface DailyTimelineViewProps {
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
     roles: DynamicRole[];
+    preferences?: ShiftPreference[];
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
     // 外部から保存アクションを実行するためのリファレンス用
@@ -61,6 +63,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     classes,
     timePatterns,
     roles,
+    preferences = [],
     onShiftUpdate,
     onModifiedChange,
     saveRef,
@@ -78,7 +81,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const [addedShifts, setAddedShifts] = useState<Shift[]>([]);
     const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-    const [showAddMenu, setShowAddMenu] = useState<ClassType | null>(null);
+    const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
     const [initialShifts, setInitialShifts] = useState(localShifts);
 
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -200,6 +203,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 return a.startTime.localeCompare(b.startTime);
             });
     }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
+
+    const offDutyStaff = useMemo(() => {
+        return staffList.filter(staff => !dayShifts.some(s => s.staffId === staff.id))
+            .map(staff => {
+                const reason = isStaffAvailableReason(staff, date, targetDateStr, preferences);
+                return { staff, reason };
+            });
+    }, [staffList, dayShifts, date, targetDateStr, preferences]);
 
     const getBarStyle = (shift: Shift) => {
         const s = localShifts[shift.id] || {
@@ -680,17 +691,59 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex flex-wrap items-center gap-4 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
-                {classes.map(c => (
-                    <div key={c.id} className="flex items-center space-x-1.5">
-                        <div className={`w-3 h-3 rounded-sm border ${getBarColor(c.id).replace('bg-', 'bg-').replace('border-', 'border-')}`} />
-                        <span>{c.name}</span>
-                    </div>
-                ))}
-                <div className="flex items-center space-x-1.5">
-                    <div className="w-3 h-3 bg-red-400 border border-red-500 rounded-sm" />
-                    <span>未割当/エラー</span>
+
+            {/* Off-duty staff section */}
+            <div className="mt-6">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">本日のお休み</span>
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                    {offDutyStaff.length === 0 ? (
+                        <div className="w-full text-center py-4 text-xs text-slate-400 italic">
+                            全員シフトに入っています
+                        </div>
+                    ) : (
+                        offDutyStaff.map(({ staff, reason }) => (
+                            <div key={staff.id} className="relative">
+                                <button
+                                    onClick={() => setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
+                                    className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[11px] font-medium ${
+                                        reason === 'preference'
+                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40'
+                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                                >
+                                    {reason === 'preference' && <CalendarX className="w-3 h-3 opacity-70" />}
+                                    <span>{staff.name}</span>
+                                    {reason === 'preference' && (
+                                        <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休</span>
+                                    )}
+                                    <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                                </button>
+
+                                {showAddMenu === staff.id && (
+                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                        <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700 mb-1">
+                                            追加先のクラスを選択
+                                        </div>
+                                        {classes.map(cls => (
+                                            <button
+                                                key={cls.id}
+                                                onClick={() => handleAddStaff(staff.id, cls.id)}
+                                                className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group/cls"
+                                            >
+                                                <span>{cls.name}</span>
+                                                <Plus className="w-3 h-3 text-indigo-500 opacity-0 group-hover/cls:opacity-100" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>

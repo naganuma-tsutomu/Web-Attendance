@@ -178,16 +178,16 @@ export const getRoles = async (): Promise<DynamicRole[]> => {
     return apiFetch<DynamicRole[]>('/settings/roles', { credentials: 'include' } as RequestInit);
 };
 
-export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = []): Promise<string> => {
+export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = [], weeklyHoursTarget: number | null = null): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/roles', {
         method: 'POST',
-        body: JSON.stringify({ name, targetHours, patternIds }),
+        body: JSON.stringify({ name, targetHours, patternIds, weeklyHoursTarget }),
         credentials: 'include'
     } as RequestInit);
     return id;
 };
 
-export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, patternIds?: string[] }): Promise<void> => {
+export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] }): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
         body: JSON.stringify(data),

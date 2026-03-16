@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Users } from 'lucide-react';
+import { startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Staff, Shift } from '../../../types';
 import { calculateTotalHours } from '../../../utils/timeUtils';
 
@@ -7,10 +8,32 @@ interface StaffWorkHoursSummaryProps {
     staffs: Staff[];
     shifts: Shift[];
     isOpen: boolean;
+    viewDate?: Date; // Add viewDate to identify the current week
 }
 
-const StaffWorkHoursSummary = ({ staffs, shifts, isOpen }: StaffWorkHoursSummaryProps) => {
-    const totalHoursMap = useMemo(() => calculateTotalHours(shifts), [shifts]);
+const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }: StaffWorkHoursSummaryProps) => {
+    const totalHoursMap = useMemo(() => {
+        const monthStart = startOfMonth(viewDate);
+        const monthEnd = endOfMonth(viewDate);
+        const filteredShifts = shifts.filter(shift => {
+            const shiftDate = parseISO(shift.date);
+            return isWithinInterval(shiftDate, { start: monthStart, end: monthEnd });
+        });
+        return calculateTotalHours(filteredShifts);
+    }, [shifts, viewDate]);
+
+    // Calculate weekly hours for the week containing viewDate
+    const weeklyHoursMap = useMemo(() => {
+        const weekStart = startOfWeek(viewDate, { weekStartsOn: 1 }); // Monday start to match ISO
+        const weekEnd = endOfWeek(viewDate, { weekStartsOn: 1 });
+        
+        const filteredShifts = shifts.filter(shift => {
+            const shiftDate = parseISO(shift.date);
+            return isWithinInterval(shiftDate, { start: weekStart, end: weekEnd });
+        });
+        
+        return calculateTotalHours(filteredShifts);
+    }, [shifts, viewDate]);
 
     const sortedStaffs = useMemo(() => {
         return [...staffs].sort((a, b) => {
@@ -51,6 +74,16 @@ const StaffWorkHoursSummary = ({ staffs, shifts, isOpen }: StaffWorkHoursSummary
                                     {targetHours > 0 && ` / ${targetHours}h`}
                                 </div>
                             </div>
+                            
+                            {/* Weekly Hours Display */}
+                            {(staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) && (
+                                <div className="flex justify-between items-center text-[9px] text-slate-400 dark:text-slate-500 font-bold px-0.5">
+                                    <span>今週の合計</span>
+                                    <span className={weeklyHoursMap[staff.id] > staff.weeklyHoursTarget ? 'text-red-500 font-bold' : ''}>
+                                        {weeklyHoursMap[staff.id]?.toFixed(1) || '0.0'}h / {staff.weeklyHoursTarget}h
+                                    </span>
+                                </div>
+                            )}
                             {targetHours > 0 && (
                                 <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div

@@ -30,6 +30,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     name = COALESCE(?, name),
                     role = COALESCE(?, role),
                     hoursTarget = COALESCE(?, hoursTarget),
+                    weeklyHoursTarget = COALESCE(?, weeklyHoursTarget),
                     availableDays = COALESCE(?, availableDays),
                     isHelpStaff = COALESCE(?, isHelpStaff),
                     defaultWorkingHoursStart = COALESCE(?, defaultWorkingHoursStart),
@@ -39,7 +40,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             ).bind(
                 staffData.name !== undefined ? staffData.name.trim() : null,
                 staffData.role !== undefined ? staffData.role : null,
-                staffData.hoursTarget || null,
+                staffData.hoursTarget !== undefined ? staffData.hoursTarget : null,
+                staffData.weeklyHoursTarget !== undefined ? staffData.weeklyHoursTarget : null,
                 staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
                 staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
                 staffData.defaultWorkingHoursStart || null,

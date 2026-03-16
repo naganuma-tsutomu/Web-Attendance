@@ -93,6 +93,11 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                             <span className="font-bold text-slate-700 dark:text-slate-200">{currentMonthHours.toFixed(1)}h</span>
                         )}
                     </div>
+                    {staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined && (
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">
+                            週目標: {staff.weeklyHoursTarget}h
+                        </div>
+                    )}
                     {staff.hoursTarget !== null && staff.hoursTarget > 0 && (
                         <div className="h-1.5 w-24 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div

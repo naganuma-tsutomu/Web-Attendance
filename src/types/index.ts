@@ -18,6 +18,7 @@ export interface Staff {
     name: string;
     role: string; // 役職名 (動的)
     hoursTarget: number | null;
+    weeklyHoursTarget?: number | null; // 週間目標時間
     isHelpStaff?: boolean;
     classIds?: string[];
     availableDays?: (number | AvailableDayConfig)[];
@@ -68,6 +69,7 @@ export interface DynamicRole {
     id: string;
     name: string;
     targetHours: number | null;
+    weeklyHoursTarget?: number | null; // 週間目標時間
     display_order: number;
     patterns: ShiftTimePattern[];
 }

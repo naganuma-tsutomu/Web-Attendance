@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS staffs (
     name TEXT NOT NULL,
     role TEXT NOT NULL,
     hoursTarget INTEGER,
+    weeklyHoursTarget INTEGER,
     availableDays TEXT, -- JSON array string (Lgegacy, will be replaced by staff_available_days)
     isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
     defaultWorkingHoursStart TEXT,
@@ -96,6 +97,7 @@ CREATE TABLE IF NOT EXISTS roles (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,  -- 例: "正社員", "短時間パートA"
     targetHours INTEGER DEFAULT 0, -- 月間目標時間
+    weeklyHoursTarget INTEGER, -- 週間目標時間
     display_order INTEGER DEFAULT 0
 );
 

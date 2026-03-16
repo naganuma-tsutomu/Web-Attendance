@@ -43,6 +43,7 @@ const StaffPage = () => {
         name: '',
         role: '',
         hoursTarget: null,
+        weeklyHoursTarget: null,
         classIds: []
     });
 
@@ -101,6 +102,7 @@ const StaffPage = () => {
             name: '',
             role: defaultRole?.name || '',
             hoursTarget: defaultRole?.targetHours ?? null,
+            weeklyHoursTarget: defaultRole?.weeklyHoursTarget ?? null,
             defaultWorkingHoursStart: '',
             defaultWorkingHoursEnd: '',
             isHelpStaff: false,
@@ -115,7 +117,8 @@ const StaffPage = () => {
         setFormData(prev => ({
             ...prev,
             role: roleName,
-            hoursTarget: selectedRole ? (selectedRole.targetHours ?? null) : prev.hoursTarget
+            hoursTarget: selectedRole ? (selectedRole.targetHours ?? null) : prev.hoursTarget,
+            weeklyHoursTarget: selectedRole ? (selectedRole.weeklyHoursTarget ?? null) : prev.weeklyHoursTarget
         }));
     };
 
@@ -125,6 +128,7 @@ const StaffPage = () => {
             name: staff.name,
             role: staff.role,
             hoursTarget: staff.hoursTarget ?? null,
+            weeklyHoursTarget: staff.weeklyHoursTarget ?? null,
             isHelpStaff: staff.isHelpStaff || false,
             availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
             defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',

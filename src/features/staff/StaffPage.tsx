@@ -337,6 +337,7 @@ const StaffPage = () => {
                                         <th className="w-12 px-4 py-4"></th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">役職</th>
+                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">アクセスキー</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">所属クラス</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">固定休日</th>
@@ -346,7 +347,7 @@ const StaffPage = () => {
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center">
+                                            <td colSpan={8} className="px-6 py-12 text-center">
                                                 <div className="flex justify-center">
                                                     <Loader2 className="w-8 h-8 animate-spin text-indigo-300" />
                                                 </div>
@@ -354,7 +355,7 @@ const StaffPage = () => {
                                         </tr>
                                     ) : filteredStaff.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-medium">
                                                 該当するスタッフが見つかりません
                                             </td>
                                         </tr>

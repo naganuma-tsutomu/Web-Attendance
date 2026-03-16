@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS staffs (
     isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
-    display_order INTEGER DEFAULT 0
+    display_order INTEGER DEFAULT 0,
+    access_key TEXT
 );
 
 -- Staff Classes (Many-to-Many)
@@ -155,15 +156,15 @@ PRAGMA defer_foreign_keys=TRUE;
 INSERT INTO "classes" ("id","name","display_order","auto_allocate") VALUES('class_niji','虹組',0,1);
 INSERT INTO "classes" ("id","name","display_order","auto_allocate") VALUES('class_smile','スマイル組',1,1);
 INSERT INTO "classes" ("id","name","display_order","auto_allocate") VALUES('class_special','ヘルプ',2,0);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772904338091','正社員1','正社員',NULL,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,1);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772904349897','正社員2','正社員',NULL,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,2);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772904364146','パート1','パート',100,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,5);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772904396793','準社員1','準社員',135,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,4);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772939143605','パート2','パート',100,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',1,NULL,NULL,6);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772969329254','パート3','パート',100,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,7);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772969335436','パート4','パート',100,'[1,2,3,4,5,6]',0,NULL,NULL,8);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772969343268','パート5','パート',30,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,9);
-INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order") VALUES('staff_1772985694703','正社員3','正社員',NULL,'[1,2,3,4,5,6]',0,NULL,NULL,3);
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772904338091','正社員1','正社員',NULL,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,1,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772904349897','正社員2','正社員',NULL,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,2,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772904364146','パート1','パート',100,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,5,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772904396793','準社員1','準社員',135,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,4,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772939143605','パート2','パート',100,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',1,NULL,NULL,6,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772969329254','パート3','パート',100,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,7,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772969335436','パート4','パート',100,'[1,2,3,4,5,6]',0,NULL,NULL,8,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772969343268','パート5','パート',30,'[{"day":1},{"day":2},{"day":3},{"day":4},{"day":5},{"day":6}]',0,NULL,NULL,9,'1234');
+INSERT INTO "staffs" ("id","name","role","hoursTarget","availableDays","isHelpStaff","defaultWorkingHoursStart","defaultWorkingHoursEnd","display_order","access_key") VALUES('staff_1772985694703','正社員3','正社員',NULL,'[1,2,3,4,5,6]',0,NULL,NULL,3,'1234');
 INSERT INTO "staff_classes" ("staffId","classId") VALUES('staff_1772969335436','class_smile');
 INSERT INTO "staff_classes" ("staffId","classId") VALUES('staff_1772969335436','class_niji');
 INSERT INTO "staff_classes" ("staffId","classId") VALUES('staff_1772939143605','class_niji');

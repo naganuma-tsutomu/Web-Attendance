@@ -38,7 +38,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 ...row,
                 availableDays: normalizedDays.length > 0 ? normalizedDays : (row.availableDays ? JSON.parse(row.availableDays) : undefined),
                 isHelpStaff: row.isHelpStaff === 1,
-                classIds: classIds
+                classIds: classIds,
+                accessKey: row.access_key
             };
         });
 
@@ -70,8 +71,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const statements = [
             context.env.DB.prepare(
-                `INSERT INTO staffs (id, name, role, hoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO staffs (id, name, role, hoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).bind(
                 id,
                 staffData.name!.trim(),
@@ -81,7 +82,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 staffData.isHelpStaff ? 1 : 0,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
-                displayOrder
+                displayOrder,
+                staffData.accessKey || Math.floor(1000 + Math.random() * 9000).toString()
             )
         ];
 

@@ -21,14 +21,14 @@ const Layout = () => {
     };
 
     const navItems = [
-        { path: '/', label: 'シフト表', icon: Calendar },
-        { path: '/staff', label: 'スタッフ管理', icon: Users },
-        { path: '/preferences', label: '休日管理', icon: Clock },
-        { path: '/settings/patterns', label: '勤務時間パターン', icon: Clock },
-        { path: '/settings/roles', label: '役職管理', icon: Users },
-        { path: '/settings/classes', label: 'クラス管理', icon: GraduationCap },
-        { path: '/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
-        { path: '/settings/appearance', label: '外観設定', icon: Palette },
+        { path: '/admin', label: 'シフト表', icon: Calendar },
+        { path: '/admin/staff', label: 'スタッフ管理', icon: Users },
+        { path: '/admin/preferences', label: '休日管理', icon: Clock },
+        { path: '/admin/settings/patterns', label: '勤務時間パターン', icon: Clock },
+        { path: '/admin/settings/roles', label: '役職管理', icon: Users },
+        { path: '/admin/settings/classes', label: 'クラス管理', icon: GraduationCap },
+        { path: '/admin/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
+        { path: '/admin/settings/appearance', label: '外観設定', icon: Palette },
     ];
 
     return (

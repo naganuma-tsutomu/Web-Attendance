@@ -57,6 +57,11 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                 </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
+                <span className="text-sm font-mono font-bold text-slate-600 dark:text-slate-300">
+                    {staff.accessKey || '----'}
+                </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex flex-wrap gap-1">
                     {staff.classIds && staff.classIds.length > 0 ? (
                         staff.classIds.map(cid => {

@@ -24,6 +24,7 @@ export interface Staff {
     defaultWorkingHoursStart?: string;
     defaultWorkingHoursEnd?: string;
     display_order?: number;
+    accessKey?: string;
 }
 
 export interface ShiftPreference {

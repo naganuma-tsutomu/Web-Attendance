@@ -33,7 +33,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     availableDays = COALESCE(?, availableDays),
                     isHelpStaff = COALESCE(?, isHelpStaff),
                     defaultWorkingHoursStart = COALESCE(?, defaultWorkingHoursStart),
-                    defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd)
+                    defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd),
+                    access_key = COALESCE(?, access_key)
                  WHERE id = ?`
             ).bind(
                 staffData.name !== undefined ? staffData.name.trim() : null,
@@ -43,6 +44,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
+                staffData.accessKey || null,
                 id
             )
         ];

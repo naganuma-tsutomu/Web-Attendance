@@ -84,6 +84,13 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
     return id;
 };
 
+export const updatePreferences = async (data: { staffId: string, yearMonth: string, unavailableDates: string[] }): Promise<void> => {
+    await apiFetch('/preferences', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+};
+
 // ==========================================
 // Shifts API
 // ==========================================

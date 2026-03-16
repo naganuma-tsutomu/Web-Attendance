@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { X, Save } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
@@ -12,6 +12,7 @@ interface DailyTimelineModalProps {
     staffList: Staff[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
     onClose: () => void;
     onShiftUpdate?: () => void;
 }
@@ -22,6 +23,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     staffList,
     classes,
     timePatterns,
+    roles,
     onClose,
     onShiftUpdate
 }) => {
@@ -86,6 +88,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         staffList={staffList}
                         classes={classes}
                         timePatterns={timePatterns}
+                        roles={roles}
                         onShiftUpdate={onShiftUpdate}
                         onModifiedChange={setIsModified}
                         saveRef={saveRef}

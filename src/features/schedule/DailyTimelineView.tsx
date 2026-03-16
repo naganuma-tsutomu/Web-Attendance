@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
-import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern } from '../../types';
+import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
 
 interface DailyTimelineViewProps {
     date: Date;
@@ -10,6 +10,7 @@ interface DailyTimelineViewProps {
     staffList: Staff[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
     // 外部から保存アクションを実行するためのリファレンス用
@@ -59,6 +60,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     staffList,
     classes,
     timePatterns,
+    roles,
     onShiftUpdate,
     onModifiedChange,
     saveRef,
@@ -338,6 +340,20 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         }));
     }, [localShifts, hoveredGroup]);
 
+    const handlePatternChange = (shiftId: string, patternId: string) => {
+        const pattern = timePatterns.find(p => p.id === patternId);
+        if (!pattern) return;
+
+        setLocalShifts(prev => ({
+            ...prev,
+            [shiftId]: {
+                ...prev[shiftId],
+                start: toMins(pattern.startTime),
+                end: toMins(pattern.endTime)
+            }
+        }));
+    };
+
     const handleTimeInputChange = (shiftId: string, field: 'start' | 'end', value: string) => {
         const mins = toMins(value);
         const snapped = snapTo15(mins);
@@ -435,8 +451,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
                 {!readOnly && (
                     <div className={`flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
-                        <div className="hidden sm:flex w-[330px] flex-shrink-0">
+                        <div className="hidden sm:flex w-[480px] flex-shrink-0">
                             <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
+                            <div className="w-36 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">シフトパターン</div>
                             <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">開始</div>
                             <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">終了</div>
                             <div className="w-14 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">時間</div>
@@ -580,6 +597,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                         const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
                                         const s = localShifts[shift.id] ?? { start: toMins(shift.startTime), end: toMins(shift.endTime), classType: shift.classType };
                                         const isDragging = activeDragId === shift.id;
+                                        const allowedPatterns = roles.find(r => r.name === staff?.role)?.patterns || [];
 
                                         return (
                                             <div
@@ -588,10 +606,22 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                             >
                                                 {/* Left Info Column */}
                                                 {!readOnly ? (
-                                                    <div className="flex w-full sm:w-[330px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
+                                                    <div className="flex w-full sm:w-[480px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
                                                         <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center overflow-hidden relative group/name">
                                                             <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={staffName}>{staffName}</div>
                                                             <button onClick={() => handleRemoveShift(shift.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/name:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        </div>
+                                                        <div className="w-36 border-r border-slate-200 dark:border-slate-700 flex items-center px-1">
+                                                            <select
+                                                                className="w-full text-[10px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+                                                                value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
+                                                                onChange={(e) => handlePatternChange(shift.id, e.target.value)}
+                                                            >
+                                                                <option value="">カスタム</option>
+                                                                {allowedPatterns.map(p => (
+                                                                    <option key={p.id} value={p.id}>{p.name} ({p.startTime}-{p.endTime})</option>
+                                                                ))}
+                                                            </select>
                                                         </div>
                                                         <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
                                                             <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />

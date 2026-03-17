@@ -714,22 +714,25 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                         offDutyStaff.map(({ staff, reason }) => (
                             <div key={staff.id} className="relative">
                                 <button
-                                    onClick={() => setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
+                                    onClick={() => !readOnly && setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
+                                    disabled={readOnly}
                                     className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[11px] font-medium ${
                                         reason === 'preference'
-                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40'
-                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
+                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                    } ${readOnly ? 'opacity-80 cursor-default' : reason === 'preference' ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                                 >
                                     {reason === 'preference' && <CalendarX className="w-3 h-3 opacity-70" />}
                                     <span>{staff.name}</span>
                                     {reason === 'preference' && (
                                         <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休</span>
                                     )}
-                                    <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                                    {!readOnly && (
+                                        <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                                    )}
                                 </button>
 
-                                {showAddMenu === staff.id && (
+                                {!readOnly && showAddMenu === staff.id && (
                                     <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
                                         <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700 mb-1">
                                             追加先のクラスを選択

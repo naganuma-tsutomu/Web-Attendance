@@ -535,7 +535,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     </button>
                 </div>
             )}
-            <div className="min-w-full md:min-w-[800px] overflow-hidden flex flex-col bg-white dark:bg-slate-800">
+            <div className="min-w-full md:min-w-[800px] overflow-visible flex flex-col bg-white dark:bg-slate-800">
                 {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
                 {!readOnly && (
                     <div className={`flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
@@ -635,9 +635,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             <div
                                 key={cls.id}
                                 ref={el => { groupRefs.current[cls.id] = el; }}
-                                className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden`}
+                                className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm relative ${
+                                    dayShifts.some(s => showSwapMenu === s.id && (localShifts[s.id]?.classType === cls.id || (s.classType === cls.id && !localShifts[s.id]))) || showAddMenu === cls.id
+                                    ? 'z-50 overflow-visible' 
+                                    : 'z-[5] overflow-visible'
+                                }`}
                             >
-                                <div className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
+                                <div className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between transition-colors sticky top-0 z-30 ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
                                     <div className="flex items-center text-xs">
                                         {groupTitle}
                                         {hoveredGroup === cls.id && activeDragId && (

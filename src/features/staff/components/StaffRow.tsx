@@ -2,6 +2,7 @@ import { GripVertical, Edit2, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Staff, ShiftClass } from '../../../types';
+import { formatHours } from '../../../utils/timeUtils';
 
 interface StaffRowProps {
     staff: Staff;
@@ -83,14 +84,14 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                         {staff.hoursTarget !== null ? (
                             <>
                                 <span className={`font-bold ${currentMonthHours > staff.hoursTarget ? 'text-red-500' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                    {currentMonthHours.toFixed(1)}h
+                                    {formatHours(currentMonthHours)}h
                                 </span>
                                 <span className="text-xs text-slate-400 font-normal ml-1">
                                     / {staff.hoursTarget}h
                                 </span>
                             </>
                         ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-200">{currentMonthHours.toFixed(1)}h</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{formatHours(currentMonthHours)}h</span>
                         )}
                     </div>
                     {staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined && (

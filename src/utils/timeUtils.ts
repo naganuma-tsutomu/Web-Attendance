@@ -34,3 +34,13 @@ export const calculateTotalHours = (shifts: { staffId: string, startTime: string
 
     return totals;
 };
+/**
+ * Formats hours to 0.25 increments (e.g., 20.25, 20.5, 20.75, 21.0).
+ * Rounds to the nearest 0.25.
+ */
+export const formatHours = (hours: number): string => {
+    const rounded = Math.round(hours * 4) / 4;
+    if (rounded % 1 === 0) return rounded.toFixed(1); // "20.0"
+    if (rounded % 0.5 === 0) return rounded.toFixed(1); // "20.5"
+    return rounded.toFixed(2); // "20.25", "20.75"
+};

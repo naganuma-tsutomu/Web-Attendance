@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
 import { isStaffAvailableReason } from '../../lib/algorithm';
+import { calculateDuration as calculateDurationHours, formatHours } from '../../utils/timeUtils';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
@@ -210,17 +211,30 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             });
     }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
 
+    const targetYearMonth = format(date, 'yyyy-MM');
+
     const staffMonthlyHours = useMemo(() => {
         const hours: Record<string, number> = {};
-        shifts.forEach(s => {
-            if (s.staffId === 'UNASSIGNED') return;
-            const start = toMins(s.startTime);
-            const end = toMins(s.endTime);
-            const duration = (end - start) / 60;
+        
+        // 既存のシフトから削除予定のものを除外
+        const baseMonthShifts = shifts.filter(s => 
+            s.date.startsWith(targetYearMonth) && 
+            !deletedIds.has(s.id) && 
+            s.staffId !== 'UNASSIGNED'
+        );
+        
+        // ローカルで追加されたシフトを含める
+        const addedMonthShifts = addedShifts.filter(s => 
+            s.date.startsWith(targetYearMonth) && 
+            s.staffId !== 'UNASSIGNED'
+        );
+
+        [...baseMonthShifts, ...addedMonthShifts].forEach(s => {
+            const duration = calculateDurationHours(s.startTime, s.endTime);
             hours[s.staffId] = (hours[s.staffId] || 0) + duration;
         });
         return hours;
-    }, [shifts]);
+    }, [shifts, addedShifts, deletedIds, targetYearMonth]);
 
     const offDutyStaff = useMemo(() => {
         return staffList.filter(staff => !dayShifts.some(s => s.staffId === staff.id))
@@ -636,7 +650,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 key={cls.id}
                                 ref={el => { groupRefs.current[cls.id] = el; }}
                                 className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm relative ${
-                                    dayShifts.some(s => showSwapMenu === s.id && (localShifts[s.id]?.classType === cls.id || (s.classType === cls.id && !localShifts[s.id]))) || showAddMenu === cls.id
+                                    dayShifts.some(s => (showSwapMenu === s.id || deleteConfirmId === s.id) && (localShifts[s.id]?.classType === cls.id || (s.classType === cls.id && !localShifts[s.id]))) || showAddMenu === cls.id
                                     ? 'z-50 overflow-visible' 
                                     : 'z-[5] overflow-visible'
                                 }`}
@@ -715,36 +729,43 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                     <RefreshCw className="w-3.5 h-3.5" />
                                                                 </button>
                                                                 <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
-                                                                {deleteConfirmId === shift.id ? (
-                                                                    <div className="flex items-center gap-1.5 px-1 bg-red-50/50 dark:bg-red-900/30 rounded-sm animate-in fade-in slide-in-from-right-1 duration-200">
-                                                                        <span className="text-[9px] text-red-600 dark:text-red-400 font-bold whitespace-nowrap">削除？</span>
-                                                                        <button 
-                                                                            onClick={(e) => { e.stopPropagation(); handleRemoveShift(shift.id); setDeleteConfirmId(null); }} 
-                                                                            className="px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-sm hover:bg-red-600 transition-colors font-bold"
-                                                                        >
-                                                                            はい
-                                                                        </button>
-                                                                        <button 
-                                                                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} 
-                                                                            className="p-1 text-slate-400 hover:text-slate-600"
-                                                                        >
-                                                                            <span className="text-[9px]">×</span>
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <button 
-                                                                        onClick={(e) => { 
-                                                                            e.stopPropagation(); 
-                                                                            setDeleteConfirmId(shift.id);
-                                                                            setShowSwapMenu(null);
-                                                                        }} 
-                                                                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-                                                                        title="削除"
-                                                                    >
-                                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                )}
+                                                                <button 
+                                                                    onClick={(e) => { 
+                                                                        e.stopPropagation(); 
+                                                                        setDeleteConfirmId(prev => prev === shift.id ? null : shift.id);
+                                                                        setShowSwapMenu(null);
+                                                                    }} 
+                                                                    className={`p-1 rounded transition-colors ${deleteConfirmId === shift.id ? 'text-red-500 bg-red-50 dark:bg-red-900/30' : 'text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
+                                                                    title="削除"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
                                                             </div>
+                                                            
+                                                            {deleteConfirmId === shift.id && (
+                                                                <>
+                                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} />
+                                                                    <div className="absolute left-full top-0 ml-1 z-[60] w-56 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/50 rounded-lg shadow-2xl py-3 px-3 animate-in fade-in zoom-in-95 duration-200">
+                                                                        <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-3">
+                                                                            このシフトを削除しますか？
+                                                                        </div>
+                                                                        <div className="flex gap-2">
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); handleRemoveShift(shift.id); setDeleteConfirmId(null); }} 
+                                                                                className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-[11px] rounded transition-colors font-bold shadow-sm whitespace-nowrap"
+                                                                            >
+                                                                                削除
+                                                                            </button>
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} 
+                                                                                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-[11px] rounded transition-colors font-medium border border-slate-200 dark:border-slate-600 text-center whitespace-nowrap"
+                                                                            >
+                                                                                キャンセル
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )}
                                                             
                                                             {showSwapMenu === shift.id && (() => {
                                                                 const currentStaff = staffList.find(s => s.id === shift.staffId);
@@ -765,7 +786,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                                 </div>
                                                                             ) : (
                                                                                 availableStaff.map(({ staff, reason }) => {
-                                                                                    const monthlyHours = (staffMonthlyHours[staff.id] || 0).toFixed(1);
+                                                                                    const monthlyHours = formatHours(staffMonthlyHours[staff.id] || 0);
                                                                                     const target = staff.hoursTarget || 0;
                                                                                     const isOver = target > 0 && Number(monthlyHours) > target;
                                                                                     

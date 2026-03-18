@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Users } from 'lucide-react';
 import { startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Staff, Shift } from '../../../types';
-import { calculateTotalHours } from '../../../utils/timeUtils';
+import { calculateTotalHours, formatHours } from '../../../utils/timeUtils';
 
 interface StaffWorkHoursSummaryProps {
     staffs: Staff[];
@@ -69,7 +69,7 @@ const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }
                                 </div>
                                 <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
                                     <span className={`font-bold ${isOver ? 'text-red-500' : 'text-slate-800 dark:text-white'}`}>
-                                        {currentHours.toFixed(1)}h
+                                        {formatHours(currentHours)}h
                                     </span>
                                     {targetHours > 0 && ` / ${targetHours}h`}
                                 </div>
@@ -80,7 +80,7 @@ const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }
                                 <div className="flex justify-between items-center text-[9px] text-slate-400 dark:text-slate-500 font-bold px-0.5">
                                     <span>今週の合計</span>
                                     <span className={weeklyHoursMap[staff.id] > staff.weeklyHoursTarget ? 'text-red-500 font-bold' : ''}>
-                                        {weeklyHoursMap[staff.id]?.toFixed(1) || '0.0'}h / {staff.weeklyHoursTarget}h
+                                        {weeklyHoursMap[staff.id] !== undefined ? formatHours(weeklyHoursMap[staff.id]) : '0.0'}h / {staff.weeklyHoursTarget}h
                                     </span>
                                 </div>
                             )}

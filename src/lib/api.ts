@@ -40,6 +40,10 @@ export const getStaffList = async (): Promise<Staff[]> => {
     return apiFetch<Staff[]>('/staffs');
 };
 
+export const getStaffNameList = async (): Promise<{ id: string, name: string }[]> => {
+    return apiFetch<{ id: string, name: string }[]>('/staffs/list');
+};
+
 export const createStaff = async (staffData: Omit<Staff, 'id'>): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/staffs', {
         method: 'POST',
@@ -84,6 +88,13 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
     return id;
 };
 
+export const updatePreferences = async (data: Omit<ShiftPreference, 'id'>): Promise<void> => {
+    await apiFetch('/preferences', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+};
+
 // ==========================================
 // Shifts API
 // ==========================================
@@ -99,9 +110,10 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     });
 };
 
-export const deleteShiftsByMonth = async (yearMonth: string): Promise<void> => {
-    await apiFetch(`/shifts?yearMonth=${yearMonth}`, {
-        method: 'DELETE',
+export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
+    await apiFetch('/shifts/clear', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, exceptDates }),
         credentials: 'include'
     } as RequestInit);
 };
@@ -167,16 +179,16 @@ export const getRoles = async (): Promise<DynamicRole[]> => {
     return apiFetch<DynamicRole[]>('/settings/roles', { credentials: 'include' } as RequestInit);
 };
 
-export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = []): Promise<string> => {
+export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = [], weeklyHoursTarget: number | null = null): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/roles', {
         method: 'POST',
-        body: JSON.stringify({ name, targetHours, patternIds }),
+        body: JSON.stringify({ name, targetHours, patternIds, weeklyHoursTarget }),
         credentials: 'include'
     } as RequestInit);
     return id;
 };
 
-export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, patternIds?: string[] }): Promise<void> => {
+export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] }): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -301,4 +313,20 @@ export const syncHolidays = async (year?: number): Promise<{ success: boolean; m
         ? `/settings/holidays/sync?year=${year}`
         : '/settings/holidays/sync';
     return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, { credentials: 'include' } as RequestInit);
+};
+
+// ==========================================
+// Fixed Dates API (シフト固定状態管理)
+// ==========================================
+
+export const getFixedDates = async (yearMonth: string): Promise<string[]> => {
+    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`, { credentials: 'include' } as RequestInit);
+};
+
+export const saveFixedDates = async (yearMonth: string, dates: string[]): Promise<void> => {
+    await apiFetch('/fixed-dates', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, dates }),
+        credentials: 'include'
+    } as RequestInit);
 };

@@ -2,6 +2,7 @@ import { GripVertical, Edit2, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Staff, ShiftClass } from '../../../types';
+import { formatHours } from '../../../utils/timeUtils';
 
 interface StaffRowProps {
     staff: Staff;
@@ -57,6 +58,11 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                 </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
+                <span className="text-sm font-mono font-bold text-slate-600 dark:text-slate-300">
+                    {staff.accessKey || '----'}
+                </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex flex-wrap gap-1">
                     {staff.classIds && staff.classIds.length > 0 ? (
                         staff.classIds.map(cid => {
@@ -78,16 +84,21 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                         {staff.hoursTarget !== null ? (
                             <>
                                 <span className={`font-bold ${currentMonthHours > staff.hoursTarget ? 'text-red-500' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                    {currentMonthHours.toFixed(1)}h
+                                    {formatHours(currentMonthHours)}h
                                 </span>
                                 <span className="text-xs text-slate-400 font-normal ml-1">
                                     / {staff.hoursTarget}h
                                 </span>
                             </>
                         ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-200">{currentMonthHours.toFixed(1)}h</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{formatHours(currentMonthHours)}h</span>
                         )}
                     </div>
+                    {staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined && (
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">
+                            週目標: {staff.weeklyHoursTarget}h
+                        </div>
+                    )}
                     {staff.hoursTarget !== null && staff.hoursTarget > 0 && (
                         <div className="h-1.5 w-24 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div

@@ -1,4 +1,4 @@
-import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from 'date-fns';
+import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek } from 'date-fns';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**
@@ -22,9 +22,18 @@ export const isStaffAvailableReason = (
     dateStr: string,
     preferences: ShiftPreference[]
 ): 'available' | 'preference' | 'fixed' => {
-    // 1. Check Shift Preference (休日管理)
+    // 1. Check Shift Preference (休日管理) - 終日不可のみチェック
     const pref = preferences.find(p => p.staffId === staff.id);
-    if (pref && pref.unavailableDates.includes(dateStr)) return 'preference';
+    if (pref) {
+        // details がある場合: startTime/endTimeが両方nullのエントリが終日不可
+        if (pref.details && pref.details.length > 0) {
+            const fullDayEntry = pref.details.find(d => d.date === dateStr && !d.startTime && !d.endTime);
+            if (fullDayEntry) return 'preference';
+        } else {
+            // fallback: details がない場合は従来のunavailableDatesを使う
+            if (pref.unavailableDates.includes(dateStr)) return 'preference';
+        }
+    }
 
     // 2. Check Staff Base Availability (スタッフ管理)
     const dayOfWeek = getDay(date);
@@ -53,8 +62,34 @@ const isStaffAvailableForTimeSlot = (
     roles: DynamicRole[],
     holidays: string[] = [] // YYYY-MM-DD
 ): { available: boolean; matchingPattern?: ShiftTimePattern } => {
-    // First check basic day availability
+    // First check basic day availability (full-day unavailable)
     if (!isStaffAvailable(staff, date, dateStr, preferences)) return { available: false };
+
+    // Check partial-day unavailability from preference details
+    const pref = preferences.find(p => p.staffId === staff.id);
+    if (pref?.details) {
+        const partialEntries = pref.details.filter(d => d.date === dateStr && d.startTime && d.endTime);
+        for (const entry of partialEntries) {
+            // Convert to minutes for robust comparison (handles midnight crossing better if it occurs)
+            const [sH, sM] = startTime.split(':').map(Number);
+            const [eH, eM] = endTime.split(':').map(Number);
+            const [usH, usM] = entry.startTime!.split(':').map(Number);
+            const [ueH, ueM] = entry.endTime!.split(':').map(Number);
+
+            const sMin = sH * 60 + sM;
+            let eMin = eH * 60 + eM;
+            if (eMin < sMin) eMin += 24 * 60;
+
+            const usMin = usH * 60 + usM;
+            let ueMin = ueH * 60 + ueM;
+            if (ueMin < usMin) ueMin += 24 * 60;
+
+            // Check if [sMin, eMin] overlaps with [usMin, ueMin]
+            if (sMin < ueMin && eMin > usMin) {
+                return { available: false };
+            }
+        }
+    }
 
     const roleRecord = roles.find(r => r.name === staff.role || r.id === staff.role);
     const dayOfWeek = getDay(date);
@@ -160,6 +195,7 @@ const findAvailableStaff = (
     preferences: ShiftPreference[],
     existingShifts: Shift[],
     currentHours: Record<string, number>,
+    currentWeeklyHours: Record<string, Record<string, number>>,
     roles: DynamicRole[],
     holidays: string[] = []
 ): Array<{ staff: Staff; pattern?: ShiftTimePattern }> => {
@@ -182,7 +218,30 @@ const findAvailableStaff = (
             // Priority 2: Hours balance
             return currentHours[a.staff.id] - currentHours[b.staff.id];
         })
-        .filter(({ staff }) => staff.hoursTarget === null || currentHours[staff.id] < staff.hoursTarget);
+        .filter(({ staff, pattern }) => {
+            const shiftStart = pattern ? pattern.startTime : startTime;
+            const shiftEnd = pattern ? pattern.endTime : endTime;
+            const [sH, sM] = shiftStart.split(':').map(Number);
+            const [eH, eM] = shiftEnd.split(':').map(Number);
+            const startMins = sH * 60 + sM;
+            let endMins = eH * 60 + eM;
+            if (shiftEnd < shiftStart) endMins += 24 * 60;
+            const duration = (endMins - startMins) / 60;
+
+            if (staff.hoursTarget !== null && currentHours[staff.id] + duration > staff.hoursTarget) {
+                return false;
+            }
+
+            if (staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) {
+                const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+                const currentWeekHrs = currentWeeklyHours[staff.id][weekKey] || 0;
+                if (currentWeekHrs + duration > staff.weeklyHoursTarget) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
 };
 
 /**
@@ -229,7 +288,9 @@ export const generateShiftsForMonth = (
     roles: DynamicRole[],
     classes: ShiftClass[],
     holidays: string[] = [], // YYYY-MM-DD format
-    requirements: ShiftRequirement[] = [] // New: shift requirements
+    requirements: ShiftRequirement[] = [], // New: shift requirements
+    existingShifts: Shift[] = [], // New: shifts from adjacent months for weekly hours context
+    fixedDates: string[] = [] // New: locked dates to avoid rewriting
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
@@ -240,7 +301,34 @@ export const generateShiftsForMonth = (
 
     // Tracking staff hours for the month to balance
     const currentHours: Record<string, number> = {};
-    staffList.forEach(s => currentHours[s.id] = 0);
+    const currentWeeklyHours: Record<string, Record<string, number>> = {};
+    staffList.forEach(s => {
+        currentHours[s.id] = 0;
+        currentWeeklyHours[s.id] = {};
+    });
+
+    // Populate currentWeeklyHours with context from existing shifts
+    existingShifts.forEach(shift => {
+        if (!shift.staffId || shift.staffId === 'UNASSIGNED' || shift.isError) return;
+        const shiftDate = new Date(shift.date);
+        const weekKey = `w-${format(startOfISOWeek(shiftDate), 'yyyy-MM-dd')}`;
+        
+        const [sH, sM] = shift.startTime.split(':').map(Number);
+        const [eH, eM] = shift.endTime.split(':').map(Number);
+        const startMins = sH * 60 + sM;
+        let endMins = eH * 60 + eM;
+        if (shift.endTime < shift.startTime) endMins += 24 * 60;
+        const duration = (endMins - startMins) / 60;
+        
+        if (shift.date.startsWith(yearMonth)) {
+            currentHours[shift.staffId] += duration;
+        }
+
+        if (!currentWeeklyHours[shift.staffId]) {
+            currentWeeklyHours[shift.staffId] = {};
+        }
+        currentWeeklyHours[shift.staffId][weekKey] = (currentWeeklyHours[shift.staffId][weekKey] || 0) + duration;
+    });
 
     const classIds = classes.map(c => c.id);
 
@@ -248,7 +336,7 @@ export const generateShiftsForMonth = (
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
 
-        if (dayOfWeek === 0 || holidays.includes(dateStr)) {
+        if (dayOfWeek === 0 || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
             return;
         }
 
@@ -276,6 +364,7 @@ export const generateShiftsForMonth = (
                     preferences,
                     generatedShifts,
                     currentHours,
+                    currentWeeklyHours,
                     roles,
                     holidays
                 );
@@ -299,7 +388,7 @@ export const generateShiftsForMonth = (
                         // 労働時間を加算
                         const [sH, sM] = shiftStart.split(':').map(Number);
                         const [eH, eM] = shiftEnd.split(':').map(Number);
-                        let startMins = sH * 60 + sM;
+                        const startMins = sH * 60 + sM;
                         let endMins = eH * 60 + eM;
 
                         // 日またぎ対応
@@ -309,6 +398,9 @@ export const generateShiftsForMonth = (
 
                         const duration = (endMins - startMins) / 60;
                         currentHours[staff.id] += duration;
+                        
+                        const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+                        currentWeeklyHours[staff.id][weekKey] = (currentWeeklyHours[staff.id][weekKey] || 0) + duration;
 
                         // 重要: パターンで割り当てた場合、このスタッフが同じ日の他の要件も
                         // 同時に満たしている可能性があるため、ループの次の反復で
@@ -346,7 +438,9 @@ export const generateShiftsForMonthWithRequirements = async (
     roles: DynamicRole[],
     classes: ShiftClass[],
     holidays: string[] = [],
-    fetchRequirements: () => Promise<ShiftRequirement[]>
+    fetchRequirements: () => Promise<ShiftRequirement[]>,
+    existingShifts: Shift[] = [],
+    fixedDates: string[] = []
 ): Promise<Shift[]> => {
     const requirements = await fetchRequirements();
     return generateShiftsForMonth(
@@ -356,6 +450,8 @@ export const generateShiftsForMonthWithRequirements = async (
         roles,
         classes,
         holidays,
-        requirements
+        requirements,
+        existingShifts,
+        fixedDates
     );
 };

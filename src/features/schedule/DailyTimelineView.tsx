@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
-import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
+import { isStaffAvailableReason } from '../../lib/algorithm';
+import { calculateDuration as calculateDurationHours, formatHours } from '../../utils/timeUtils';
+import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
     date: Date;
@@ -11,11 +13,14 @@ interface DailyTimelineViewProps {
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
     roles: DynamicRole[];
+    preferences?: ShiftPreference[];
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
     // 外部から保存アクションを実行するためのリファレンス用
     saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
     readOnly?: boolean;
+    isFixed?: boolean;
+    onToggleFixed?: () => void;
 }
 
 // 時間をHH:MM文字列に変換
@@ -61,10 +66,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     classes,
     timePatterns,
     roles,
+    preferences = [],
     onShiftUpdate,
     onModifiedChange,
     saveRef,
-    readOnly = false
+    readOnly = false,
+    isFixed = false,
+    onToggleFixed
 }) => {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
@@ -78,7 +86,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const [addedShifts, setAddedShifts] = useState<Shift[]>([]);
     const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-    const [showAddMenu, setShowAddMenu] = useState<ClassType | null>(null);
+    const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
+    const [showSwapMenu, setShowSwapMenu] = useState<string | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [initialShifts, setInitialShifts] = useState(localShifts);
 
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -200,6 +210,39 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 return a.startTime.localeCompare(b.startTime);
             });
     }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
+
+    const targetYearMonth = format(date, 'yyyy-MM');
+
+    const staffMonthlyHours = useMemo(() => {
+        const hours: Record<string, number> = {};
+        
+        // 既存のシフトから削除予定のものを除外
+        const baseMonthShifts = shifts.filter(s => 
+            s.date.startsWith(targetYearMonth) && 
+            !deletedIds.has(s.id) && 
+            s.staffId !== 'UNASSIGNED'
+        );
+        
+        // ローカルで追加されたシフトを含める
+        const addedMonthShifts = addedShifts.filter(s => 
+            s.date.startsWith(targetYearMonth) && 
+            s.staffId !== 'UNASSIGNED'
+        );
+
+        [...baseMonthShifts, ...addedMonthShifts].forEach(s => {
+            const duration = calculateDurationHours(s.startTime, s.endTime);
+            hours[s.staffId] = (hours[s.staffId] || 0) + duration;
+        });
+        return hours;
+    }, [shifts, addedShifts, deletedIds, targetYearMonth]);
+
+    const offDutyStaff = useMemo(() => {
+        return staffList.filter(staff => !dayShifts.some(s => s.staffId === staff.id))
+            .map(staff => {
+                const reason = isStaffAvailableReason(staff, date, targetDateStr, preferences);
+                return { staff, reason };
+            });
+    }, [staffList, dayShifts, date, targetDateStr, preferences]);
 
     const getBarStyle = (shift: Shift) => {
         const s = localShifts[shift.id] || {
@@ -418,6 +461,48 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         }
     };
 
+    const handleSwapStaff = (oldShiftId: string, newStaffId: string) => {
+        const oldShift = [...shifts.filter(s => s.date === targetDateStr), ...addedShifts].find(s => s.id === oldShiftId);
+        if (!oldShift) return;
+
+        const oldLocal = localShifts[oldShiftId] || {
+            start: toMins(oldShift.startTime),
+            end: toMins(oldShift.endTime),
+            classType: oldShift.classType,
+            isError: oldShift.isError || false
+        };
+
+        const tempId = `temp-${crypto.randomUUID()}-${newStaffId}`;
+        const newShift: Shift = {
+            ...oldShift,
+            id: tempId,
+            staffId: newStaffId,
+        };
+
+        if (oldShiftId.startsWith('temp-')) {
+            setAddedShifts(prev => prev.filter(s => s.id !== oldShiftId));
+        } else {
+            setDeletedIds(prev => {
+                const next = new Set(prev);
+                next.add(oldShiftId);
+                return next;
+            });
+        }
+
+        setAddedShifts(prev => [...prev, newShift]);
+        
+        setLocalShifts(prev => {
+            const next = { ...prev };
+            next[tempId] = { ...oldLocal };
+            if (oldShiftId.startsWith('temp-')) {
+                delete next[oldShiftId];
+            }
+            return next;
+        });
+
+        setShowSwapMenu(null);
+    };
+
     const renderGridLines = () => {
         const lines = [];
         const totalSlots = (END_HOUR - START_HOUR) * 4;
@@ -444,15 +529,30 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className={`select-none touch-none flex-shrink-0 ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
+            className={`select-none touch-none flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
         >
-            <div className="min-w-full md:min-w-[800px] border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden flex flex-col bg-white dark:bg-slate-800">
+            {!readOnly && onToggleFixed && (
+                <div className="flex justify-end p-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                    <button
+                        onClick={onToggleFixed}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border shadow-sm ${
+                            isFixed 
+                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' 
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                        {isFixed ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                        {isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                    </button>
+                </div>
+            )}
+            <div className="min-w-full md:min-w-[800px] overflow-visible flex flex-col bg-white dark:bg-slate-800">
                 {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
                 {!readOnly && (
-                    <div className={`flex bg-slate-100 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
+                    <div className={`flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
                         <div className="hidden sm:flex w-[480px] flex-shrink-0">
                             <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
                             <div className="w-36 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">シフトパターン</div>
@@ -464,17 +564,22 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                         <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">
                             スタッフ
                         </div>
-                        <div className="flex-1 relative h-8">
+                        <div className="flex-1 relative h-8 border-l border-slate-300 dark:border-slate-600">
                             {hourLabels.map((h) => {
                                 const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
                                 return (
-                                    <div
-                                        key={h}
-                                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5"
-                                        style={{ left: `${leftPct}%` }}
-                                    >
-                                        {h}
-                                    </div>
+                                    <React.Fragment key={h}>
+                                        <div
+                                            className="absolute top-0 bottom-0 border-l border-slate-300/50 dark:border-slate-600/50"
+                                            style={{ left: `${leftPct}%` }}
+                                        />
+                                        <div
+                                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5 z-10"
+                                            style={{ left: `${leftPct}%` }}
+                                        >
+                                            {h}
+                                        </div>
+                                    </React.Fragment>
                                 );
                             })}
                         </div>
@@ -544,9 +649,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             <div
                                 key={cls.id}
                                 ref={el => { groupRefs.current[cls.id] = el; }}
-                                className={`mb-4 last:mb-0 border-x border-b border-slate-200 dark:border-slate-700 shadow-sm rounded-b-lg`}
+                                className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm relative ${
+                                    dayShifts.some(s => (showSwapMenu === s.id || deleteConfirmId === s.id) && (localShifts[s.id]?.classType === cls.id || (s.classType === cls.id && !localShifts[s.id]))) || showAddMenu === cls.id
+                                    ? 'z-50 overflow-visible' 
+                                    : 'z-[5] overflow-visible'
+                                }`}
                             >
-                                <div className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
+                                <div className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between transition-colors sticky top-0 z-30 ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : titleColor}`}>
                                     <div className="flex items-center text-xs">
                                         {groupTitle}
                                         {hoveredGroup === cls.id && activeDragId && (
@@ -609,9 +718,110 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 {/* Left Info Column */}
                                                 {!readOnly ? (
                                                     <div className="flex w-full sm:w-[480px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
-                                                        <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center overflow-hidden relative group/name">
-                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={staffName}>{staffName}</div>
-                                                            <button onClick={() => handleRemoveShift(shift.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/name:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
+                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>{staffName}</div>
+                                                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-20 group-hover/name:opacity-100 transition-all bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-0.5 py-0.5 rounded shadow border border-slate-200 dark:border-slate-700/80">
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); setShowSwapMenu(prev => prev === shift.id ? null : shift.id); setDeleteConfirmId(null); }}
+                                                                    className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
+                                                                    title="入れ替え"
+                                                                >
+                                                                    <RefreshCw className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
+                                                                <button 
+                                                                    onClick={(e) => { 
+                                                                        e.stopPropagation(); 
+                                                                        setDeleteConfirmId(prev => prev === shift.id ? null : shift.id);
+                                                                        setShowSwapMenu(null);
+                                                                    }} 
+                                                                    className={`p-1 rounded transition-colors ${deleteConfirmId === shift.id ? 'text-red-500 bg-red-50 dark:bg-red-900/30' : 'text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
+                                                                    title="削除"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                            
+                                                            {deleteConfirmId === shift.id && (
+                                                                <>
+                                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} />
+                                                                    <div className="absolute left-full top-0 ml-1 z-[60] w-56 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/50 rounded-lg shadow-2xl py-3 px-3 animate-in fade-in zoom-in-95 duration-200">
+                                                                        <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-3">
+                                                                            このシフトを削除しますか？
+                                                                        </div>
+                                                                        <div className="flex gap-2">
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); handleRemoveShift(shift.id); setDeleteConfirmId(null); }} 
+                                                                                className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-[11px] rounded transition-colors font-bold shadow-sm whitespace-nowrap"
+                                                                            >
+                                                                                削除
+                                                                            </button>
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} 
+                                                                                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-[11px] rounded transition-colors font-medium border border-slate-200 dark:border-slate-600 text-center whitespace-nowrap"
+                                                                            >
+                                                                                キャンセル
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                            
+                                                            {showSwapMenu === shift.id && (() => {
+                                                                const currentStaff = staffList.find(s => s.id === shift.staffId);
+                                                                if (!currentStaff) return null;
+                                                                const availableStaff = offDutyStaff.filter(({ staff }) => staff.role === currentStaff.role);
+                                                                
+                                                                return (
+                                                                    <>
+                                                                        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowSwapMenu(null); }} />
+                                                                        <div className="absolute left-full top-0 ml-1 z-[60] w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+                                                                            <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 mb-1 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 flex justify-between">
+                                                                                <span>入れ替え候補 ({currentStaff.role})</span>
+                                                                                <span className="text-[8px] font-normal lowercase">月間労働時間</span>
+                                                                            </div>
+                                                                            {availableStaff.length === 0 ? (
+                                                                                <div className="px-3 py-4 text-[11px] text-slate-400 text-center italic">
+                                                                                    同じ役職の待機スタッフはいません
+                                                                                </div>
+                                                                            ) : (
+                                                                                availableStaff.map(({ staff, reason }) => {
+                                                                                    const monthlyHours = formatHours(staffMonthlyHours[staff.id] || 0);
+                                                                                    const target = staff.hoursTarget || 0;
+                                                                                    const isOver = target > 0 && Number(monthlyHours) > target;
+                                                                                    
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={staff.id}
+                                                                                            onClick={(e) => { e.stopPropagation(); handleSwapStaff(shift.id, staff.id); }}
+                                                                                            className="w-full text-left px-3 py-2 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group/candidate"
+                                                                                        >
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="font-medium group-hover/candidate:text-indigo-600 dark:group-hover/candidate:text-indigo-400">{staff.name}</span>
+                                                                                                {reason === 'preference' && (
+                                                                                                    <span className="text-[8px] text-red-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
+                                                                                                        <CalendarX className="w-2 h-2" /> 希望休
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <div className="text-right">
+                                                                                                <div className={`text-[10px] font-mono ${isOver ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
+                                                                                                    {monthlyHours}h
+                                                                                                </div>
+                                                                                                {target > 0 && (
+                                                                                                    <div className="text-[8px] text-slate-400">
+                                                                                                        目標: {target}h
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </button>
+                                                                                    );
+                                                                                })
+                                                                            )}
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                         <div className="w-36 border-r border-slate-200 dark:border-slate-700 flex items-center px-1">
                                                             <select
@@ -680,17 +890,62 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex flex-wrap items-center gap-4 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">
-                {classes.map(c => (
-                    <div key={c.id} className="flex items-center space-x-1.5">
-                        <div className={`w-3 h-3 rounded-sm border ${getBarColor(c.id).replace('bg-', 'bg-').replace('border-', 'border-')}`} />
-                        <span>{c.name}</span>
-                    </div>
-                ))}
-                <div className="flex items-center space-x-1.5">
-                    <div className="w-3 h-3 bg-red-400 border border-red-500 rounded-sm" />
-                    <span>未割当/エラー</span>
+
+            {/* Off-duty staff section */}
+            <div className="mt-6">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">本日のお休み</span>
+                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                    {offDutyStaff.length === 0 ? (
+                        <div className="w-full text-center py-4 text-xs text-slate-400 italic">
+                            全員シフトに入っています
+                        </div>
+                    ) : (
+                        offDutyStaff.map(({ staff, reason }) => (
+                            <div key={staff.id} className="relative">
+                                <button
+                                    onClick={() => !readOnly && setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
+                                    disabled={readOnly}
+                                    className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[11px] font-medium ${
+                                        reason === 'preference'
+                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                    } ${readOnly ? 'opacity-80 cursor-default' : reason === 'preference' ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                >
+                                    {reason === 'preference' && <CalendarX className="w-3 h-3 opacity-70" />}
+                                    <span>{staff.name}</span>
+                                    {reason === 'preference' && (
+                                        <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休</span>
+                                    )}
+                                    {!readOnly && (
+                                        <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                                    )}
+                                </button>
+
+                                {!readOnly && showAddMenu === staff.id && (
+                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                        <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700 mb-1">
+                                            追加先のクラスを選択
+                                        </div>
+                                        {classes.map(cls => (
+                                            <button
+                                                key={cls.id}
+                                                onClick={() => handleAddStaff(staff.id, cls.id)}
+                                                className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group/cls"
+                                            >
+                                                <span>{cls.name}</span>
+                                                <Plus className="w-3 h-3 text-indigo-500 opacity-0 group-hover/cls:opacity-100" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>

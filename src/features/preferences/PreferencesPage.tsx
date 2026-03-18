@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw } from 'lucide-react';
+import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw, X, Edit2, CheckCircle2, Clock, CalendarX } from 'lucide-react';
 import { getPreferencesByMonth, savePreference, getStaffList, syncHolidays } from '../../lib/api';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -11,6 +11,8 @@ interface DayStatus {
     dayOfWeek: string;
     isHoliday: boolean; // 日曜日（休館日）
     status: 'available' | 'unavailable' | 'fixed';
+    startTime?: string | null;
+    endTime?: string | null;
 }
 
 const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -41,13 +43,17 @@ const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
     const [preferences, setPreferences] = useState<DayStatus[]>([]);
-    const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, string[]>>({}); // staffId -> unavailableDates
+    const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, { date: string, startTime: string | null, endTime: string | null }[]>>({}); // staffId -> details
     const [staffLoading, setStaffLoading] = useState(true);
     const [prefLoading, setPrefLoading] = useState(false);
     const [prefError, setPrefError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [syncingHolidays, setSyncingHolidays] = useState(false);
+    const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
+    const [isEditingModalMode, setIsEditingModalMode] = useState(false);
+    const [editStartTime, setEditStartTime] = useState<string>('09:00');
+    const [editEndTime, setEditEndTime] = useState<string>('18:00');
 
     const yearMonth = format(targetDate, 'yyyy-MM');
 
@@ -75,9 +81,9 @@ const PreferencesPage = () => {
         setPrefError(null);
         try {
             const allPrefs = await getPreferencesByMonth(yearMonth);
-            const map: Record<string, string[]> = {};
+            const map: Record<string, { date: string, startTime: string | null, endTime: string | null }[]> = {};
             allPrefs.forEach(p => {
-                map[p.staffId] = p.unavailableDates;
+                map[p.staffId] = p.details || [];
             });
             setAllPrefsForMonth(map);
         } catch (err) {
@@ -130,9 +136,13 @@ const PreferencesPage = () => {
 
                 if (isFixedHoliday) return { ...day, status: 'fixed' };
 
+                const pref = unavailable.find(u => u.date === day.dateStr);
+
                 return {
                     ...day,
-                    status: unavailable.includes(day.dateStr) ? 'unavailable' : 'available',
+                    status: pref ? 'unavailable' : 'available',
+                    startTime: pref?.startTime,
+                    endTime: pref?.endTime
                 };
             }));
         } else {
@@ -140,13 +150,38 @@ const PreferencesPage = () => {
         }
     }, [selectedStaffId, targetDate, allPrefsForMonth, staffList]);
 
-    const toggleStatus = (index: number) => {
+    const handleDateClick = (index: number) => {
         const item = preferences[index];
         if (item.status === 'fixed' || item.isHoliday) return;
+        setIsEditingModalMode(false);
+        setEditingDateIndex(index);
+        if (item.startTime && item.endTime) {
+            setEditStartTime(item.startTime);
+            setEditEndTime(item.endTime);
+        } else {
+            setEditStartTime('09:00');
+            setEditEndTime('18:00');
+        }
+    };
 
+    const applyDatePreference = (type: 'full' | 'partial' | 'clear') => {
+        if (editingDateIndex === null) return;
         const newPrefs = [...preferences];
-        newPrefs[index].status = newPrefs[index].status === 'available' ? 'unavailable' : 'available';
+        if (type === 'clear') {
+            newPrefs[editingDateIndex].status = 'available';
+            newPrefs[editingDateIndex].startTime = null;
+            newPrefs[editingDateIndex].endTime = null;
+        } else if (type === 'full') {
+            newPrefs[editingDateIndex].status = 'unavailable';
+            newPrefs[editingDateIndex].startTime = null;
+            newPrefs[editingDateIndex].endTime = null;
+        } else {
+            newPrefs[editingDateIndex].status = 'unavailable';
+            newPrefs[editingDateIndex].startTime = editStartTime;
+            newPrefs[editingDateIndex].endTime = editEndTime;
+        }
         setPreferences(newPrefs);
+        setEditingDateIndex(null);
     };
 
     const handleSave = async () => {
@@ -154,14 +189,15 @@ const PreferencesPage = () => {
         setSaving(true);
         setMessage({ text: '', type: '' });
         try {
-            const unavailableDates = preferences
+            const details = preferences
                 .filter(p => p.status === 'unavailable')
-                .map(p => p.dateStr);
+                .map(p => ({ date: p.dateStr, startTime: p.startTime || null, endTime: p.endTime || null }));
+            const unavailableDates = details.filter(d => !d.startTime).map(d => d.date);
 
-            await savePreference({ staffId: selectedStaffId, yearMonth, unavailableDates });
+            await savePreference({ staffId: selectedStaffId, yearMonth, unavailableDates, details });
 
             // ローカルキャッシュも更新
-            setAllPrefsForMonth(prev => ({ ...prev, [selectedStaffId]: unavailableDates }));
+            setAllPrefsForMonth(prev => ({ ...prev, [selectedStaffId]: details }));
             setMessage({ text: '休日設定を保存しました！', type: 'success' });
         } catch (err) {
             console.error(err);
@@ -408,7 +444,7 @@ const PreferencesPage = () => {
                                                 return (
                                                     <button
                                                         key={item.dateStr}
-                                                        onClick={() => toggleStatus(realIndex)}
+                                                        onClick={() => handleDateClick(realIndex)}
                                                         disabled={item.status === 'fixed'}
                                                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-150 select-none
                                                             ${item.status === 'fixed'
@@ -429,7 +465,7 @@ const PreferencesPage = () => {
                                                                 ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
                                                                 : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
                                                             }`}>
-                                                            {item.status === 'fixed' ? '固定休' : item.status === 'unavailable' ? '不可' : '○'}
+                                                            {item.status === 'fixed' ? '固定休' : item.status === 'unavailable' ? (item.startTime ? `${item.startTime}~不可` : '不可') : '○'}
                                                         </span>
                                                     </button>
                                                 );
@@ -437,6 +473,129 @@ const PreferencesPage = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* 日付編集モーダル */}
+                            {editingDateIndex !== null && preferences[editingDateIndex] && (
+                                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setEditingDateIndex(null)}>
+                                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                            <h3 className="text-lg font-black text-slate-800 dark:text-white">
+                                                {format(new Date(preferences[editingDateIndex].dateStr), 'M月d日 (E)', { locale: ja })}
+                                                <span className="text-sm font-medium text-slate-400 ml-2">{selectedStaff?.name}</span>
+                                            </h3>
+                                            <button onClick={() => setEditingDateIndex(null)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                                                <X className="w-5 h-5" />
+                                            </button>
+                                        </div>
+
+                                        {/* 現在の状態表示 (編集前) */}
+                                        {!isEditingModalMode ? (() => {
+                                            const status = preferences[editingDateIndex].status;
+                                            const isPartial = status === 'unavailable' && preferences[editingDateIndex].startTime;
+                                            
+                                            return (
+                                                <div className="px-6 py-10 flex flex-col items-center">
+                                                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] mb-6 uppercase">Current Status</div>
+                                                    
+                                                    {status === 'available' && (
+                                                        <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                                            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_2rem_-0.5rem_#10b981] dark:shadow-none ring-4 ring-emerald-50 dark:ring-emerald-900/10">
+                                                                <CheckCircle2 className="w-10 h-10" />
+                                                            </div>
+                                                            <div className="text-2xl font-black text-slate-800 dark:text-white tracking-wide">就業可能</div>
+                                                            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-2">シフトに入ることができます</p>
+                                                        </div>
+                                                    )}
+
+                                                    {status === 'unavailable' && !isPartial && (
+                                                        <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                                            <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_2rem_-0.5rem_#ef4444] dark:shadow-none ring-4 ring-red-50 dark:ring-red-900/10">
+                                                                <CalendarX className="w-10 h-10" />
+                                                            </div>
+                                                            <div className="text-2xl font-black text-slate-800 dark:text-white tracking-wide">終日不可</div>
+                                                            <p className="text-sm font-medium text-red-600 dark:text-red-400 mt-2">1日を通してシフトに入れません</p>
+                                                        </div>
+                                                    )}
+
+                                                    {isPartial && (
+                                                        <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                                            <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_2rem_-0.5rem_#ef4444] dark:shadow-none ring-4 ring-red-50 dark:ring-red-900/10">
+                                                                <Clock className="w-10 h-10" />
+                                                            </div>
+                                                            <div className="text-2xl font-black text-slate-800 dark:text-white tracking-wide mb-2">一部不可</div>
+                                                            <div className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 px-4 py-2 rounded-2xl font-bold flex items-center gap-2">
+                                                                <span className="font-mono text-lg">{preferences[editingDateIndex].startTime}</span>
+                                                                <span className="text-red-400">〜</span>
+                                                                <span className="font-mono text-lg">{preferences[editingDateIndex].endTime}</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="w-full mt-10 pt-6 border-t border-slate-100 dark:border-slate-800/50">
+                                                        <button
+                                                            onClick={() => setIsEditingModalMode(true)}
+                                                            className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl transition-all border border-transparent hover:border-slate-300 dark:hover:border-slate-600 shadow-sm"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                            <span>設定を変更する</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })() : (
+                                            /* 編集モード */
+                                            <div className="p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                                                <button
+                                                    onClick={() => applyDatePreference('full')}
+                                                    className="w-full p-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50 flex flex-col items-center justify-center"
+                                                >
+                                                    <span className="text-lg mb-1">終日不可</span>
+                                                    <span className="text-xs font-medium opacity-80">1日中シフトに入れない</span>
+                                                </button>
+
+                                                <div className="p-4 bg-indigo-50 hover:bg-indigo-100/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl transition-colors">
+                                                    <div className="text-center font-bold text-indigo-700 dark:text-indigo-400 mb-3 block">一部の時間だけ不可</div>
+                                                    <div className="flex items-center justify-between gap-3 text-slate-700 dark:text-slate-300 mb-4">
+                                                        <input
+                                                            type="time"
+                                                            value={editStartTime}
+                                                            onChange={e => setEditStartTime(e.target.value)}
+                                                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                        />
+                                                        <span className="font-bold text-slate-400">〜</span>
+                                                        <input
+                                                            type="time"
+                                                            value={editEndTime}
+                                                            onChange={e => setEditEndTime(e.target.value)}
+                                                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => applyDatePreference('partial')}
+                                                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+                                                    >
+                                                        この時間帯を不可にする
+                                                    </button>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => applyDatePreference('clear')}
+                                                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                                                >
+                                                    就業可能（クリア）
+                                                </button>
+                                                
+                                                <button
+                                                    onClick={() => setIsEditingModalMode(false)}
+                                                    className="w-full py-3 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-semibold mt-2"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* 保存フッター */}
                             <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">

@@ -12,6 +12,9 @@ import RolesPage from './pages/settings/RolesPage';
 import ClassesPage from './pages/settings/ClassesPage';
 import AppearancePage from './pages/settings/AppearancePage';
 import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
+import StaffLoginPage from './pages/StaffLoginPage';
+import StaffPreferencePage from './pages/StaffPreferencePage';
+import LandingPage from './pages/LandingPage';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -34,12 +37,13 @@ const AppRoutes = () => {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route
           path="/login"
-          element={currentUser ? <Navigate to="/" /> : <AuthPage />}
+          element={currentUser ? <Navigate to="/admin" /> : <AuthPage />}
         />
         <Route
-          path="/"
+          path="/admin"
           element={
             <PrivateRoute>
               <Layout />
@@ -49,13 +53,15 @@ const AppRoutes = () => {
           <Route index element={<SchedulePage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="preferences" element={<PreferencesPage />} />
-          <Route path="settings" element={<Navigate to="/settings/patterns" replace />} />
+          <Route path="settings" element={<Navigate to="/admin/settings/patterns" replace />} />
           <Route path="settings/patterns" element={<TimePatternsPage />} />
           <Route path="settings/roles" element={<RolesPage />} />
           <Route path="settings/classes" element={<ClassesPage />} />
           <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
         </Route>
+        <Route path="/staff/login" element={<StaffLoginPage />} />
+        <Route path="/staff/preference" element={<StaffPreferencePage />} />
       </Routes>
     </Router>
   );

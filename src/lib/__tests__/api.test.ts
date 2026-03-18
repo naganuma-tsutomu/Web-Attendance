@@ -7,6 +7,7 @@ globalThis.fetch = mockFetch;
 // api.tsの関数をインポート（テスト环境ではモックされたfetchを使用）
 import { 
     getStaffList, 
+    getStaffNameList,
     createStaff, 
     updateStaff, 
     deleteStaff,
@@ -56,6 +57,25 @@ describe('API - Staff functions', () => {
             });
 
             await expect(getStaffList()).rejects.toThrow();
+        });
+    });
+
+    describe('getStaffNameList', () => {
+        it('ログイン用のスタッフIDと名前のリストを取得できる', async () => {
+            const mockStaff = [
+                { id: 's1', name: '田中太郎' },
+                { id: 's2', name: '佐藤花子' }
+            ];
+            
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                text: () => Promise.resolve(JSON.stringify(mockStaff))
+            });
+
+            const result = await getStaffNameList();
+            expect(result).toEqual(mockStaff);
+            expect(mockFetch).toHaveBeenCalled();
+            expect(mockFetch.mock.calls[0][0]).toContain('/api/staffs/list');
         });
     });
 

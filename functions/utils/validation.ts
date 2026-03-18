@@ -77,6 +77,23 @@ export function validateTargetHours(hours: number | null | undefined): string | 
     return null;
 }
 
+// Validate weeklyHoursTarget (optional field, must be >= 0 and <= 168)
+export function validateWeeklyHoursTarget(hours: number | null | undefined): string | null {
+    if (hours === null || hours === undefined) {
+        return null; // Optional field
+    }
+    if (typeof hours !== 'number' || isNaN(hours)) {
+        return '週間目標時間は数値で入力してください';
+    }
+    if (hours < 0) {
+        return '週間目標時間は0以上の値を入力してください';
+    }
+    if (hours > 168) {
+        return '週間目標時間は168以下の値を入力してください';
+    }
+    return null;
+}
+
 // Validate role field (must not be empty)
 export function validateRole(role: string): string | null {
     if (!role || role.trim().length === 0) {

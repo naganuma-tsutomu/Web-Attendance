@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, eachDayOfInterval, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Staff, Shift } from '../types';
+import { formatHours } from '../utils/timeUtils';
 import { toast } from 'sonner';
 
 /**
@@ -43,7 +44,7 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
             }
         });
 
-        const totalHours = (totalMinutes / 60).toFixed(1);
+        const totalHours = formatHours(totalMinutes / 60);
         rowData.push(totalHours);
         return rowData;
     });
@@ -101,7 +102,7 @@ export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[])
             }
         });
 
-        row.push((totalMinutes / 60).toFixed(1));
+        row.push(formatHours(totalMinutes / 60));
         return row;
     });
 

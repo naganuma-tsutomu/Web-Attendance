@@ -8,7 +8,7 @@ export const calculateDuration = (startTime: string, endTime: string): number =>
     const [startH, startM] = startTime.split(':').map(Number);
     const [endH, endM] = endTime.split(':').map(Number);
 
-    let startMinutes = startH * 60 + startM;
+    const startMinutes = startH * 60 + startM;
     let endMinutes = endH * 60 + endM;
 
     // Handle overnight shifts

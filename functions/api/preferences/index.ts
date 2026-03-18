@@ -25,16 +25,25 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         const prefs = staffIds.map(staffId => {
             const legacyRow = legacyResults.find((r: any) => r.staffId === staffId);
-            const staffDates = normalizedDates
+            const staffDetails = normalizedDates
                 .filter((d: any) => d.staffId === staffId)
-                .map((d: any) => d.date);
+                .map((d: any) => ({
+                    date: d.date,
+                    startTime: d.startTime || null,
+                    endTime: d.endTime || null
+                }));
+
+            // unavailableDates should only contain full-day unavailabilities (startTime and endTime are null)
+            const staffDates = staffDetails
+                .filter(d => !d.startTime && !d.endTime)
+                .map(d => d.date);
 
             return {
                 id: legacyRow?.id || `pref_${staffId}_${yearMonth}`,
                 staffId,
                 yearMonth,
-                // Prefer normalized dates, fallback to legacy
-                unavailableDates: staffDates.length > 0 ? staffDates : (legacyRow ? JSON.parse(legacyRow.unavailableDates) : [])
+                unavailableDates: staffDetails.length > 0 ? staffDates : (legacyRow ? JSON.parse(legacyRow.unavailableDates) : []),
+                details: staffDetails.length > 0 ? staffDetails : (legacyRow ? JSON.parse(legacyRow.unavailableDates).map((d: string) => ({ date: d, startTime: null, endTime: null })) : [])
             };
         });
 
@@ -48,6 +57,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const pref: Omit<ShiftPreference, 'id'> = await context.request.json();
 
+        // Ensure backward compatibility if only unavailableDates is sent
+        const details = pref.details || (pref.unavailableDates || []).map(date => ({ date, startTime: null, endTime: null }));
+        const unavailableDates = details.filter(d => !d.startTime && !d.endTime).map(d => d.date);
+
         // Statements for batch execution
         const statements = [];
 
@@ -60,13 +73,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             statements.push(
                 context.env.DB.prepare(
                     "UPDATE shift_preferences SET unavailableDates = ? WHERE id = ?"
-                ).bind(JSON.stringify(pref.unavailableDates), existing.id)
+                ).bind(JSON.stringify(unavailableDates), existing.id)
             );
         } else {
             statements.push(
                 context.env.DB.prepare(
                     "INSERT INTO shift_preferences (id, staffId, yearMonth, unavailableDates) VALUES (?, ?, ?, ?)"
-                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth, JSON.stringify(pref.unavailableDates))
+                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth, JSON.stringify(unavailableDates))
             );
         }
 
@@ -77,11 +90,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             ).bind(pref.staffId, pref.yearMonth)
         );
 
-        pref.unavailableDates.forEach((date, idx) => {
+        details.forEach((d, idx) => {
             statements.push(
                 context.env.DB.prepare(
-                    "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date) VALUES (?, ?, ?, ?)"
-                ).bind(`prefd_${pref.staffId}_${date}_${idx}`, pref.staffId, pref.yearMonth, date)
+                    "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?)"
+                ).bind(`prefd_${pref.staffId}_${d.date}_${idx}`, pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime)
             );
         });
 

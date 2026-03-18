@@ -4,8 +4,8 @@ import { format, parse, startOfWeek, getDay, addMonths, addWeeks, subMonths, sub
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { toast } from 'sonner';
-import { Settings2, Download, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
-import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements } from '../../lib/api';
+import { Settings2, Download, AlertCircle, Loader2, Save, X, Trash2, ChevronLeft, ChevronRight, BarChart2, Lock, Unlock } from 'lucide-react';
+import { getStaffList, getPreferencesByMonth, getShiftsByMonth, saveShiftsBatch, updateShift, deleteShiftsByMonth, getClasses, getRoles, getTimePatterns, getHolidays, syncHolidays, getShiftRequirements, getFixedDates, saveFixedDates } from '../../lib/api';
 import { generateShiftsForMonth, isStaffAvailableReason } from '../../lib/algorithm';
 import { exportToPDF } from '../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../utils/excelExport';
@@ -66,6 +66,7 @@ const SchedulePage = () => {
     const [timePatterns, setTimePatterns] = useState<ShiftTimePattern[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreference[]>([]);
     const [roles, setRoles] = useState<DynamicRole[]>([]); // 追加
+    const [fixedDates, setFixedDates] = useState<Set<string>>(new Set());
     const [holidays, setHolidays] = useState<Holiday[]>([]); // 祝日データ（カレンダー表示・シフト生成に使用）
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -142,7 +143,7 @@ const SchedulePage = () => {
             // 祝日データを同期（今年と来年分）して、その後データを取得
             await syncHolidays().catch(err => console.error('Failed to sync holidays', err));
 
-            const [shiftsResults, staffs, prefsResults, classesData, patternsData, holidaysData, rolesData] = await Promise.all([
+            const [shiftsResults, staffs, prefsResults, classesData, patternsData, holidaysData, rolesData, fixedDatesData] = await Promise.all([
                 Promise.all(monthList.map(m => getShiftsByMonth(m))),
                 getStaffList(),
                 Promise.all(monthList.map(m => getPreferencesByMonth(m))),
@@ -150,7 +151,8 @@ const SchedulePage = () => {
                 getTimePatterns(),
                 // 対象年の祝日を取得
                 getHolidays(uniqueYears[0] || new Date().getFullYear()),
-                getRoles() // 追加
+                getRoles(), // 追加
+                getFixedDates(targetYearMonth) // 追加
             ]);
 
             // 重複を除去して結合
@@ -164,6 +166,7 @@ const SchedulePage = () => {
             setTimePatterns(patternsData);
             setHolidays(holidaysData);
             setRoles(rolesData); // 追加
+            setFixedDates(new Set(fixedDatesData));
             mapShiftsToEvents(combinedShifts, staffs, classesData);
         } catch (err) {
             console.error('Failed to load shifts', err);
@@ -344,7 +347,11 @@ const SchedulePage = () => {
                 getShiftsByMonth(nextMonth)
             ]).then(results => results.flat());
 
-            await deleteShiftsByMonth(targetYearMonth);
+            const fixedContextShifts = rawShifts.filter(s => s.date.startsWith(targetYearMonth) && fixedDates.has(s.date));
+            const mergedContext = [...existingContextShifts, ...fixedContextShifts];
+
+            await saveFixedDates(targetYearMonth, Array.from(fixedDates));
+            await deleteShiftsByMonth(targetYearMonth, Array.from(fixedDates));
             const generatedShifts = generateShiftsForMonth(
                 targetYearMonth,
                 staffs,
@@ -353,7 +360,8 @@ const SchedulePage = () => {
                 currentClasses,
                 holidaysData.map(h => h.date),
                 requirements,
-                existingContextShifts
+                mergedContext,
+                Array.from(fixedDates)
             );
             const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
 
@@ -429,7 +437,7 @@ const SchedulePage = () => {
     };
 
     const eventStyleGetter = (event: any) => {
-        let style: any = {
+        const style: any = {
             borderRadius: '4px',
             opacity: (view === Views.MONTH && !isSameMonth(event.start, currentDate)) ? 0.4 : 0.9,
             color: 'white',
@@ -479,6 +487,19 @@ const SchedulePage = () => {
         return holiday !== undefined && !holiday.isWorkday;
     };
 
+    const toggleFixedDate = (dateStr: string) => {
+        setFixedDates(prev => {
+            const next = new Set(prev);
+            if (next.has(dateStr)) next.delete(dateStr);
+            else next.add(dateStr);
+            // サーバーに即座に保存（ロック状態がloadShiftsで消えないように）
+            saveFixedDates(targetYearMonth, Array.from(next)).catch(err =>
+                console.error('Failed to save fixed dates', err)
+            );
+            return next;
+        });
+    };
+
     return (
         <div className="h-full flex flex-col min-h-0 bg-slate-50/50 dark:bg-slate-900/50 max-w-7xl mx-auto w-full">
             {/* Header Area - Fixed */}
@@ -489,6 +510,7 @@ const SchedulePage = () => {
                             <button
                                 onClick={() => {
                                     if (view === Views.MONTH) setCurrentDate(subMonths(currentDate, 1));
+
                                     else if (view === Views.WEEK) setCurrentDate(subWeeks(currentDate, 1));
                                     else setCurrentDate(subDays(currentDate, 1));
                                 }}
@@ -657,6 +679,8 @@ const SchedulePage = () => {
                                     onShiftUpdate={loadShifts}
                                     onModifiedChange={setIsDayModified}
                                     saveRef={daySaveRef}
+                                    isFixed={fixedDates.has(format(currentDate, 'yyyy-MM-dd'))}
+                                    onToggleFixed={() => toggleFixedDate(format(currentDate, 'yyyy-MM-dd'))}
                                 />
                                 {isDayModified && (
                                     <div className="mt-4 flex-shrink-0 flex items-center justify-end gap-3 animate-in slide-in-from-bottom-2 pb-2">
@@ -736,6 +760,31 @@ const SchedulePage = () => {
                                     }}
                                     components={{
                                         toolbar: () => null,
+                                        month: {
+                                            dateHeader: (props: any) => {
+                                                const dateStr = format(props.date, 'yyyy-MM-dd');
+                                                const isFixed = fixedDates.has(dateStr);
+                                                return (
+                                                    <div className="flex justify-between items-center w-full px-1 py-0.5">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                toggleFixedDate(dateStr);
+                                                            }}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                            onDoubleClick={(e) => e.stopPropagation()}
+                                                            className={`p-1 flex items-center justify-center rounded transition-colors ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                                            title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                                                        >
+                                                            {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                                                        </button>
+                                                        <span className="font-medium text-slate-700 dark:text-slate-300 pr-1">{props.label}</span>
+                                                    </div>
+                                                );
+                                            }
+                                        },
                                         dateCellWrapper: (props: any) => {
                                             const date = props.value;
                                             const holidayName = getHolidayNameForDate(date);
@@ -919,6 +968,8 @@ const SchedulePage = () => {
                     preferences={preferences}
                     onClose={() => setIsTimelineModalOpen(false)}
                     onShiftUpdate={loadShifts}
+                    isFixed={fixedDates.has(format(selectedDateForTimeline, 'yyyy-MM-dd'))}
+                    onToggleFixed={() => toggleFixedDate(format(selectedDateForTimeline, 'yyyy-MM-dd'))}
                 />
             )}
 

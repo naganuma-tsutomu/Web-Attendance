@@ -88,7 +88,7 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
     return id;
 };
 
-export const updatePreferences = async (data: { staffId: string, yearMonth: string, unavailableDates: string[] }): Promise<void> => {
+export const updatePreferences = async (data: Omit<ShiftPreference, 'id'>): Promise<void> => {
     await apiFetch('/preferences', {
         method: 'POST',
         body: JSON.stringify(data)
@@ -110,9 +110,10 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     });
 };
 
-export const deleteShiftsByMonth = async (yearMonth: string): Promise<void> => {
-    await apiFetch(`/shifts?yearMonth=${yearMonth}`, {
-        method: 'DELETE',
+export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
+    await apiFetch('/shifts/clear', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, exceptDates }),
         credentials: 'include'
     } as RequestInit);
 };
@@ -312,4 +313,20 @@ export const syncHolidays = async (year?: number): Promise<{ success: boolean; m
         ? `/settings/holidays/sync?year=${year}`
         : '/settings/holidays/sync';
     return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, { credentials: 'include' } as RequestInit);
+};
+
+// ==========================================
+// Fixed Dates API (シフト固定状態管理)
+// ==========================================
+
+export const getFixedDates = async (yearMonth: string): Promise<string[]> => {
+    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`, { credentials: 'include' } as RequestInit);
+};
+
+export const saveFixedDates = async (yearMonth: string, dates: string[]): Promise<void> => {
+    await apiFetch('/fixed-dates', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, dates }),
+        credentials: 'include'
+    } as RequestInit);
 };

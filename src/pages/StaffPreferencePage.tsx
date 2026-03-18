@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin, X } from 'lucide-react';
 import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses } from '../lib/api';
-import type { Shift, Staff, ShiftClass } from '../types';
+import type { Shift, Staff, ShiftClass, ShiftPreferenceDetail } from '../types';
 
 type TabType = 'preference' | 'shifts' | 'settings';
 
@@ -16,10 +16,13 @@ const StaffPreferencePage = () => {
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
     const [staffList, setStaffList] = useState<Staff[]>([]);
     const [classes, setClasses] = useState<ShiftClass[]>([]);
-    const [preferences, setPreferences] = useState<string[]>([]);
+    const [preferences, setPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [selectedDateAction, setSelectedDateAction] = useState<string | null>(null);
+    const [selectedStartTime, setSelectedStartTime] = useState<string>('09:00');
+    const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
 
     useEffect(() => {
         const session = localStorage.getItem('staff_session');
@@ -49,7 +52,7 @@ const StaffPreferencePage = () => {
                 setClasses(classesData);
                 
                 const myPref = prefsData.find(p => p.staffId === staff.id);
-                setPreferences(myPref ? myPref.unavailableDates : []);
+                setPreferences(myPref?.details || []);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -65,12 +68,29 @@ const StaffPreferencePage = () => {
         navigate('/staff/login');
     };
 
-    const toggleDate = (dateStr: string) => {
-        setPreferences(prev => 
-            prev.includes(dateStr) 
-                ? prev.filter(d => d !== dateStr) 
-                : [...prev, dateStr]
-        );
+    const handleDateClick = (dateStr: string) => {
+        setSelectedDateAction(dateStr);
+        const existing = preferences.find(p => p.date === dateStr);
+        if (existing && existing.startTime && existing.endTime) {
+            setSelectedStartTime(existing.startTime);
+            setSelectedEndTime(existing.endTime);
+        } else {
+            setSelectedStartTime('09:00');
+            setSelectedEndTime('18:00');
+        }
+    };
+
+    const applyPreference = (type: 'full' | 'partial' | 'clear') => {
+        if (!selectedDateAction) return;
+        setPreferences(prev => {
+            const filtered = prev.filter(p => p.date !== selectedDateAction);
+            if (type === 'clear') return filtered;
+            if (type === 'full') {
+                return [...filtered, { date: selectedDateAction, startTime: null, endTime: null }];
+            }
+            return [...filtered, { date: selectedDateAction, startTime: selectedStartTime, endTime: selectedEndTime }];
+        });
+        setSelectedDateAction(null);
     };
 
     const handleSave = async () => {
@@ -81,7 +101,8 @@ const StaffPreferencePage = () => {
             await updatePreferences({
                 staffId: staff.id,
                 yearMonth: format(currentMonth, 'yyyy-MM'),
-                unavailableDates: preferences
+                unavailableDates: preferences.filter(p => !p.startTime).map(p => p.date),
+                details: preferences
             });
             setMessage({ type: 'success', text: '休暇希望を保存しました' });
             setTimeout(() => setMessage(null), 3000);
@@ -211,13 +232,15 @@ const StaffPreferencePage = () => {
                                     ))}
                                     {days.map(day => {
                                         const dateStr = format(day, 'yyyy-MM-dd');
-                                        const isSelected = preferences.includes(dateStr);
+                                        const pref = preferences.find(p => p.date === dateStr);
+                                        const isSelected = !!pref;
+                                        const isPartial = pref && pref.startTime && pref.endTime;
                                         const hasShift = myShifts.some(s => s.date === dateStr);
                                         
                                         return (
                                             <button
                                                 key={dateStr}
-                                                onClick={() => toggleDate(dateStr)}
+                                                onClick={() => handleDateClick(dateStr)}
                                                 className={`aspect-square rounded-2xl flex flex-col items-center justify-center p-1 transition-all relative border-2 ${
                                                     isSelected 
                                                         ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400' 
@@ -228,7 +251,11 @@ const StaffPreferencePage = () => {
                                                 {hasShift && !isSelected && (
                                                     <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-0.5" />
                                                 )}
-                                                {isSelected && <span className="text-[8px] font-bold mt-0.5 uppercase">休</span>}
+                                                {isSelected && (
+                                                    <span className="text-[8px] font-bold mt-0.5 uppercase">
+                                                        {isPartial ? '部分休' : '休'}
+                                                    </span>
+                                                )}
                                             </button>
                                         );
                                     })}
@@ -245,6 +272,63 @@ const StaffPreferencePage = () => {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Partial Selection Modal */}
+                        {selectedDateAction && (
+                            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateAction(null)}>
+                                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                        <h3 className="text-lg font-black text-slate-800 dark:text-white">
+                                            {format(new Date(selectedDateAction), 'M月d日 (E)', { locale: ja })} の希望
+                                        </h3>
+                                        <button onClick={() => setSelectedDateAction(null)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <div className="p-6 space-y-4">
+                                        <button
+                                            onClick={() => applyPreference('full')}
+                                            className="w-full p-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50 flex flex-col items-center justify-center"
+                                        >
+                                            <span className="text-lg mb-1">終日お休み</span>
+                                            <span className="text-xs font-medium opacity-80">1日中働くことができません</span>
+                                        </button>
+                                        
+                                        <div className="p-4 bg-indigo-50 hover:bg-indigo-100/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl transition-colors">
+                                            <div className="text-center font-bold text-indigo-700 dark:text-indigo-400 mb-3 block">一部の時間だけ不可</div>
+                                            <div className="flex items-center justify-between gap-3 text-slate-700 dark:text-slate-300 mb-4">
+                                                <input
+                                                    type="time"
+                                                    value={selectedStartTime}
+                                                    onChange={e => setSelectedStartTime(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                                <span className="font-bold text-slate-400">〜</span>
+                                                <input
+                                                    type="time"
+                                                    value={selectedEndTime}
+                                                    onChange={e => setSelectedEndTime(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => applyPreference('partial')}
+                                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+                                            >
+                                                この時間帯を不可にする
+                                            </button>
+                                        </div>
+
+                                        <button
+                                            onClick={() => applyPreference('clear')}
+                                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                                        >
+                                            就業可能（クリア）
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-4">
                             <h2 className="font-black text-slate-800 dark:text-white px-1">自分の確定シフト</h2>

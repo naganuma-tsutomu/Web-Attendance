@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
-import { GripVertical, Plus, Trash2, CalendarX } from 'lucide-react';
+import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
 import { isStaffAvailableReason } from '../../lib/algorithm';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
@@ -18,6 +18,8 @@ interface DailyTimelineViewProps {
     // 外部から保存アクションを実行するためのリファレンス用
     saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
     readOnly?: boolean;
+    isFixed?: boolean;
+    onToggleFixed?: () => void;
 }
 
 // 時間をHH:MM文字列に変換
@@ -67,7 +69,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     onShiftUpdate,
     onModifiedChange,
     saveRef,
-    readOnly = false
+    readOnly = false,
+    isFixed = false,
+    onToggleFixed
 }) => {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
@@ -82,6 +86,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     const [addedShifts, setAddedShifts] = useState<Shift[]>([]);
     const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
     const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
+    const [showSwapMenu, setShowSwapMenu] = useState<string | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [initialShifts, setInitialShifts] = useState(localShifts);
 
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -203,6 +209,18 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 return a.startTime.localeCompare(b.startTime);
             });
     }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
+
+    const staffMonthlyHours = useMemo(() => {
+        const hours: Record<string, number> = {};
+        shifts.forEach(s => {
+            if (s.staffId === 'UNASSIGNED') return;
+            const start = toMins(s.startTime);
+            const end = toMins(s.endTime);
+            const duration = (end - start) / 60;
+            hours[s.staffId] = (hours[s.staffId] || 0) + duration;
+        });
+        return hours;
+    }, [shifts]);
 
     const offDutyStaff = useMemo(() => {
         return staffList.filter(staff => !dayShifts.some(s => s.staffId === staff.id))
@@ -429,6 +447,48 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         }
     };
 
+    const handleSwapStaff = (oldShiftId: string, newStaffId: string) => {
+        const oldShift = [...shifts.filter(s => s.date === targetDateStr), ...addedShifts].find(s => s.id === oldShiftId);
+        if (!oldShift) return;
+
+        const oldLocal = localShifts[oldShiftId] || {
+            start: toMins(oldShift.startTime),
+            end: toMins(oldShift.endTime),
+            classType: oldShift.classType,
+            isError: oldShift.isError || false
+        };
+
+        const tempId = `temp-${crypto.randomUUID()}-${newStaffId}`;
+        const newShift: Shift = {
+            ...oldShift,
+            id: tempId,
+            staffId: newStaffId,
+        };
+
+        if (oldShiftId.startsWith('temp-')) {
+            setAddedShifts(prev => prev.filter(s => s.id !== oldShiftId));
+        } else {
+            setDeletedIds(prev => {
+                const next = new Set(prev);
+                next.add(oldShiftId);
+                return next;
+            });
+        }
+
+        setAddedShifts(prev => [...prev, newShift]);
+        
+        setLocalShifts(prev => {
+            const next = { ...prev };
+            next[tempId] = { ...oldLocal };
+            if (oldShiftId.startsWith('temp-')) {
+                delete next[oldShiftId];
+            }
+            return next;
+        });
+
+        setShowSwapMenu(null);
+    };
+
     const renderGridLines = () => {
         const lines = [];
         const totalSlots = (END_HOUR - START_HOUR) * 4;
@@ -455,11 +515,26 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className={`select-none touch-none flex-shrink-0 ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
+            className={`select-none touch-none flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
         >
+            {!readOnly && onToggleFixed && (
+                <div className="flex justify-end p-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                    <button
+                        onClick={onToggleFixed}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border shadow-sm ${
+                            isFixed 
+                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' 
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
+                        }`}
+                    >
+                        {isFixed ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                        {isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                    </button>
+                </div>
+            )}
             <div className="min-w-full md:min-w-[800px] overflow-hidden flex flex-col bg-white dark:bg-slate-800">
                 {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
                 {!readOnly && (
@@ -625,9 +700,103 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 {/* Left Info Column */}
                                                 {!readOnly ? (
                                                     <div className="flex w-full sm:w-[480px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
-                                                        <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center overflow-hidden relative group/name">
-                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={staffName}>{staffName}</div>
-                                                            <button onClick={() => handleRemoveShift(shift.id)} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/name:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
+                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>{staffName}</div>
+                                                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-20 group-hover/name:opacity-100 transition-all bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-0.5 py-0.5 rounded shadow border border-slate-200 dark:border-slate-700/80">
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); setShowSwapMenu(prev => prev === shift.id ? null : shift.id); setDeleteConfirmId(null); }}
+                                                                    className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
+                                                                    title="入れ替え"
+                                                                >
+                                                                    <RefreshCw className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
+                                                                {deleteConfirmId === shift.id ? (
+                                                                    <div className="flex items-center gap-1.5 px-1 bg-red-50/50 dark:bg-red-900/30 rounded-sm animate-in fade-in slide-in-from-right-1 duration-200">
+                                                                        <span className="text-[9px] text-red-600 dark:text-red-400 font-bold whitespace-nowrap">削除？</span>
+                                                                        <button 
+                                                                            onClick={(e) => { e.stopPropagation(); handleRemoveShift(shift.id); setDeleteConfirmId(null); }} 
+                                                                            className="px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-sm hover:bg-red-600 transition-colors font-bold"
+                                                                        >
+                                                                            はい
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} 
+                                                                            className="p-1 text-slate-400 hover:text-slate-600"
+                                                                        >
+                                                                            <span className="text-[9px]">×</span>
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button 
+                                                                        onClick={(e) => { 
+                                                                            e.stopPropagation(); 
+                                                                            setDeleteConfirmId(shift.id);
+                                                                            setShowSwapMenu(null);
+                                                                        }} 
+                                                                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                                                                        title="削除"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {showSwapMenu === shift.id && (() => {
+                                                                const currentStaff = staffList.find(s => s.id === shift.staffId);
+                                                                if (!currentStaff) return null;
+                                                                const availableStaff = offDutyStaff.filter(({ staff }) => staff.role === currentStaff.role);
+                                                                
+                                                                return (
+                                                                    <>
+                                                                        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowSwapMenu(null); }} />
+                                                                        <div className="absolute left-full top-0 ml-1 z-[60] w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+                                                                            <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 mb-1 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 flex justify-between">
+                                                                                <span>入れ替え候補 ({currentStaff.role})</span>
+                                                                                <span className="text-[8px] font-normal lowercase">月間労働時間</span>
+                                                                            </div>
+                                                                            {availableStaff.length === 0 ? (
+                                                                                <div className="px-3 py-4 text-[11px] text-slate-400 text-center italic">
+                                                                                    同じ役職の待機スタッフはいません
+                                                                                </div>
+                                                                            ) : (
+                                                                                availableStaff.map(({ staff, reason }) => {
+                                                                                    const monthlyHours = (staffMonthlyHours[staff.id] || 0).toFixed(1);
+                                                                                    const target = staff.hoursTarget || 0;
+                                                                                    const isOver = target > 0 && Number(monthlyHours) > target;
+                                                                                    
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={staff.id}
+                                                                                            onClick={(e) => { e.stopPropagation(); handleSwapStaff(shift.id, staff.id); }}
+                                                                                            className="w-full text-left px-3 py-2 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group/candidate"
+                                                                                        >
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="font-medium group-hover/candidate:text-indigo-600 dark:group-hover/candidate:text-indigo-400">{staff.name}</span>
+                                                                                                {reason === 'preference' && (
+                                                                                                    <span className="text-[8px] text-red-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
+                                                                                                        <CalendarX className="w-2 h-2" /> 希望休
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <div className="text-right">
+                                                                                                <div className={`text-[10px] font-mono ${isOver ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
+                                                                                                    {monthlyHours}h
+                                                                                                </div>
+                                                                                                {target > 0 && (
+                                                                                                    <div className="text-[8px] text-slate-400">
+                                                                                                        目標: {target}h
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </button>
+                                                                                    );
+                                                                                })
+                                                                            )}
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                         <div className="w-36 border-r border-slate-200 dark:border-slate-700 flex items-center px-1">
                                                             <select

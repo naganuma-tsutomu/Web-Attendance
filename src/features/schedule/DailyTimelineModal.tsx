@@ -17,6 +17,8 @@ interface DailyTimelineModalProps {
     preferences: ShiftPreference[];
     onClose: () => void;
     onShiftUpdate?: () => void;
+    isFixed?: boolean;
+    onToggleFixed?: () => void;
 }
 
 const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
@@ -28,7 +30,9 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     roles,
     preferences,
     onClose,
-    onShiftUpdate
+    onShiftUpdate,
+    isFixed,
+    onToggleFixed
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
@@ -112,6 +116,8 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         onShiftUpdate={onShiftUpdate}
                         onModifiedChange={setIsModified}
                         saveRef={saveRef}
+                        isFixed={isFixed}
+                        onToggleFixed={onToggleFixed}
                     />
 
                     {/* Footer Buttons */}

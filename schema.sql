@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS shift_preference_dates (
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL,
     date TEXT NOT NULL, -- "YYYY-MM-DD"
+    startTime TEXT,     -- "HH:MM" or NULL (NULL means full day unavailable)
+    endTime TEXT,       -- "HH:MM" or NULL
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
@@ -69,6 +71,12 @@ CREATE TABLE IF NOT EXISTS shifts (
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
     isError INTEGER DEFAULT 0
+);
+
+-- Fixed Dates (Locked shifts) Table
+CREATE TABLE IF NOT EXISTS fixed_dates (
+    date TEXT PRIMARY KEY,
+    yearMonth TEXT NOT NULL -- e.g. "2024-04"
 );
 
 -- ======================================================

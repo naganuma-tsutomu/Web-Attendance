@@ -28,11 +28,18 @@ export interface Staff {
     accessKey?: string;
 }
 
+export interface ShiftPreferenceDetail {
+    date: string;
+    startTime: string | null;
+    endTime: string | null;
+}
+
 export interface ShiftPreference {
     id: string;
     staffId: string;
     yearMonth: string;
     unavailableDates: string[];
+    details?: ShiftPreferenceDetail[];
 }
 
 export interface Shift {

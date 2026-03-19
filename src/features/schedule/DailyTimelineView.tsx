@@ -240,7 +240,29 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         return staffList.filter(staff => !dayShifts.some(s => s.staffId === staff.id))
             .map(staff => {
                 const reason = isStaffAvailableReason(staff, date, targetDateStr, preferences);
-                return { staff, reason };
+                
+                let isFullDayPref = false;
+                let isPartialPref = false;
+                let timeStr = null;
+
+                const pref = preferences.find(p => p.staffId === staff.id);
+                if (pref) {
+                    if (pref.details && pref.details.length > 0) {
+                        const detail = pref.details.find(d => d.date === targetDateStr);
+                        if (detail) {
+                            if (!detail.startTime && !detail.endTime) {
+                                isFullDayPref = true;
+                            } else if (detail.startTime && detail.endTime) {
+                                isPartialPref = true;
+                                timeStr = `${detail.startTime}-${detail.endTime}`;
+                            }
+                        }
+                    } else if (pref.unavailableDates.includes(targetDateStr)) {
+                        isFullDayPref = true;
+                    }
+                }
+
+                return { staff, reason, isFullDayPref, isPartialPref, timeStr };
             });
     }, [staffList, dayShifts, date, targetDateStr, preferences]);
 
@@ -261,7 +283,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     };
 
     const getBarColor = (classType: ClassType | 'unassigned', isError?: boolean) => {
-        if (isError || classType === 'unassigned') return 'bg-red-400 border-red-500';
+        if (isError || classType === 'unassigned') return 'bg-slate-300 border-slate-400 dark:bg-slate-600 dark:border-slate-500';
 
         // IDまたは名称で判定
         if (classType === '虹組' || classType === 'class_niji') return 'bg-yellow-300 border-yellow-400';
@@ -631,7 +653,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 'class_smile': 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800',
                                 'class_niji': 'text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-100 dark:border-yellow-800',
                                 'class_special': 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800',
-                                'unassigned': 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800'
+                                'unassigned': 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
                             };
                             // 名前でのマッチングもフォールバックとして残しておく
                             if (colorMap[classId]) return colorMap[classId];
@@ -785,7 +807,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                                     同じ役職の待機スタッフはいません
                                                                                 </div>
                                                                             ) : (
-                                                                                availableStaff.map(({ staff, reason }) => {
+                                                                                availableStaff.map(({ staff, reason, isFullDayPref, isPartialPref, timeStr }) => {
                                                                                     const monthlyHours = formatHours(staffMonthlyHours[staff.id] || 0);
                                                                                     const target = staff.hoursTarget || 0;
                                                                                     const isOver = target > 0 && Number(monthlyHours) > target;
@@ -798,9 +820,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                                         >
                                                                                             <div className="flex flex-col">
                                                                                                 <span className="font-medium group-hover/candidate:text-indigo-600 dark:group-hover/candidate:text-indigo-400">{staff.name}</span>
-                                                                                                {reason === 'preference' && (
-                                                                                                    <span className="text-[8px] text-red-500 font-bold uppercase mt-0.5 flex items-center gap-0.5">
-                                                                                                        <CalendarX className="w-2 h-2" /> 希望休
+                                                                                                {(reason === 'preference' || isFullDayPref) && (
+                                                                                                    <span className="text-[8px] text-red-500 font-bold mt-0.5 flex items-center gap-0.5">
+                                                                                                        <CalendarX className="w-2 h-2" /> 希望休(終日)
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {isPartialPref && timeStr && (
+                                                                                                    <span className="text-[8px] text-red-500 font-bold mt-0.5 flex items-center gap-0.5">
+                                                                                                        <CalendarX className="w-2 h-2" /> 希望休({timeStr})
                                                                                                     </span>
                                                                                                 )}
                                                                                             </div>
@@ -905,21 +932,24 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             全員シフトに入っています
                         </div>
                     ) : (
-                        offDutyStaff.map(({ staff, reason }) => (
+                        offDutyStaff.map(({ staff, reason, isFullDayPref, isPartialPref, timeStr }) => (
                             <div key={staff.id} className="relative">
                                 <button
                                     onClick={() => !readOnly && setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
                                     disabled={readOnly}
                                     className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[11px] font-medium ${
-                                        reason === 'preference'
+                                        reason === 'preference' || isPartialPref
                                             ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
                                             : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                    } ${readOnly ? 'opacity-80 cursor-default' : reason === 'preference' ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                    } ${readOnly ? 'opacity-80 cursor-default' : (reason === 'preference' || isPartialPref) ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                                 >
-                                    {reason === 'preference' && <CalendarX className="w-3 h-3 opacity-70" />}
+                                    {(reason === 'preference' || isPartialPref) && <CalendarX className="w-3 h-3 opacity-70" />}
                                     <span>{staff.name}</span>
-                                    {reason === 'preference' && (
-                                        <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休</span>
+                                    {(reason === 'preference' || isFullDayPref) && (
+                                        <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休(終日)</span>
+                                    )}
+                                    {isPartialPref && timeStr && (
+                                        <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休({timeStr})</span>
                                     )}
                                     {!readOnly && (
                                         <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />

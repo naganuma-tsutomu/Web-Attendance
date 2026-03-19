@@ -247,11 +247,21 @@ const SchedulePage = () => {
                 const dayOfWeek = getDay(day);
                 if (dayOfWeek === 0) return;
 
-                const reason = isStaffAvailableReason(staff, day, dateStr, preferences);
-                if (reason === 'preference') {
+                // 1. 休日管理（希望休）のチェック - 終日・時間を問わず存在すればカウント
+                const pref = preferences.find(p => p.staffId === staff.id);
+                const hasPreference = pref && (
+                    pref.unavailableDates.includes(dateStr) || 
+                    (pref.details && pref.details.some(d => d.date === dateStr))
+                );
+
+                if (hasPreference) {
                     dailySummary[dateStr].requestedOff++;
-                } else if (reason === 'fixed') {
-                    dailySummary[dateStr].fixedOff++;
+                } else {
+                    // 2. スタッフ管理の固定休日チェック
+                    const reason = isStaffAvailableReason(staff, day, dateStr, preferences);
+                    if (reason === 'fixed') {
+                        dailySummary[dateStr].fixedOff++;
+                    }
                 }
             });
         });
@@ -448,9 +458,9 @@ const SchedulePage = () => {
         };
 
         if (event.isError || event.type === 'error') {
-            style.backgroundColor = '#ef4444';
+            style.backgroundColor = '#94a3b8'; // Slate 400 (was Red)
         } else if (event.type === 'requested-off') {
-            style.backgroundColor = '#94a3b8'; // Slate 400
+            style.backgroundColor = '#ef4444'; // Red 500 (was Slate)
         } else if (event.type === 'fixed-off') {
             style.backgroundColor = '#cbd5e1'; // Slate 300
             style.color = '#475569'; // Slate 600 for better contrast on light bg

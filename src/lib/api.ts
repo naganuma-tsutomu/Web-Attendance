@@ -113,9 +113,7 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
 export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
     await apiFetch('/shifts/clear', {
         method: 'POST',
-        body: JSON.stringify({ yearMonth, exceptDates }),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify({ yearMonth, exceptDates })} as RequestInit);
 };
 
 export const updateShift = async (id: string, shiftData: Partial<Shift>): Promise<void> => {
@@ -136,39 +134,31 @@ export const deleteShift = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getTimePatterns = async (): Promise<ShiftTimePattern[]> => {
-    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', { credentials: 'include' } as RequestInit);
+    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', { } as RequestInit);
 };
 
 export const createTimePattern = async (pattern: Omit<ShiftTimePattern, 'id'>): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/time-patterns', {
         method: 'POST',
-        body: JSON.stringify(pattern),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(pattern)} as RequestInit);
     return id;
 };
 
 export const deleteTimePattern = async (id: string): Promise<void> => {
     await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'} as RequestInit);
 };
 
 export const updateTimePattern = async (id: string, pattern: Partial<ShiftTimePattern>): Promise<void> => {
     await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        body: JSON.stringify(pattern),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(pattern)} as RequestInit);
 };
 
 export const updateTimePatternOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
     await apiFetch('/settings/time-patterns/reorder', {
         method: 'PUT',
-        body: JSON.stringify({ orders }),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify({ orders })} as RequestInit);
 };
 
 // ==========================================
@@ -176,31 +166,25 @@ export const updateTimePatternOrder = async (orders: { id: string, order: number
 // ==========================================
 
 export const getRoles = async (): Promise<DynamicRole[]> => {
-    return apiFetch<DynamicRole[]>('/settings/roles', { credentials: 'include' } as RequestInit);
+    return apiFetch<DynamicRole[]>('/settings/roles', { } as RequestInit);
 };
 
 export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = [], weeklyHoursTarget: number | null = null): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/roles', {
         method: 'POST',
-        body: JSON.stringify({ name, targetHours, patternIds, weeklyHoursTarget }),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify({ name, targetHours, patternIds, weeklyHoursTarget })} as RequestInit);
     return id;
 };
 
 export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] }): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(data)} as RequestInit);
 };
 
 export const deleteRole = async (id: string): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'} as RequestInit);
 };
 
 export const updateRolePatterns = async (roleId: string, patternIds: string[]): Promise<void> => {
@@ -245,9 +229,7 @@ export const updateClassOrder = async (orders: { id: string, order: number }[]):
 
 export const deleteClass = async (id: string): Promise<void> => {
     await apiFetch(`/settings/classes/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'} as RequestInit);
 };
 
 // ==========================================
@@ -255,22 +237,18 @@ export const deleteClass = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getShiftRequirements = async (): Promise<ShiftRequirement[]> => {
-    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', { credentials: 'include' } as RequestInit);
+    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', { } as RequestInit);
 };
 
 export const saveShiftRequirements = async (requirements: ShiftRequirement[]): Promise<void> => {
     await apiFetch('/settings/shift-requirements', {
         method: 'POST',
-        body: JSON.stringify(requirements),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(requirements)} as RequestInit);
 };
 
 export const deleteShiftRequirement = async (id: string): Promise<void> => {
     await apiFetch(`/settings/shift-requirements/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'} as RequestInit);
 };
 
 // ==========================================
@@ -281,38 +259,32 @@ export const getHolidays = async (year?: number): Promise<Holiday[]> => {
     const url = year
         ? `/settings/holidays?year=${year}`
         : '/settings/holidays';
-    return apiFetch<Holiday[]>(url, { credentials: 'include' } as RequestInit);
+    return apiFetch<Holiday[]>(url, { } as RequestInit);
 };
 
 export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/holidays', {
         method: 'POST',
-        body: JSON.stringify(holiday),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(holiday)} as RequestInit);
     return id;
 };
 
 export const updateHoliday = async (id: string, data: Partial<Holiday>): Promise<void> => {
     await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(data)} as RequestInit);
 };
 
 export const deleteHoliday = async (id: string): Promise<void> => {
     await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'} as RequestInit);
 };
 
 export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
     const url = year
         ? `/settings/holidays/sync?year=${year}`
         : '/settings/holidays/sync';
-    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, { credentials: 'include' } as RequestInit);
+    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, { } as RequestInit);
 };
 
 // ==========================================
@@ -320,13 +292,11 @@ export const syncHolidays = async (year?: number): Promise<{ success: boolean; m
 // ==========================================
 
 export const getFixedDates = async (yearMonth: string): Promise<string[]> => {
-    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`, { credentials: 'include' } as RequestInit);
+    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`, { } as RequestInit);
 };
 
 export const saveFixedDates = async (yearMonth: string, dates: string[]): Promise<void> => {
     await apiFetch('/fixed-dates', {
         method: 'POST',
-        body: JSON.stringify({ yearMonth, dates }),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify({ yearMonth, dates })} as RequestInit);
 };

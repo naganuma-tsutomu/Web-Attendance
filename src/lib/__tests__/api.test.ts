@@ -220,8 +220,11 @@ describe('API - Shift functions', () => {
 
             await expect(deleteShiftsByMonth(yearMonth)).resolves.not.toThrow();
             expect(mockFetch).toHaveBeenCalledWith(
-                '/api/shifts?yearMonth=2025-06',
-                expect.objectContaining({ method: 'DELETE' })
+                '/api/shifts/clear',
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ yearMonth: '2025-06', exceptDates: [] })
+                })
             );
         });
     });

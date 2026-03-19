@@ -12,5 +12,11 @@ export async function verifyCookie(token: string, secret: string) {
     const [payload, sig] = token.split('.');
     if (!payload || !sig) return false;
     const expected = await signCookie(payload, secret);
-    return expected === token;
+    
+    if (expected.length !== token.length) return false;
+    let mismatch = 0;
+    for (let i = 0; i < expected.length; i++) {
+        mismatch |= expected.charCodeAt(i) ^ token.charCodeAt(i);
+    }
+    return mismatch === 0;
 }

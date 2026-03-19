@@ -27,18 +27,20 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
         days.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd'); // 正しい日フォーマット
 
-            const dayShift = shifts.find(s => s.staffId === staff.id && s.date === dateStr);
+            const dayShifts = shifts.filter(s => s.staffId === staff.id && s.date === dateStr);
 
-            if (dayShift) {
-                const startTime = dayShift.startTime;
-                const endTime = dayShift.endTime;
-                rowData.push(`${startTime}-${endTime}`);
+            if (dayShifts.length > 0) {
+                const shiftTexts = dayShifts.map(s => `${s.startTime}-${s.endTime}`).join('\n');
+                rowData.push(shiftTexts);
 
                 // 時間計算 (簡易)
-                const [sh, sm] = startTime.split(':').map(Number);
-                const [eh, em] = endTime.split(':').map(Number);
-                const diff = (eh * 60 + em) - (sh * 60 + sm);
-                totalMinutes += diff;
+                dayShifts.forEach(dayShift => {
+                    const [sh, sm] = dayShift.startTime.split(':').map(Number);
+                    const [eh, em] = dayShift.endTime.split(':').map(Number);
+                    let diff = (eh * 60 + em) - (sh * 60 + sm);
+                    if (diff < 0) diff += 24 * 60; // 日またぎ対応
+                    totalMinutes += diff;
+                });
             } else {
                 rowData.push('');
             }
@@ -86,17 +88,24 @@ export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[])
 
         days.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd'); // 注意: formatの仕方に注意 (YYYY-MM-DD)
-            const dayShift = shifts.find(s => s.staffId === staff.id && s.date === dateStr);
+            const dayShifts = shifts.filter(s => s.staffId === staff.id && s.date === dateStr);
 
-            if (dayShift) {
+            if (dayShifts.length > 0) {
                 // PDFはスペースが狭いため略記 (例: 10-18)
-                const [sh] = dayShift.startTime.split(':');
-                const [eh] = dayShift.endTime.split(':');
-                row.push(`${sh}-${eh}`);
+                const shiftTexts = dayShifts.map(dayShift => {
+                    const [sh] = dayShift.startTime.split(':');
+                    const [eh] = dayShift.endTime.split(':');
+                    return `${sh}-${eh}`;
+                }).join('\n');
+                row.push(shiftTexts);
 
-                const [shm, sm] = dayShift.startTime.split(':').map(Number);
-                const [ehm, em] = dayShift.endTime.split(':').map(Number);
-                totalMinutes += (ehm * 60 + em) - (shm * 60 + sm);
+                dayShifts.forEach(dayShift => {
+                    const [shm, sm] = dayShift.startTime.split(':').map(Number);
+                    const [ehm, em] = dayShift.endTime.split(':').map(Number);
+                    let diff = (ehm * 60 + em) - (shm * 60 + sm);
+                    if (diff < 0) diff += 24 * 60; // 日またぎ対応
+                    totalMinutes += diff;
+                });
             } else {
                 row.push('');
             }

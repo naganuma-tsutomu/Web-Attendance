@@ -22,10 +22,16 @@ const timeToExcelValue = (timeStr: string): number => {
 };
 
 const getClassColor = (classId: string) => {
-    if (classId.includes('niji')) return 'FFFFE599'; // 虹 = 黄色
-    if (classId.includes('smile')) return 'FF9FC5E8'; // スマイル = 青
-    if (classId.includes('special')) return 'FFB6D7A8'; // 特殊 = 緑
-    return 'FFD9D2E9'; // その他 = 紫
+    let hash = 0;
+    for (let i = 0; i < classId.length; i++) {
+        hash = classId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    const hex = '000000'.substring(0, 6 - c.length) + c;
+    const r = Math.floor((parseInt(hex.substring(0, 2), 16) + 255) / 2);
+    const g = Math.floor((parseInt(hex.substring(2, 4), 16) + 255) / 2);
+    const b = Math.floor((parseInt(hex.substring(4, 6), 16) + 255) / 2);
+    return `FF${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
 };
 
 export const exportToExcelAdvanced = async (

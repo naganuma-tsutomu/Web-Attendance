@@ -54,8 +54,8 @@ export function validateTimeRange(startTime: string, endTime: string): string | 
     if (endError) return endError;
 
     // Compare times
-    if (startTime >= endTime) {
-        return '開始時間は終了時間より前に設定してください';
+    if (startTime === endTime) {
+        return '開始時間と終了時間が同じです';
     }
     return null;
 }

@@ -499,6 +499,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             ...oldShift,
             id: tempId,
             staffId: newStaffId,
+            isError: false
         };
 
         if (oldShiftId.startsWith('temp-')) {
@@ -515,7 +516,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         
         setLocalShifts(prev => {
             const next = { ...prev };
-            next[tempId] = { ...oldLocal };
+            next[tempId] = { ...oldLocal, isError: false };
             if (oldShiftId.startsWith('temp-')) {
                 delete next[oldShiftId];
             }
@@ -696,7 +697,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                             </button>
 
                                             {showAddMenu === cls.id && (
-                                                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto">
+                                                <>
+                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowAddMenu(null); }} />
+                                                    <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto">
                                                     {staffList
                                                         .filter(st => !dayShifts.some(s => s.staffId === st.id))
                                                         .length === 0 ? (
@@ -715,6 +718,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                             ))
                                                     )}
                                                 </div>
+                                                </>
                                             )}
                                         </div>
                                     )}
@@ -791,20 +795,21 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                             
                                                             {showSwapMenu === shift.id && (() => {
                                                                 const currentStaff = staffList.find(s => s.id === shift.staffId);
-                                                                if (!currentStaff) return null;
-                                                                const availableStaff = offDutyStaff.filter(({ staff }) => staff.role === currentStaff.role);
+                                                                const availableStaff = currentStaff
+                                                                    ? offDutyStaff.filter(({ staff }) => staff.role === currentStaff.role)
+                                                                    : offDutyStaff;
                                                                 
                                                                 return (
                                                                     <>
                                                                         <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowSwapMenu(null); }} />
                                                                         <div className="absolute left-full top-0 ml-1 z-[60] w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
                                                                             <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 mb-1 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 flex justify-between">
-                                                                                <span>入れ替え候補 ({currentStaff.role})</span>
+                                                                                <span>入れ替え候補 {currentStaff ? `(${currentStaff.role})` : '(全職種)'}</span>
                                                                                 <span className="text-[8px] font-normal lowercase">月間労働時間</span>
                                                                             </div>
                                                                             {availableStaff.length === 0 ? (
                                                                                 <div className="px-3 py-4 text-[11px] text-slate-400 text-center italic">
-                                                                                    同じ役職の待機スタッフはいません
+                                                                                    {currentStaff ? '同じ役職の待機スタッフはいません' : '待機スタッフはいません'}
                                                                                 </div>
                                                                             ) : (
                                                                                 availableStaff.map(({ staff, reason, isFullDayPref, isPartialPref, timeStr }) => {
@@ -957,7 +962,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 </button>
 
                                 {!readOnly && showAddMenu === staff.id && (
-                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowAddMenu(null); }} />
+                                        <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
                                         <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700 mb-1">
                                             追加先のクラスを選択
                                         </div>
@@ -971,7 +978,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 <Plus className="w-3 h-3 text-indigo-500 opacity-0 group-hover/cls:opacity-100" />
                                             </button>
                                         ))}
-                                    </div>
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         ))

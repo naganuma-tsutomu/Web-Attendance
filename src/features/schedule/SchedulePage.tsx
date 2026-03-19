@@ -712,7 +712,11 @@ const SchedulePage = () => {
                                                         toast.success('保存しました');
                                                     } catch (e) {
                                                         console.error(e);
-                                                        toast.error('保存に失敗しました');
+                                                        if (e instanceof Error && e.message) {
+                                                            toast.error(e.message);
+                                                        } else {
+                                                            toast.error('保存に失敗しました');
+                                                        }
                                                     }
                                                 }
                                             }}

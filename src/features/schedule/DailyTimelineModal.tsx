@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { X, Save } from 'lucide-react';
+import { X, Save, Lock, Unlock } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 import ConfirmModal from '../../components/ui/ConfirmModal';
@@ -48,7 +48,11 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
             onClose();
         } catch (error) {
             console.error(error);
-            toast.error('保存に失敗しました。');
+            if (error instanceof Error && error.message) {
+                toast.error(error.message);
+            } else {
+                toast.error('保存に失敗しました。');
+            }
         } finally {
             setSavingAll(false);
         }
@@ -98,9 +102,24 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                             バーをドラッグ・または左の入力欄で時間を変更できます（15分スナップ）
                         </p>
                     </div>
-                    <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {onToggleFixed && (
+                            <button
+                                onClick={onToggleFixed}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border shadow-sm ${
+                                    isFixed 
+                                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                {isFixed ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                {isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                            </button>
+                        )}
+                        <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -118,6 +137,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         saveRef={saveRef}
                         isFixed={isFixed}
                         onToggleFixed={onToggleFixed}
+                        hideHeaderToggle={true}
                     />
 
                     {/* Footer Buttons */}

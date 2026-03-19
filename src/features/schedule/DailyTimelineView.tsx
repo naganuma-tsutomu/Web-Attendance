@@ -21,6 +21,7 @@ interface DailyTimelineViewProps {
     readOnly?: boolean;
     isFixed?: boolean;
     onToggleFixed?: () => void;
+    hideHeaderToggle?: boolean;
 }
 
 // 時間をHH:MM文字列に変換
@@ -72,7 +73,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     saveRef,
     readOnly = false,
     isFixed = false,
-    onToggleFixed
+    onToggleFixed,
+    hideHeaderToggle
 }) => {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
@@ -135,6 +137,19 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const handleSave = useCallback(async () => {
         try {
+            const hasInvalidUnassigned = Object.keys(localShifts).some(id => {
+                if (deletedIds.has(id)) return false;
+                const originalShift = [...shifts, ...addedShifts].find(shift => shift.id === id);
+                if (!originalShift) return false;
+                
+                // 未設定の従業員（UNASSIGNED）が、クラスに配置されたまま（isError=false）保存されようとしているかをチェック
+                return originalShift.staffId === 'UNASSIGNED' && localShifts[id].classType !== 'unassigned' && localShifts[id].isError === false;
+            });
+
+            if (hasInvalidUnassigned) {
+                throw new Error('未設定の従業員がクラスに配置されています。保存する前に従業員を割り当ててください。');
+            }
+
             if (deletedIds.size > 0) {
                 await Promise.all(Array.from(deletedIds).map(id => deleteShift(id)));
             }
@@ -557,7 +572,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
         >
-            {!readOnly && onToggleFixed && (
+            {!readOnly && onToggleFixed && !hideHeaderToggle && (
                 <div className="flex justify-end p-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                     <button
                         onClick={onToggleFixed}

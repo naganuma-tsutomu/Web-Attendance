@@ -1,8 +1,9 @@
 import { handleServerError, createValidationError } from '../../utils/validation';
-import { verifyAccessKey } from '../../utils';
+import { verifyAccessKey, signStaffCookie } from '../../utils';
 
 export interface Env {
     DB: D1Database;
+    ADMIN_PASSWORD?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -11,6 +12,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         if (!name || !accessKey) {
             return createValidationError('名前とアクセスキーを入力してください');
+        }
+
+        const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
+        if (!ADMIN_PASSWORD) {
+            return new Response('Server Configuration Error', { status: 500 });
         }
 
         const staff = await context.env.DB.prepare(
@@ -27,7 +33,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             return new Response('名前またはアクセスキーが正しくありません', { status: 401 });
         }
 
-        return Response.json({ id: staff.id, name: staff.name });
+        const token = await signStaffCookie(staff.id, ADMIN_PASSWORD);
+        const isSecure = context.request.url.startsWith('https');
+        const cookie = `staff_token=${token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict${isSecure ? '; Secure' : ''}`;
+
+        return new Response(JSON.stringify({ id: staff.id, name: staff.name }), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                'Set-Cookie': cookie,
+            },
+        });
     } catch (e) {
         return handleServerError(e, 'Database error during staff login');
     }

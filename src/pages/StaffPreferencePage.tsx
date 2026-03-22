@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin, X } from 'lucide-react';
-import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses } from '../lib/api';
-import type { Shift, Staff, ShiftClass, ShiftPreferenceDetail } from '../types';
+import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffNameList, getClasses } from '../lib/api';
+import type { Shift, ShiftClass, ShiftPreferenceDetail } from '../types';
 
 type TabType = 'preference' | 'shifts' | 'settings';
 
@@ -14,7 +14,7 @@ const StaffPreferencePage = () => {
     const [activeTab, setActiveTab] = useState<TabType>('preference');
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
-    const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([]);
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ const StaffPreferencePage = () => {
                 const [shiftsData, prefsData, staffData, classesData] = await Promise.all([
                     getShiftsByMonth(monthStr),
                     getPreferencesByMonth(monthStr),
-                    getStaffList(),
+                    getStaffNameList(),
                     getClasses()
                 ]);
 
@@ -63,8 +63,9 @@ const StaffPreferencePage = () => {
         fetchData();
     }, [staff, currentMonth]);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         localStorage.removeItem('staff_session');
+        await fetch('/api/auth/staff-logout', { method: 'POST' }).catch(() => {});
         navigate('/staff/login');
     };
 

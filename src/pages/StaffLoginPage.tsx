@@ -107,12 +107,10 @@ const StaffLoginPage = () => {
                                 <input
                                     type="password"
                                     required
-                                    maxLength={4}
-                                    pattern="\d{4}"
                                     value={accessKey}
-                                    onChange={e => setAccessKey(e.target.value.replace(/\D/g, ''))}
+                                    onChange={e => setAccessKey(e.target.value)}
                                     className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono font-bold tracking-[0.5em] text-slate-700 dark:text-white transition-all"
-                                    placeholder="••••"
+                                    placeholder="••••••••••••"
                                 />
                             </div>
                         </div>
@@ -133,7 +131,7 @@ const StaffLoginPage = () => {
                     </button>
                     
                     <p className="text-center text-[10px] text-slate-400 dark:text-slate-600 font-medium">
-                        ※ アクセキーがわからない場合は管理者に確認してください
+                        ※ アクセスキーがわからない場合は管理者に確認してください
                     </p>
                 </form>
             </div>

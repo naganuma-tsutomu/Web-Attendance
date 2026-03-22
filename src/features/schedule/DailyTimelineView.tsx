@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo, useReducer } from 'react';
 import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
@@ -60,6 +60,94 @@ interface DragState {
     trackWidth: number;
 }
 
+// --- Shift editing state managed by useReducer ---
+type LocalShiftData = { start: number; end: number; classType: ClassType; isError: boolean };
+
+interface ShiftEditState {
+    localShifts: Record<string, LocalShiftData>;
+    addedShifts: Shift[];
+    deletedIds: Set<string>;
+    initialShifts: Record<string, LocalShiftData>;
+}
+
+type ShiftEditAction =
+    | { type: 'INIT'; payload: Record<string, LocalShiftData> }
+    | { type: 'UPDATE_LOCAL'; id: string; data: Partial<LocalShiftData> }
+    | { type: 'UPDATE_LOCAL_FN'; updater: (prev: Record<string, LocalShiftData>) => Record<string, LocalShiftData> }
+    | { type: 'ADD_SHIFT'; shift: Shift; localData: LocalShiftData }
+    | { type: 'REMOVE_SHIFT'; id: string }
+    | { type: 'SWAP_STAFF'; oldId: string; newShift: Shift; localData: LocalShiftData };
+
+function shiftEditReducer(state: ShiftEditState, action: ShiftEditAction): ShiftEditState {
+    switch (action.type) {
+        case 'INIT':
+            return {
+                localShifts: action.payload,
+                initialShifts: action.payload,
+                addedShifts: [],
+                deletedIds: new Set(),
+            };
+        case 'UPDATE_LOCAL':
+            return {
+                ...state,
+                localShifts: {
+                    ...state.localShifts,
+                    [action.id]: { ...state.localShifts[action.id], ...action.data },
+                },
+            };
+        case 'UPDATE_LOCAL_FN':
+            return {
+                ...state,
+                localShifts: action.updater(state.localShifts),
+            };
+        case 'ADD_SHIFT':
+            return {
+                ...state,
+                addedShifts: [...state.addedShifts, action.shift],
+                localShifts: { ...state.localShifts, [action.shift.id]: action.localData },
+            };
+        case 'REMOVE_SHIFT': {
+            if (action.id.startsWith('temp-')) {
+                const next = { ...state.localShifts };
+                delete next[action.id];
+                return {
+                    ...state,
+                    addedShifts: state.addedShifts.filter(s => s.id !== action.id),
+                    localShifts: next,
+                };
+            }
+            const nextDeleted = new Set(state.deletedIds);
+            nextDeleted.add(action.id);
+            return { ...state, deletedIds: nextDeleted };
+        }
+        case 'SWAP_STAFF': {
+            const { oldId, newShift, localData } = action;
+            const nextLocal = { ...state.localShifts, [newShift.id]: localData };
+            let nextAdded = [...state.addedShifts, newShift];
+            let nextDeleted = state.deletedIds;
+
+            if (oldId.startsWith('temp-')) {
+                nextAdded = nextAdded.filter(s => s.id !== oldId);
+                delete nextLocal[oldId];
+            } else {
+                nextDeleted = new Set(nextDeleted);
+                nextDeleted.add(oldId);
+            }
+            return { ...state, localShifts: nextLocal, addedShifts: nextAdded, deletedIds: nextDeleted };
+        }
+        default:
+            return state;
+    }
+}
+
+function buildInitialLocalShifts(shifts: Shift[], targetDateStr: string): Record<string, LocalShiftData> {
+    const init: Record<string, LocalShiftData> = {};
+    shifts.filter(s => s.date === targetDateStr).forEach(s => {
+        init[s.id] = { start: toMins(s.startTime), end: toMins(s.endTime), classType: s.classType, isError: s.isError ?? false };
+    });
+    return init;
+}
+
 const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     date,
     shifts,
@@ -78,20 +166,16 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 }) => {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
-    const [localShifts, setLocalShifts] = useState<Record<string, { start: number; end: number; classType: ClassType; isError: boolean }>>(() => {
-        const init: Record<string, { start: number; end: number; classType: ClassType; isError: boolean }> = {};
-        shifts.filter(s => s.date === targetDateStr).forEach(s => {
-            init[s.id] = { start: toMins(s.startTime), end: toMins(s.endTime), classType: s.classType, isError: s.isError ?? false };
-        });
-        return init;
+    const [editState, dispatch] = useReducer(shiftEditReducer, { shifts, targetDateStr }, () => {
+        const init = buildInitialLocalShifts(shifts, targetDateStr);
+        return { localShifts: init, initialShifts: init, addedShifts: [], deletedIds: new Set<string>() };
     });
 
-    const [addedShifts, setAddedShifts] = useState<Shift[]>([]);
-    const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+    const { localShifts, addedShifts, deletedIds, initialShifts } = editState;
+
     const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
     const [showSwapMenu, setShowSwapMenu] = useState<string | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-    const [initialShifts, setInitialShifts] = useState(localShifts);
 
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [dragDeltaY, setDragDeltaY] = useState(0);
@@ -110,14 +194,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     // dateが変わったら再初期化
     useEffect(() => {
-        const init: Record<string, { start: number; end: number; classType: ClassType; isError: boolean }> = {};
-        shifts.filter(s => s.date === targetDateStr).forEach(s => {
-            init[s.id] = { start: toMins(s.startTime), end: toMins(s.endTime), classType: s.classType, isError: s.isError ?? false };
-        });
-        setLocalShifts(init);
-        setInitialShifts(init);
-        setAddedShifts([]);
-        setDeletedIds(new Set());
+        dispatch({ type: 'INIT', payload: buildInitialLocalShifts(shifts, targetDateStr) });
     }, [targetDateStr, shifts]);
 
     const isModified = addedShifts.length > 0 || deletedIds.size > 0 || Object.keys(localShifts).some(id => {
@@ -404,7 +481,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             setHoveredGroup(newClassType);
         }
 
-        setLocalShifts(prev => {
+        dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
             const orig = { start: drag.origStartMins, end: drag.origEndMins };
             let newStart = orig.start;
             let newEnd = orig.end;
@@ -429,7 +506,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             }
 
             return { ...prev, [drag.shiftId]: { ...prev[drag.shiftId], start: newStart, end: newEnd } };
-        });
+        }});
     }, [classes]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -446,34 +523,26 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
         const s = localShifts[drag.shiftId];
         if (!s) return;
-        setLocalShifts(prev => ({
-            ...prev,
-            [drag.shiftId]: {
-                ...prev[drag.shiftId],
-                classType: (finalClassType && finalClassType !== 'unassigned') ? finalClassType : drag.origClassType,
-                isError: finalClassType === 'unassigned'
-            }
-        }));
+        dispatch({ type: 'UPDATE_LOCAL', id: drag.shiftId, data: {
+            classType: (finalClassType && finalClassType !== 'unassigned') ? finalClassType : drag.origClassType,
+            isError: finalClassType === 'unassigned'
+        }});
     }, [localShifts, hoveredGroup]);
 
     const handlePatternChange = (shiftId: string, patternId: string) => {
         const pattern = timePatterns.find(p => p.id === patternId);
         if (!pattern) return;
 
-        setLocalShifts(prev => ({
-            ...prev,
-            [shiftId]: {
-                ...prev[shiftId],
-                start: toMins(pattern.startTime),
-                end: toMins(pattern.endTime)
-            }
-        }));
+        dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: {
+            start: toMins(pattern.startTime),
+            end: toMins(pattern.endTime)
+        }});
     };
 
     const handleTimeInputChange = (shiftId: string, field: 'start' | 'end', value: string) => {
         const mins = toMins(value);
         const snapped = snapTo15(mins);
-        setLocalShifts(prev => {
+        dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
             const curr = prev[shiftId];
             const MIN_DURATION = 15;
             if (field === 'start') {
@@ -483,7 +552,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 const newEnd = Math.min(END_HOUR * 60, Math.max(curr.start + MIN_DURATION, snapped));
                 return { ...prev, [shiftId]: { ...curr, end: newEnd } };
             }
-        });
+        }});
     };
 
     const handleAddStaff = (staffId: string, classType: ClassType) => {
@@ -502,34 +571,17 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             isEarlyShift: false,
             isError: false,
         };
-        setAddedShifts(prev => [...prev, newShift]);
-        setLocalShifts(prev => ({
-            ...prev,
-            [tempId]: {
-                start: toMins(startTime),
-                end: toMins(endTime),
-                classType: classType,
-                isError: false
-            }
-        }));
+        dispatch({ type: 'ADD_SHIFT', shift: newShift, localData: {
+            start: toMins(startTime),
+            end: toMins(endTime),
+            classType: classType,
+            isError: false
+        }});
         setShowAddMenu(null);
     };
 
     const handleRemoveShift = (shiftId: string) => {
-        if (shiftId.startsWith('temp-')) {
-            setAddedShifts(prev => prev.filter(s => s.id !== shiftId));
-            setLocalShifts(prev => {
-                const next = { ...prev };
-                delete next[shiftId];
-                return next;
-            });
-        } else {
-            setDeletedIds(prev => {
-                const next = new Set(prev);
-                next.add(shiftId);
-                return next;
-            });
-        }
+        dispatch({ type: 'REMOVE_SHIFT', id: shiftId });
     };
 
     const handleSwapStaff = (oldShiftId: string, newStaffId: string) => {
@@ -551,27 +603,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             isError: false
         };
 
-        if (oldShiftId.startsWith('temp-')) {
-            setAddedShifts(prev => prev.filter(s => s.id !== oldShiftId));
-        } else {
-            setDeletedIds(prev => {
-                const next = new Set(prev);
-                next.add(oldShiftId);
-                return next;
-            });
-        }
-
-        setAddedShifts(prev => [...prev, newShift]);
-        
-        setLocalShifts(prev => {
-            const next = { ...prev };
-            next[tempId] = { ...oldLocal, isError: false };
-            if (oldShiftId.startsWith('temp-')) {
-                delete next[oldShiftId];
-            }
-            return next;
-        });
-
+        dispatch({ type: 'SWAP_STAFF', oldId: oldShiftId, newShift, localData: { ...oldLocal, isError: false } });
         setShowSwapMenu(null);
     };
 

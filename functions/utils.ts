@@ -41,64 +41,6 @@ export async function verifyStaffCookie(token: string, secret: string): Promise<
     return mismatch === 0 ? parts[0] : null;
 }
 
-// ==========================================
-// Access Key utilities
-// ==========================================
-const PBKDF2_ITERATIONS = 100_000;
-const PBKDF2_KEYLEN = 32;
-
-/** 12文字のランダムな16進数アクセスキーを生成する */
-export function generateAccessKey(): string {
-    const bytes = crypto.getRandomValues(new Uint8Array(6));
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/** アクセスキーをPBKDF2-SHA256でハッシュ化する（salt付き） */
-export async function hashAccessKey(plainKey: string): Promise<string> {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-        'raw', encoder.encode(plainKey), 'PBKDF2', false, ['deriveBits']
-    );
-    const derived = await crypto.subtle.deriveBits(
-        { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-        keyMaterial,
-        PBKDF2_KEYLEN * 8
-    );
-    const saltB64 = btoa(String.fromCharCode(...Array.from(salt)));
-    const hashB64 = btoa(String.fromCharCode(...Array.from(new Uint8Array(derived))));
-    return `${saltB64}:${hashB64}`;
-}
-
-/** 提供されたキーが保存済みハッシュと一致するか検証する（定数時間比較） */
-export async function verifyAccessKey(plainKey: string, storedHash: string): Promise<boolean> {
-    const colonIdx = storedHash.indexOf(':');
-    if (colonIdx === -1) return false;
-    const saltB64 = storedHash.slice(0, colonIdx);
-    const hashB64 = storedHash.slice(colonIdx + 1);
-    try {
-        const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
-        const encoder = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            'raw', encoder.encode(plainKey), 'PBKDF2', false, ['deriveBits']
-        );
-        const derived = await crypto.subtle.deriveBits(
-            { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-            keyMaterial,
-            PBKDF2_KEYLEN * 8
-        );
-        const computedB64 = btoa(String.fromCharCode(...Array.from(new Uint8Array(derived))));
-        if (computedB64.length !== hashB64.length) return false;
-        let mismatch = 0;
-        for (let i = 0; i < computedB64.length; i++) {
-            mismatch |= computedB64.charCodeAt(i) ^ hashB64.charCodeAt(i);
-        }
-        return mismatch === 0;
-    } catch {
-        return false;
-    }
-}
-
 
 
 async function hmacSign(payload: string, secret: string): Promise<string> {

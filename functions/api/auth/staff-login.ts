@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError } from '../../utils/validation';
-import { verifyAccessKey, signStaffCookie } from '../../utils';
+import { signStaffCookie } from '../../utils';
 
 export interface Env {
     DB: D1Database;
@@ -20,16 +20,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         const staff = await context.env.DB.prepare(
-            "SELECT id, name, access_key FROM staffs WHERE name = ?"
-        ).bind(name.trim()).first() as { id: string, name: string, access_key: string | null } | null;
+            "SELECT id, name FROM staffs WHERE name = ? AND access_key = ?"
+        ).bind(name.trim(), accessKey.trim()).first() as { id: string, name: string } | null;
 
-        // 存在しない場合でも同じメッセージを返す（ユーザー列挙攻撃の防止）
-        if (!staff || !staff.access_key) {
-            return new Response('名前またはアクセスキーが正しくありません', { status: 401 });
-        }
-
-        const isValid = await verifyAccessKey(accessKey.trim(), staff.access_key);
-        if (!isValid) {
+        if (!staff) {
             return new Response('名前またはアクセスキーが正しくありません', { status: 401 });
         }
 

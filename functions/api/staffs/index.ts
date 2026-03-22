@@ -1,6 +1,5 @@
 import type { Staff } from '../../../src/types';
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-import { generateAccessKey, hashAccessKey } from '../../utils';
 
 export interface Env {
     DB: D1Database;
@@ -40,8 +39,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 availableDays: normalizedDays.length > 0 ? normalizedDays : (row.availableDays ? JSON.parse(row.availableDays) : undefined),
                 isHelpStaff: row.isHelpStaff === 1,
                 classIds: classIds,
-                access_key: undefined, // ハッシュをクライアントに返さない
-                accessKey: undefined,
+                accessKey: row.access_key,
             };
         });
 
@@ -77,9 +75,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const displayOrder = (maxOrder || 0) + 1;
 
-        // アクセスキーを生成してハッシュ化
-        const plainAccessKey = staffData.accessKey || generateAccessKey();
-        const hashedAccessKey = await hashAccessKey(plainAccessKey);
+        const accessKey = staffData.accessKey || Math.floor(1000 + Math.random() * 9000).toString();
 
         const statements = [
             context.env.DB.prepare(
@@ -96,7 +92,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
                 displayOrder,
-                hashedAccessKey
+                accessKey
             )
         ];
 
@@ -126,8 +122,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         await context.env.DB.batch(statements);
 
-        // 平文キーを一度だけ返す（管理者がスタッフに伝えるため）
-        return Response.json({ id, accessKey: plainAccessKey });
+        return Response.json({ id });
     } catch (e) {
         return handleServerError(e, 'Database error creating staff');
     }

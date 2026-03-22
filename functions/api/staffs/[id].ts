@@ -1,4 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
+import { hashAccessKey } from '../../utils';
 
 export interface Env {
     DB: D1Database;
@@ -24,6 +25,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             if (roleError) return createValidationError(roleError);
         }
 
+        // アクセスキーが更新される場合はハッシュ化
+        let hashedAccessKey: string | null = null;
+        if (staffData.accessKey) {
+            hashedAccessKey = await hashAccessKey(staffData.accessKey);
+        }
+
         const statements = [
             context.env.DB.prepare(
                 `UPDATE staffs SET
@@ -46,7 +53,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
-                staffData.accessKey || null,
+                hashedAccessKey,
                 id
             )
         ];
@@ -81,7 +88,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         await context.env.DB.batch(statements);
 
-        return Response.json({ success: true });
+        // キーが更新された場合は平文を一度だけ返す
+        const response: { success: boolean; accessKey?: string } = { success: true };
+        if (staffData.accessKey) {
+            response.accessKey = staffData.accessKey;
+        }
+        return Response.json(response);
     } catch (e) {
         return handleServerError(e, 'Database error updating staff');
     }

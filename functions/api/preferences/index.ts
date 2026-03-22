@@ -1,4 +1,5 @@
 import type { ShiftPreference } from '../../../src/types';
+import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 
 export interface Env {
     DB: D1Database;
@@ -8,7 +9,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth payload', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
         // Get legacy records
         const { results: legacyResults } = await context.env.DB.prepare(
@@ -49,13 +51,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         return Response.json(prefs);
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'GET /preferences');
     }
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const pref: Omit<ShiftPreference, 'id'> = await context.request.json();
+        const ymError = validateYearMonth(pref?.yearMonth);
+        if (ymError) return createValidationError(ymError);
 
         // Ensure backward compatibility if only unavailableDates is sent
         const details = pref.details || (pref.unavailableDates || []).map(date => ({ date, startTime: null, endTime: null }));
@@ -101,6 +105,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         await context.env.DB.batch(statements);
         return Response.json({ success: true });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'POST /preferences');
     }
 };

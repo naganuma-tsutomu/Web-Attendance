@@ -1,3 +1,5 @@
+import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
+
 export interface Env {
     DB: D1Database;
 }
@@ -6,7 +8,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth payload', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
         const startStr = `${yearMonth}-01`;
         const endStr = `${yearMonth}-31`;
@@ -23,7 +26,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         return Response.json(shifts);
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'GET /shifts');
     }
 };
 
@@ -58,8 +61,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: `Successfully inserted ${shiftsData.length} shifts` });
     } catch (e) {
-        console.error('Batch insert error:', e);
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'POST /shifts');
     }
 };
 
@@ -67,7 +69,8 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
         await context.env.DB.prepare(
             "DELETE FROM shifts WHERE date LIKE ?"
@@ -75,6 +78,6 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'DELETE /shifts');
     }
 };

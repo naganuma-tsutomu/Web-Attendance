@@ -1,3 +1,5 @@
+import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
+
 export interface Env {
     DB: D1Database;
 }
@@ -6,7 +8,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth payload', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
         const { results } = await context.env.DB.prepare(
             "SELECT date FROM fixed_dates WHERE yearMonth = ?"
@@ -16,7 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         return Response.json(dates);
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'GET /fixed-dates');
     }
 };
 
@@ -24,10 +27,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const body: { yearMonth: string, dates: string[] } = await context.request.json();
         const { yearMonth, dates } = body;
-        
-        if (!yearMonth) {
-            return new Response('Missing yearMonth payload', { status: 400 });
-        }
+
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
         // Delete all fixed dates for the given month
         await context.env.DB.prepare(
@@ -46,7 +48,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: `Successfully updated fixed dates` });
     } catch (e) {
-        console.error('Batch insert error:', e);
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'POST /fixed-dates');
     }
 };

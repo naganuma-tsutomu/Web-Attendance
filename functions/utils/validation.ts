@@ -102,6 +102,31 @@ export function validateRole(role: string): string | null {
     return null;
 }
 
+// Validate yearMonth format (YYYY-MM)
+export function validateYearMonth(yearMonth: string | null | undefined): string | null {
+    if (!yearMonth) return 'yearMonthは必須です';
+    if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        return 'yearMonthはYYYY-MM形式で指定してください';
+    }
+    const [year, month] = yearMonth.split('-').map(Number);
+    if (month < 1 || month > 12) return 'yearMonthの月が不正です（01〜12）';
+    if (year < 2000 || year > 2100) return 'yearMonthの年が不正です';
+    return null;
+}
+
+// Validate date format (YYYY-MM-DD)
+export function validateDate(date: string | null | undefined, fieldName: string = '日付'): string | null {
+    if (!date) return `${fieldName}は必須です`;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return `${fieldName}はYYYY-MM-DD形式で指定してください`;
+    }
+    const [year, month, day] = date.split('-').map(Number);
+    if (month < 1 || month > 12) return `${fieldName}の月が不正です`;
+    if (day < 1 || day > 31) return `${fieldName}の日が不正です`;
+    if (year < 2000 || year > 2100) return `${fieldName}の年が不正です`;
+    return null;
+}
+
 // Validate dayOfWeek (0-6: 日-土, 7: 平日, 8: 毎日)
 export function validateDayOfWeek(day: number): string | null {
     if (typeof day !== 'number' || !Number.isInteger(day)) {

@@ -252,8 +252,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     }, [shifts, addedShifts, deletedIds, targetYearMonth]);
 
     const offDutyStaff = useMemo(() => {
-        return staffList.filter(staff => !dayShifts.some(s => s.staffId === staff.id))
+        // 希望休があるスタッフはシフトに入っていても表示するため、全スタッフを対象にして
+        // 「シフトなし」または「希望休がある」スタッフをリストアップする
+        return staffList
             .map(staff => {
+                const isOnShift = dayShifts.some(s => s.staffId === staff.id);
                 const reason = isStaffAvailableReason(staff, date, targetDateStr, preferences);
                 
                 let isFullDayPref = false;
@@ -277,8 +280,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     }
                 }
 
-                return { staff, reason, isFullDayPref, isPartialPref, timeStr };
-            });
+                // 希望休があるか、シフトに入っていないスタッフのみ表示
+                const hasPreference = isFullDayPref || isPartialPref || reason === 'preference';
+                if (!isOnShift || hasPreference) {
+                    return { staff, reason, isFullDayPref, isPartialPref, timeStr, isOnShift };
+                }
+                return null;
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
     }, [staffList, dayShifts, date, targetDateStr, preferences]);
 
     const getBarStyle = (shift: Shift) => {
@@ -297,8 +306,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         };
     };
 
-    const getBarColor = (classType: ClassType | 'unassigned', isError?: boolean) => {
+    const getBarColor = (classType: ClassType | 'unassigned', isError?: boolean, isPreferenceConflict?: boolean) => {
         if (isError || classType === 'unassigned') return 'bg-slate-300 border-slate-400 dark:bg-slate-600 dark:border-slate-500';
+        // 希望休と衝突している場合はオレンジ
+        if (isPreferenceConflict) return 'bg-orange-300 border-orange-400 dark:bg-orange-500/60 dark:border-orange-500';
 
         // IDまたは名称で判定
         if (classType === '虹組' || classType === 'class_niji') return 'bg-yellow-300 border-yellow-400';
@@ -306,6 +317,29 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (classType === '特殊' || classType === 'class_special') return 'bg-emerald-300 border-emerald-400';
 
         return 'bg-purple-300 border-purple-400';
+    };
+
+    // スタッフの希望休とシフト時間が衝突しているか判定するヘルパー
+    const isShiftConflictingWithPreference = (staffId: string, shiftStartMins: number, shiftEndMins: number): boolean => {
+        const pref = preferences.find(p => p.staffId === staffId);
+        if (!pref) return false;
+
+        if (pref.details && pref.details.length > 0) {
+            const detail = pref.details.find(d => d.date === targetDateStr);
+            if (!detail) return false;
+            // 終日希望休
+            if (!detail.startTime && !detail.endTime) return true;
+            // 時間帯希望休：シフトとの重複チェック
+            if (detail.startTime && detail.endTime) {
+                const prefStart = toMins(detail.startTime);
+                const prefEnd = toMins(detail.endTime);
+                return shiftStartMins < prefEnd && shiftEndMins > prefStart;
+            }
+        } else if (pref.unavailableDates.includes(targetDateStr)) {
+            // 終日希望休
+            return true;
+        }
+        return false;
     };
 
     const calculateDuration = (startMins: number, endMins: number) => {
@@ -904,8 +938,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 {/* Timeline Track */}
                                                 <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`}>
                                                     {renderGridLines()}
+                                                    {(() => {
+                                                        const currentClassType = isDragging && hoveredGroup ? hoveredGroup : (readOnly ? shift.classType : s.classType);
+                                                        const currentIsError = readOnly ? shift.isError : s.isError;
+                                                        const prefConflict = !currentIsError && isShiftConflictingWithPreference(shift.staffId, s.start, s.end);
+                                                        return (
                                                     <div
-                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${getBarColor(isDragging && hoveredGroup ? hoveredGroup : (readOnly ? shift.classType : s.classType), readOnly ? shift.isError : s.isError)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
+                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${getBarColor(currentClassType, currentIsError, prefConflict)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
                                                         style={{ ...getBarStyle(shift), transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none' }}
                                                         onPointerDown={e => {
                                                             if (readOnly) return;
@@ -926,6 +965,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                             <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
                                                         )}
                                                     </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         );
@@ -952,16 +993,18 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             全員シフトに入っています
                         </div>
                     ) : (
-                        offDutyStaff.map(({ staff, reason, isFullDayPref, isPartialPref, timeStr }) => (
+                        offDutyStaff.map(({ staff, reason, isFullDayPref, isPartialPref, timeStr, isOnShift }) => (
                             <div key={staff.id} className="relative">
                                 <button
-                                    onClick={() => !readOnly && setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
-                                    disabled={readOnly}
+                                    onClick={() => !readOnly && !isOnShift && setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
+                                    disabled={readOnly || isOnShift}
                                     className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[11px] font-medium ${
-                                        reason === 'preference' || isPartialPref
-                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                    } ${readOnly ? 'opacity-80 cursor-default' : (reason === 'preference' || isPartialPref) ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                        isOnShift
+                                            ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400 opacity-90 cursor-default'
+                                            : reason === 'preference' || isPartialPref
+                                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                    } ${!isOnShift && !readOnly ? (reason === 'preference' || isPartialPref) ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''}`}
                                 >
                                     {(reason === 'preference' || isPartialPref) && <CalendarX className="w-3 h-3 opacity-70" />}
                                     <span>{staff.name}</span>
@@ -971,12 +1014,15 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                     {isPartialPref && timeStr && (
                                         <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休({timeStr})</span>
                                     )}
-                                    {!readOnly && (
+                                    {isOnShift && (
+                                        <span className="text-[9px] bg-orange-100 dark:bg-orange-900/50 px-1 rounded font-bold">※シフトあり</span>
+                                    )}
+                                    {!readOnly && !isOnShift && (
                                         <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
                                     )}
                                 </button>
 
-                                {!readOnly && showAddMenu === staff.id && (
+                                {!readOnly && !isOnShift && showAddMenu === staff.id && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowAddMenu(null); }} />
                                         <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">

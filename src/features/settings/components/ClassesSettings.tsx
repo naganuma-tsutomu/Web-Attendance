@@ -1,27 +1,6 @@
 import { useState } from 'react';
-import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, Check, X, UserCheck } from 'lucide-react';
+import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, UserCheck } from 'lucide-react';
 import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
-
-const CLASS_COLORS = [
-    '#818cf8', '#60a5fa', '#34d399', '#fbbf24',
-    '#f87171', '#c084fc', '#fb923c', '#f472b6',
-    '#2dd4bf', '#94a3b8',
-];
-
-const ColorPicker = ({ value, onChange }: { value: string; onChange: (c: string) => void }) => (
-    <div className="flex flex-wrap gap-1.5">
-        {CLASS_COLORS.map(c => (
-            <button
-                key={c}
-                type="button"
-                onClick={() => onChange(c)}
-                className={`w-6 h-6 rounded-full transition-all ${value === c ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`}
-                style={{ backgroundColor: c }}
-                title={c}
-            />
-        ))}
-    </div>
-);
 import type { ShiftClass, Staff } from '../../../types';
 import {
     DndContext,
@@ -46,12 +25,32 @@ import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 
+const CLASS_COLORS = [
+    '#818cf8', '#60a5fa', '#34d399', '#fbbf24',
+    '#f87171', '#c084fc', '#fb923c', '#f472b6',
+    '#2dd4bf', '#94a3b8',
+];
+
+const ColorPicker = ({ value, onChange }: { value: string; onChange: (c: string) => void }) => (
+    <div className="flex flex-wrap gap-2">
+        {CLASS_COLORS.map(c => (
+            <button
+                key={c}
+                type="button"
+                onClick={() => onChange(c)}
+                className={`w-7 h-7 rounded-full transition-all ${value === c ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`}
+                style={{ backgroundColor: c }}
+                title={c}
+            />
+        ))}
+    </div>
+);
+
 interface ClassesSettingsProps {
     classes: ShiftClass[];
     staffs: Staff[];
     loading: boolean;
     onUpdate: () => void;
-    // We need to pass a setter for optimistic UI updates during drag & drop
     setClasses: React.Dispatch<React.SetStateAction<ShiftClass[]>>;
     showMessage: (msg: string) => void;
 }
@@ -82,7 +81,7 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
     };
 
     const content = (
-        <div className={`flex items-center space-x-4 flex-1`}>
+        <div className="flex items-center space-x-4 flex-1">
             <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center font-bold flex-shrink-0 shadow-sm relative text-white"
                 style={{ backgroundColor: cls.color || '#818cf8' }}
@@ -168,29 +167,21 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
 
 const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showMessage }: ClassesSettingsProps) => {
     const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editName, setEditName] = useState('');
-    const [editColor, setEditColor] = useState(CLASS_COLORS[0]);
+    const [editingClass, setEditingClass] = useState<ShiftClass | null>(null);
+    const [editForm, setEditForm] = useState({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
     const handleAddClass = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newClass.name.trim() || isSubmitting) return;
-
         setIsSubmitting(true);
         try {
             await createClass(newClass.name, newClass.auto_allocate, newClass.color);
@@ -223,7 +214,6 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
 
     const handleConfirmDelete = async () => {
         if (!deleteConfirm || isDeleting) return;
-
         setIsDeleting(true);
         try {
             await deleteClass(deleteConfirm.id);
@@ -238,25 +228,18 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
         }
     };
 
-    const handleStartEdit = (cls: ShiftClass) => {
-        setEditingId(cls.id);
-        setEditName(cls.name);
-        setEditColor(cls.color || CLASS_COLORS[0]);
+    const handleOpenEdit = (cls: ShiftClass) => {
+        setEditingClass(cls);
+        setEditForm({ name: cls.name, color: cls.color || CLASS_COLORS[0], auto_allocate: cls.auto_allocate });
     };
 
-    const handleCancelEdit = () => {
-        setEditingId(null);
-        setEditName('');
-    };
-
-    const handleSaveEdit = async (id: string) => {
-        if (!editName.trim() || isSubmitting) return;
-
+    const handleSaveEdit = async () => {
+        if (!editingClass || !editForm.name.trim() || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            await updateClass(id, { name: editName, color: editColor });
-            setEditingId(null);
-            showMessage('クラス名を更新しました');
+            await updateClass(editingClass.id, { name: editForm.name, color: editForm.color, auto_allocate: editForm.auto_allocate });
+            setEditingClass(null);
+            showMessage('クラスを更新しました');
             onUpdate();
         } catch (err) {
             console.error(err);
@@ -273,20 +256,13 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
     const handleClassDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveId(null);
-
         if (!over || active.id === over.id) return;
-
         const oldIndex = classes.findIndex(c => c.id === active.id);
         const newIndex = classes.findIndex(c => c.id === over.id);
-
         const newClasses = arrayMove(classes, oldIndex, newIndex);
         setClasses(newClasses);
-
         try {
-            const orders = newClasses.map((c, index) => ({
-                id: c.id,
-                order: index
-            }));
+            const orders = newClasses.map((c, index) => ({ id: c.id, order: index }));
             await updateClassOrder(orders);
         } catch (err) {
             console.error('Failed to update class order', err);
@@ -324,14 +300,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
                                 disabled={isSubmitting || !newClass.name.trim()}
                                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-400 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-md shadow-indigo-200 dark:shadow-none transition-all h-[44px] flex items-center justify-center space-x-2 min-w-[100px]"
                             >
-                                {isSubmitting ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <>
-                                        <Plus className="w-4 h-4" />
-                                        <span>追加</span>
-                                    </>
-                                )}
+                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /><span>追加</span></>}
                             </button>
                         </div>
                         <div className="space-y-1.5">
@@ -392,60 +361,20 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
                                 strategy={verticalListSortingStrategy}
                             >
                                 {classes.map(c => (
-                                    <div key={c.id}>
-                                        {editingId === c.id ? (
-                                            <div className="px-6 py-4 bg-indigo-50/50 dark:bg-indigo-900/10 space-y-3">
-                                                <div className="flex items-center space-x-3">
-                                                    <div className="flex-1">
-                                                        <input
-                                                            type="text"
-                                                            value={editName}
-                                                            onChange={(e) => setEditName(e.target.value)}
-                                                            className="w-full px-3 py-2 border-2 border-indigo-300 dark:border-indigo-600 rounded-xl bg-white dark:bg-slate-900 text-sm focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
-                                                            autoFocus
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') handleSaveEdit(c.id);
-                                                                if (e.key === 'Escape') handleCancelEdit();
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center space-x-1">
-                                                        <button
-                                                            onClick={() => handleSaveEdit(c.id)}
-                                                            disabled={isSubmitting || !editName.trim()}
-                                                            className="p-2 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-xl transition-all disabled:opacity-50"
-                                                        >
-                                                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-5 h-5" />}
-                                                        </button>
-                                                        <button onClick={handleCancelEdit} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all">
-                                                            <X className="w-5 h-5" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <ColorPicker value={editColor} onChange={setEditColor} />
-                                            </div>
-                                        ) : (
-                                            <div className="group relative">
-                                                <SortableClassRow
-                                                    cls={c}
-                                                    staffCount={staffs.filter(s => s.classIds?.includes(c.id)).length}
-                                                    onDelete={() => handleDeleteClick(c)}
-                                                    onEdit={() => handleStartEdit(c)}
-                                                    onToggleAllocation={() => handleToggleClassAllocation(c)}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
+                                    <SortableClassRow
+                                        key={c.id}
+                                        cls={c}
+                                        staffCount={staffs.filter(s => s.classIds?.includes(c.id)).length}
+                                        onDelete={() => handleDeleteClick(c)}
+                                        onEdit={() => handleOpenEdit(c)}
+                                        onToggleAllocation={() => handleToggleClassAllocation(c)}
+                                    />
                                 ))}
                             </SortableContext>
 
                             <DragOverlay dropAnimation={{
                                 sideEffects: defaultDropAnimationSideEffects({
-                                    styles: {
-                                        active: {
-                                            opacity: '0.3',
-                                        },
-                                    },
+                                    styles: { active: { opacity: '0.3' } },
                                 }),
                             }}>
                                 {activeClass ? (
@@ -463,7 +392,80 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
                 </div>
             </div>
 
-            {/* Confirm Modal */}
+            {/* Edit Modal */}
+            {editingClass && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setEditingClass(null)} />
+                    <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm animate-in fade-in zoom-in-95">
+                        {/* Header */}
+                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                            <div
+                                className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-white flex-shrink-0"
+                                style={{ backgroundColor: editForm.color }}
+                            >
+                                {editForm.name.charAt(0) || editingClass.name.charAt(0)}
+                            </div>
+                            <h3 className="font-bold text-slate-800 dark:text-white">クラスを編集</h3>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-6 py-5 space-y-5">
+                            {/* クラス名 */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400">クラス名</label>
+                                <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white transition-all outline-none font-bold"
+                                    autoFocus
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(); }}
+                                />
+                            </div>
+
+                            {/* クラスカラー */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400">クラスカラー</label>
+                                <ColorPicker value={editForm.color} onChange={c => setEditForm({ ...editForm, color: c })} />
+                            </div>
+
+                            {/* 自動割り当て */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">自動シフト作成の対象にする</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={editForm.auto_allocate === 1}
+                                        onChange={e => setEditForm({ ...editForm, auto_allocate: e.target.checked ? 1 : 0 })}
+                                    />
+                                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 pb-6 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setEditingClass(null)}
+                                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={isSubmitting || !editForm.name.trim()}
+                                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                                保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirm Modal */}
             <ConfirmModal
                 isOpen={!!deleteConfirm}
                 title="クラスの削除"

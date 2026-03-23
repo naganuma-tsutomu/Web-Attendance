@@ -32,7 +32,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 .map((d: any) => ({
                     date: d.date,
                     startTime: d.startTime || null,
-                    endTime: d.endTime || null
+                    endTime: d.endTime || null,
+                    type: d.type || null
                 }));
 
             // unavailableDates should only contain full-day unavailabilities (startTime and endTime are null)
@@ -45,7 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 staffId,
                 yearMonth,
                 unavailableDates: staffDetails.length > 0 ? staffDates : safeJsonParse<string[]>(legacyRow?.unavailableDates, []),
-                details: staffDetails.length > 0 ? staffDetails : safeJsonParse<string[]>(legacyRow?.unavailableDates, []).map((d: string) => ({ date: d, startTime: null, endTime: null }))
+                details: staffDetails.length > 0 ? staffDetails : safeJsonParse<string[]>(legacyRow?.unavailableDates, []).map((d: string) => ({ date: d, startTime: null, endTime: null, type: null }))
             };
         });
 
@@ -62,8 +63,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (ymError) return createValidationError(ymError);
 
         // Ensure backward compatibility if only unavailableDates is sent
-        const details = pref.details || (pref.unavailableDates || []).map(date => ({ date, startTime: null, endTime: null }));
-        const unavailableDates = details.filter(d => !d.startTime && !d.endTime).map(d => d.date);
+        const details = pref.details || (pref.unavailableDates || []).map(date => ({ date, startTime: null, endTime: null, type: null }));
+        const unavailableDates = details.filter(d => !d.startTime && !d.endTime && !d.type).map(d => d.date);
 
         // Statements for batch execution
         const statements = [];
@@ -97,8 +98,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         details.forEach((d, idx) => {
             statements.push(
                 context.env.DB.prepare(
-                    "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?)"
-                ).bind(`prefd_${pref.staffId}_${d.date}_${idx}`, pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime)
+                    "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime, type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                ).bind(`prefd_${pref.staffId}_${d.date}_${idx}`, pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime, d.type || null)
             );
         });
 

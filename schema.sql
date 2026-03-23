@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS classes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     display_order INTEGER DEFAULT 0,
-    auto_allocate INTEGER DEFAULT 1 -- 1: ON, 0: OFF
+    auto_allocate INTEGER DEFAULT 1, -- 1: ON, 0: OFF
+    color TEXT DEFAULT '#818cf8'
 );
 
 
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS shift_preference_dates (
     date TEXT NOT NULL, -- "YYYY-MM-DD"
     startTime TEXT,     -- "HH:MM" or NULL (NULL means full day unavailable)
     endTime TEXT,       -- "HH:MM" or NULL
+    type TEXT,          -- "training" or NULL
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 

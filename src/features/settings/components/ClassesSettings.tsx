@@ -1,6 +1,27 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, Check, X, UserCheck } from 'lucide-react';
 import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
+
+const CLASS_COLORS = [
+    '#818cf8', '#60a5fa', '#34d399', '#fbbf24',
+    '#f87171', '#c084fc', '#fb923c', '#f472b6',
+    '#2dd4bf', '#94a3b8',
+];
+
+const ColorPicker = ({ value, onChange }: { value: string; onChange: (c: string) => void }) => (
+    <div className="flex flex-wrap gap-1.5">
+        {CLASS_COLORS.map(c => (
+            <button
+                key={c}
+                type="button"
+                onClick={() => onChange(c)}
+                className={`w-6 h-6 rounded-full transition-all ${value === c ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`}
+                style={{ backgroundColor: c }}
+                title={c}
+            />
+        ))}
+    </div>
+);
 import type { ShiftClass, Staff } from '../../../types';
 import {
     DndContext,
@@ -62,7 +83,10 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
 
     const content = (
         <div className={`flex items-center space-x-4 flex-1`}>
-            <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-lg flex items-center justify-center font-bold flex-shrink-0 shadow-sm relative">
+            <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center font-bold flex-shrink-0 shadow-sm relative text-white"
+                style={{ backgroundColor: cls.color || '#818cf8' }}
+            >
                 {cls.name.charAt(0)}
                 {staffCount > 0 && (
                     <div className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm">
@@ -143,9 +167,10 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
 };
 
 const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showMessage }: ClassesSettingsProps) => {
-    const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1 });
+    const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
+    const [editColor, setEditColor] = useState(CLASS_COLORS[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
@@ -168,8 +193,8 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
 
         setIsSubmitting(true);
         try {
-            await createClass(newClass.name, newClass.auto_allocate);
-            setNewClass({ name: '', auto_allocate: 1 });
+            await createClass(newClass.name, newClass.auto_allocate, newClass.color);
+            setNewClass({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
             showMessage(`クラス「${newClass.name}」を追加しました`);
             onUpdate();
         } catch (err) {
@@ -216,6 +241,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
     const handleStartEdit = (cls: ShiftClass) => {
         setEditingId(cls.id);
         setEditName(cls.name);
+        setEditColor(cls.color || CLASS_COLORS[0]);
     };
 
     const handleCancelEdit = () => {
@@ -228,7 +254,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
 
         setIsSubmitting(true);
         try {
-            await updateClass(id, { name: editName });
+            await updateClass(id, { name: editName, color: editColor });
             setEditingId(null);
             showMessage('クラス名を更新しました');
             onUpdate();
@@ -281,31 +307,37 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
                     クラスの新規作成
                 </h4>
                 <form onSubmit={handleAddClass} className="space-y-5">
-                    <div className="flex gap-4 items-end">
-                        <div className="space-y-1.5 flex-1">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">クラス名</label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="例: ひまわり組, 事務, キッチン..."
-                                value={newClass.name}
-                                onChange={e => setNewClass({ ...newClass, name: e.target.value })}
-                                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white transition-all outline-none"
-                            />
+                    <div className="space-y-3">
+                        <div className="flex gap-4 items-end">
+                            <div className="space-y-1.5 flex-1">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">クラス名</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="例: ひまわり組, 事務, キッチン..."
+                                    value={newClass.name}
+                                    onChange={e => setNewClass({ ...newClass, name: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white transition-all outline-none"
+                                />
+                            </div>
+                            <button
+                                disabled={isSubmitting || !newClass.name.trim()}
+                                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-400 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-md shadow-indigo-200 dark:shadow-none transition-all h-[44px] flex items-center justify-center space-x-2 min-w-[100px]"
+                            >
+                                {isSubmitting ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Plus className="w-4 h-4" />
+                                        <span>追加</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
-                        <button
-                            disabled={isSubmitting || !newClass.name.trim()}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-400 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-md shadow-indigo-200 dark:shadow-none transition-all h-[44px] flex items-center justify-center space-x-2 min-w-[100px]"
-                        >
-                            {isSubmitting ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <>
-                                    <Plus className="w-4 h-4" />
-                                    <span>追加</span>
-                                </>
-                            )}
-                        </button>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">クラスカラー</label>
+                            <ColorPicker value={newClass.color} onChange={c => setNewClass({ ...newClass, color: c })} />
+                        </div>
                     </div>
                     <div className="flex items-center space-x-3 pl-1">
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -362,32 +394,35 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
                                 {classes.map(c => (
                                     <div key={c.id}>
                                         {editingId === c.id ? (
-                                            <div className="px-6 py-4 bg-indigo-50/50 dark:bg-indigo-900/10 flex items-center space-x-4">
-                                                <div className="flex-1">
-                                                    <input
-                                                        type="text"
-                                                        value={editName}
-                                                        onChange={(e) => setEditName(e.target.value)}
-                                                        className="w-full px-3 py-2 border-2 border-indigo-300 dark:border-indigo-600 rounded-xl bg-white dark:bg-slate-900 text-sm focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
-                                                        autoFocus
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') handleSaveEdit(c.id);
-                                                            if (e.key === 'Escape') handleCancelEdit();
-                                                        }}
-                                                    />
+                                            <div className="px-6 py-4 bg-indigo-50/50 dark:bg-indigo-900/10 space-y-3">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="flex-1">
+                                                        <input
+                                                            type="text"
+                                                            value={editName}
+                                                            onChange={(e) => setEditName(e.target.value)}
+                                                            className="w-full px-3 py-2 border-2 border-indigo-300 dark:border-indigo-600 rounded-xl bg-white dark:bg-slate-900 text-sm focus:ring-4 focus:ring-indigo-500/10 outline-none font-bold"
+                                                            autoFocus
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleSaveEdit(c.id);
+                                                                if (e.key === 'Escape') handleCancelEdit();
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center space-x-1">
+                                                        <button
+                                                            onClick={() => handleSaveEdit(c.id)}
+                                                            disabled={isSubmitting || !editName.trim()}
+                                                            className="p-2 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-xl transition-all disabled:opacity-50"
+                                                        >
+                                                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-5 h-5" />}
+                                                        </button>
+                                                        <button onClick={handleCancelEdit} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all">
+                                                            <X className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center space-x-1">
-                                                    <button
-                                                        onClick={() => handleSaveEdit(c.id)}
-                                                        disabled={isSubmitting || !editName.trim()}
-                                                        className="p-2 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded-xl transition-all disabled:opacity-50"
-                                                    >
-                                                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-5 h-5" />}
-                                                    </button>
-                                                    <button onClick={handleCancelEdit} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all">
-                                                        <X className="w-5 h-5" />
-                                                    </button>
-                                                </div>
+                                                <ColorPicker value={editColor} onChange={setEditColor} />
                                             </div>
                                         ) : (
                                             <div className="group relative">

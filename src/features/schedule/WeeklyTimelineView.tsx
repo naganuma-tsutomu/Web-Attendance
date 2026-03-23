@@ -86,6 +86,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                     </div>
                 ))}
                 <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-slate-300 border border-slate-400 dark:bg-slate-600 dark:border-slate-500 rounded-sm" /><span>不足</span></div>
+                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-amber-400 border border-amber-500 rounded-sm" /><span>研修</span></div>
                 <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-red-400 border border-red-500 rounded-sm" /><span>希望休</span></div>
                 <div className="ml-auto italic">※クリックで詳細な編集が可能です</div>
             </div>

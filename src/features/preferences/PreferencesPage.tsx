@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw, X, Edit2, CheckCircle2, Clock, CalendarX } from 'lucide-react';
+import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw, X, Edit2, CheckCircle2, Clock, CalendarX, BookOpen } from 'lucide-react';
 import { getPreferencesByMonth, savePreference, getStaffList, syncHolidays } from '../../lib/api';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -13,6 +13,7 @@ interface DayStatus {
     status: 'available' | 'unavailable' | 'fixed';
     startTime?: string | null;
     endTime?: string | null;
+    type?: string | null;
 }
 
 const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -43,7 +44,7 @@ const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
     const [preferences, setPreferences] = useState<DayStatus[]>([]);
-    const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, { date: string, startTime: string | null, endTime: string | null }[]>>({}); // staffId -> details
+    const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, { date: string, startTime: string | null, endTime: string | null, type?: string | null }[]>>({}); // staffId -> details
     const [staffLoading, setStaffLoading] = useState(true);
     const [prefLoading, setPrefLoading] = useState(false);
     const [prefError, setPrefError] = useState<string | null>(null);
@@ -81,7 +82,7 @@ const PreferencesPage = () => {
         setPrefError(null);
         try {
             const allPrefs = await getPreferencesByMonth(yearMonth);
-            const map: Record<string, { date: string, startTime: string | null, endTime: string | null }[]> = {};
+            const map: Record<string, { date: string, startTime: string | null, endTime: string | null, type?: string | null }[]> = {};
             allPrefs.forEach(p => {
                 map[p.staffId] = p.details || [];
             });
@@ -142,7 +143,8 @@ const PreferencesPage = () => {
                     ...day,
                     status: pref ? 'unavailable' : 'available',
                     startTime: pref?.startTime,
-                    endTime: pref?.endTime
+                    endTime: pref?.endTime,
+                    type: pref?.type
                 };
             }));
         } else {
@@ -164,21 +166,29 @@ const PreferencesPage = () => {
         }
     };
 
-    const applyDatePreference = (type: 'full' | 'partial' | 'clear') => {
+    const applyDatePreference = (type: 'full' | 'partial' | 'clear' | 'training') => {
         if (editingDateIndex === null) return;
         const newPrefs = [...preferences];
         if (type === 'clear') {
             newPrefs[editingDateIndex].status = 'available';
             newPrefs[editingDateIndex].startTime = null;
             newPrefs[editingDateIndex].endTime = null;
+            newPrefs[editingDateIndex].type = null;
         } else if (type === 'full') {
             newPrefs[editingDateIndex].status = 'unavailable';
             newPrefs[editingDateIndex].startTime = null;
             newPrefs[editingDateIndex].endTime = null;
+            newPrefs[editingDateIndex].type = null;
+        } else if (type === 'training') {
+            newPrefs[editingDateIndex].status = 'unavailable';
+            newPrefs[editingDateIndex].startTime = null;
+            newPrefs[editingDateIndex].endTime = null;
+            newPrefs[editingDateIndex].type = 'training';
         } else {
             newPrefs[editingDateIndex].status = 'unavailable';
             newPrefs[editingDateIndex].startTime = editStartTime;
             newPrefs[editingDateIndex].endTime = editEndTime;
+            newPrefs[editingDateIndex].type = null;
         }
         setPreferences(newPrefs);
         setEditingDateIndex(null);
@@ -191,8 +201,8 @@ const PreferencesPage = () => {
         try {
             const details = preferences
                 .filter(p => p.status === 'unavailable')
-                .map(p => ({ date: p.dateStr, startTime: p.startTime || null, endTime: p.endTime || null }));
-            const unavailableDates = details.filter(d => !d.startTime).map(d => d.date);
+                .map(p => ({ date: p.dateStr, startTime: p.startTime || null, endTime: p.endTime || null, type: p.type || null }));
+            const unavailableDates = details.filter(d => !d.startTime && !d.type).map(d => d.date);
 
             await savePreference({ staffId: selectedStaffId, yearMonth, unavailableDates, details });
 
@@ -371,6 +381,9 @@ const PreferencesPage = () => {
                                     <span className="flex items-center gap-1.5">
                                         <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />不可
                                     </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />研修
+                                    </span>
                                 </div>
                             </div>
 
@@ -441,6 +454,7 @@ const PreferencesPage = () => {
                                             .map((item) => {
                                                 const realIndex = preferences.indexOf(item);
                                                 const isSaturday = item.dayOfWeek === '土';
+                                                const isTraining = item.status === 'unavailable' && item.type === 'training';
                                                 return (
                                                     <button
                                                         key={item.dateStr}
@@ -449,23 +463,27 @@ const PreferencesPage = () => {
                                                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-150 select-none
                                                             ${item.status === 'fixed'
                                                                 ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70 cursor-not-allowed'
-                                                                : item.status === 'unavailable'
-                                                                    ? 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800 shadow-sm'
-                                                                    : isSaturday
-                                                                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700'
-                                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800'
+                                                                : isTraining
+                                                                    ? 'bg-amber-50 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800 shadow-sm'
+                                                                    : item.status === 'unavailable'
+                                                                        ? 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800 shadow-sm'
+                                                                        : isSaturday
+                                                                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700'
+                                                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800'
                                                             }`}
                                                     >
-                                                        <span className={`text-base font-bold ${item.status === 'fixed' ? 'text-slate-400 dark:text-slate-500' : item.status === 'unavailable' ? 'text-red-700 dark:text-red-400' : isSaturday ? 'text-blue-800 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                        <span className={`text-base font-bold ${item.status === 'fixed' ? 'text-slate-400 dark:text-slate-500' : isTraining ? 'text-amber-700 dark:text-amber-400' : item.status === 'unavailable' ? 'text-red-700 dark:text-red-400' : isSaturday ? 'text-blue-800 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                             {parseInt(item.dateStr.split('-')[2])}
                                                         </span>
                                                         <span className={`text-[10px] font-bold mt-1 px-1 py-0.5 rounded-md ${item.status === 'fixed'
                                                             ? 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                                                            : item.status === 'unavailable'
-                                                                ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
-                                                                : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                                                            : isTraining
+                                                                ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400'
+                                                                : item.status === 'unavailable'
+                                                                    ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
+                                                                    : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
                                                             }`}>
-                                                            {item.status === 'fixed' ? '固定休' : item.status === 'unavailable' ? (item.startTime ? `${item.startTime}~不可` : '不可') : '○'}
+                                                            {item.status === 'fixed' ? '固定休' : isTraining ? '研修' : item.status === 'unavailable' ? (item.startTime ? `${item.startTime}~不可` : '不可') : '○'}
                                                         </span>
                                                     </button>
                                                 );
@@ -491,7 +509,8 @@ const PreferencesPage = () => {
                                         {/* 現在の状態表示 (編集前) */}
                                         {!isEditingModalMode ? (() => {
                                             const status = preferences[editingDateIndex].status;
-                                            const isPartial = status === 'unavailable' && preferences[editingDateIndex].startTime;
+                                            const isTraining = preferences[editingDateIndex].type === 'training';
+                                            const isPartial = status === 'unavailable' && preferences[editingDateIndex].startTime && !isTraining;
                                             
                                             return (
                                                 <div className="px-6 py-10 flex flex-col items-center">
@@ -507,7 +526,17 @@ const PreferencesPage = () => {
                                                         </div>
                                                     )}
 
-                                                    {status === 'unavailable' && !isPartial && (
+                                                    {isTraining && (
+                                                        <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
+                                                            <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_2rem_-0.5rem_#fbbf24] dark:shadow-none ring-4 ring-amber-50 dark:ring-amber-900/10">
+                                                                <BookOpen className="w-10 h-10" />
+                                                            </div>
+                                                            <div className="text-2xl font-black text-slate-800 dark:text-white tracking-wide">研修</div>
+                                                            <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mt-2">1日研修のためシフトに入りません</p>
+                                                        </div>
+                                                    )}
+
+                                                    {status === 'unavailable' && !isPartial && !isTraining && (
                                                         <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
                                                             <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_2rem_-0.5rem_#ef4444] dark:shadow-none ring-4 ring-red-50 dark:ring-red-900/10">
                                                                 <CalendarX className="w-10 h-10" />
@@ -551,6 +580,14 @@ const PreferencesPage = () => {
                                                 >
                                                     <span className="text-lg mb-1">終日不可</span>
                                                     <span className="text-xs font-medium opacity-80">1日中シフトに入れない</span>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => applyDatePreference('training')}
+                                                    className="w-full p-4 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 font-bold rounded-2xl transition-colors border border-amber-200 dark:border-amber-800/50 flex flex-col items-center justify-center"
+                                                >
+                                                    <span className="text-lg mb-1">研修</span>
+                                                    <span className="text-xs font-medium opacity-80">1日研修のためシフトに入れない</span>
                                                 </button>
 
                                                 <div className="p-4 bg-indigo-50 hover:bg-indigo-100/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl transition-colors">
@@ -601,7 +638,11 @@ const PreferencesPage = () => {
                             <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
                                     不可: <span className="font-semibold text-red-600 dark:text-red-400">
-                                        {preferences.filter(p => p.status === 'unavailable').length} 日
+                                        {preferences.filter(p => p.status === 'unavailable' && p.type !== 'training').length} 日
+                                    </span>
+                                    <span className="mx-2">/</span>
+                                    研修: <span className="font-semibold text-amber-600 dark:text-amber-400">
+                                        {preferences.filter(p => p.status === 'unavailable' && p.type === 'training').length} 日
                                     </span>
                                 </p>
                                 <button

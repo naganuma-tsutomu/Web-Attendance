@@ -6,6 +6,7 @@ export interface ShiftClass {
     name: string;
     display_order: number;
     auto_allocate: number; // 1: ON, 0: OFF
+    color?: string;
 }
 
 export interface AvailableDayConfig {
@@ -32,6 +33,7 @@ export interface ShiftPreferenceDetail {
     date: string;
     startTime: string | null;
     endTime: string | null;
+    type?: string | null;
 }
 
 export interface ShiftPreference {

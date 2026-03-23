@@ -70,8 +70,11 @@ const StaffPreferencePage = () => {
     };
 
     const handleDateClick = (dateStr: string) => {
-        setSelectedDateAction(dateStr);
         const existing = preferences.find(p => p.date === dateStr);
+        if (existing && existing.type === 'training') {
+            return; // 研修の日は編集不可
+        }
+        setSelectedDateAction(dateStr);
         if (existing && existing.startTime && existing.endTime) {
             setSelectedStartTime(existing.startTime);
             setSelectedEndTime(existing.endTime);
@@ -235,7 +238,8 @@ const StaffPreferencePage = () => {
                                         const dateStr = format(day, 'yyyy-MM-dd');
                                         const pref = preferences.find(p => p.date === dateStr);
                                         const isSelected = !!pref;
-                                        const isPartial = pref && pref.startTime && pref.endTime;
+                                        const isTraining = pref && pref.type === 'training';
+                                        const isPartial = pref && pref.startTime && pref.endTime && !isTraining;
                                         const hasShift = myShifts.some(s => s.date === dateStr);
                                         
                                         return (
@@ -243,9 +247,11 @@ const StaffPreferencePage = () => {
                                                 key={dateStr}
                                                 onClick={() => handleDateClick(dateStr)}
                                                 className={`aspect-square rounded-2xl flex flex-col items-center justify-center p-1 transition-all relative border-2 ${
-                                                    isSelected 
-                                                        ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400' 
-                                                        : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                    isTraining
+                                                        ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400'
+                                                        : isSelected 
+                                                            ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400' 
+                                                            : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                                                 }`}
                                             >
                                                 <span className="text-sm font-black">{format(day, 'd')}</span>
@@ -254,7 +260,7 @@ const StaffPreferencePage = () => {
                                                 )}
                                                 {isSelected && (
                                                     <span className="text-[8px] font-bold mt-0.5 uppercase">
-                                                        {isPartial ? '部分休' : '休'}
+                                                        {isTraining ? '研修' : isPartial ? '部分休' : '休'}
                                                     </span>
                                                 )}
                                             </button>

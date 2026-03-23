@@ -1,0 +1,1 @@
+ALTER TABLE classes ADD COLUMN color TEXT DEFAULT '#818cf8';

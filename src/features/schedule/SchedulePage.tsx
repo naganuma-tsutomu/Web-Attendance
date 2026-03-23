@@ -215,13 +215,13 @@ const SchedulePage = () => {
     const summaryEvents = useMemo(() => {
         if (view !== Views.MONTH) return events;
 
-        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number; fixedOff: number }> = {};
+        const dailySummary: Record<string, { classes: Record<string, number>; insufficient: number; requestedOff: number; training: number; fixedOff: number }> = {};
 
         // シフトの集計
         events.forEach(event => {
             const dateStr = format(event.start, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, fixedOff: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, training: 0, fixedOff: 0 };
             }
 
             if (event.isError) {
@@ -240,7 +240,7 @@ const SchedulePage = () => {
         daysInMonth.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             if (!dailySummary[dateStr]) {
-                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, fixedOff: 0 };
+                dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, training: 0, fixedOff: 0 };
             }
 
             staffList.forEach(staff => {
@@ -249,12 +249,21 @@ const SchedulePage = () => {
 
                 // 1. 休日管理（希望休）のチェック - 終日・時間を問わず存在すればカウント
                 const pref = preferences.find(p => p.staffId === staff.id);
-                const hasPreference = pref && (
-                    pref.unavailableDates.includes(dateStr) || 
-                    (pref.details && pref.details.some(d => d.date === dateStr))
-                );
+                let isTraining = false;
+                let isReqOff = false;
+                
+                if (pref) {
+                    const detailMatch = pref.details && pref.details.find(d => d.date === dateStr);
+                    if (detailMatch && detailMatch.type === 'training') {
+                        isTraining = true;
+                    } else if (pref.unavailableDates.includes(dateStr) || detailMatch) {
+                        isReqOff = true;
+                    }
+                }
 
-                if (hasPreference) {
+                if (isTraining) {
+                    dailySummary[dateStr].training++;
+                } else if (isReqOff) {
                     dailySummary[dateStr].requestedOff++;
                 } else {
                     // 2. スタッフ管理の固定休日チェック
@@ -281,7 +290,8 @@ const SchedulePage = () => {
                         end: baseDate,
                         isSummary: true,
                         type: 'class',
-                        classNameValue: cls.name
+                        classNameValue: cls.name,
+                        classColor: cls.color
                     });
                 }
             });
@@ -296,6 +306,18 @@ const SchedulePage = () => {
                     isSummary: true,
                     isError: true,
                     type: 'error'
+                });
+            }
+
+            // 研修人数
+            if (data.training > 0) {
+                summaries.push({
+                    id: `summary-training-${dateStr}`,
+                    title: `研修: ${data.training}名`,
+                    start: baseDate,
+                    end: baseDate,
+                    isSummary: true,
+                    type: 'training'
                 });
             }
 
@@ -461,15 +483,21 @@ const SchedulePage = () => {
             style.backgroundColor = '#94a3b8'; // Slate 400 (was Red)
         } else if (event.type === 'requested-off') {
             style.backgroundColor = '#ef4444'; // Red 500 (was Slate)
+        } else if (event.type === 'training') {
+            style.backgroundColor = '#f59e0b'; // Amber 500
         } else if (event.type === 'fixed-off') {
             style.backgroundColor = '#cbd5e1'; // Slate 300
             style.color = '#475569'; // Slate 600 for better contrast on light bg
         } else if (event.type === 'class') {
-            const clsName = event.classNameValue;
-            if (clsName === '虹組') style.backgroundColor = '#f59e0b'; // Amber 500
-            else if (clsName === 'スマイル組') style.backgroundColor = '#3b82f6'; // Blue 500
-            else if (clsName === '特殊' || clsName === 'ヘルプ') style.backgroundColor = '#10b981'; // Emerald 500
-            else style.backgroundColor = '#6366f1'; // Indigo 500
+            if (event.classColor) {
+                style.backgroundColor = event.classColor;
+            } else {
+                const clsName = event.classNameValue;
+                if (clsName === '虹組') style.backgroundColor = '#f59e0b';
+                else if (clsName === 'スマイル組') style.backgroundColor = '#3b82f6';
+                else if (clsName === '特殊' || clsName === 'ヘルプ') style.backgroundColor = '#10b981';
+                else style.backgroundColor = '#6366f1';
+            }
         } else if (event.isEarly) {
             style.backgroundColor = '#3b82f6';
         } else {

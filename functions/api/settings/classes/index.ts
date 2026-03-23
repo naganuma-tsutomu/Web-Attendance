@@ -17,7 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/classes — クラス追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string, auto_allocate?: number };
+        const body = await context.request.json() as { name: string, auto_allocate?: number, color?: string };
 
         // Validate name
         const nameError = validateName(body.name, 'クラス名', 50);
@@ -25,10 +25,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const id = `class_${crypto.randomUUID()}`;
         const autoAllocate = body.auto_allocate !== undefined ? body.auto_allocate : 1;
+        const color = body.color || '#818cf8';
 
         await context.env.DB.prepare(
-            'INSERT INTO classes (id, name, display_order, auto_allocate) VALUES (?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM classes), ?)'
-        ).bind(id, body.name.trim(), autoAllocate).run();
+            'INSERT INTO classes (id, name, display_order, auto_allocate, color) VALUES (?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM classes), ?, ?)'
+        ).bind(id, body.name.trim(), autoAllocate, color).run();
 
         return Response.json({ id });
     } catch (e) {

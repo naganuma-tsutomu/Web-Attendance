@@ -133,7 +133,8 @@ const StaffPage = () => {
             availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
             defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',
             defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || '',
-            classIds: staff.classIds || []
+            classIds: staff.classIds || [],
+            accessKey: staff.accessKey || ''
         });
         setIsModalOpen(true);
     };

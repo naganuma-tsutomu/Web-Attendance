@@ -193,9 +193,9 @@ const ShiftRequirementsPage = () => {
     };
 
     // フィルタリングされた要件を取得
-    const filteredRequirements = selectedClass 
+    const filteredRequirements = selectedClass
         ? requirements.filter(r => r.classId === selectedClass)
-        : requirements;
+        : [];
 
     if (loading) {
         return (
@@ -277,7 +277,7 @@ const ShiftRequirementsPage = () => {
                 </div>
 
                 {/* Time Slots List */}
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {selectedClass && <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
                             時間帯設定
@@ -414,10 +414,10 @@ const ShiftRequirementsPage = () => {
                             <span>時間帯を追加</span>
                         </button>
                     </div>
-                </div>
+                </div>}
 
                 {/* Save Button */}
-                <div className="flex justify-end pt-4">
+                {selectedClass && <div className="flex justify-end pt-4">
                     <button
                         onClick={handleSave}
                         disabled={saving}
@@ -432,7 +432,7 @@ const ShiftRequirementsPage = () => {
                             <span>保存</span>
                         )}
                     </button>
-                </div>
+                </div>}
             </div>
         </div>
     );

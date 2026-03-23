@@ -1,5 +1,5 @@
 import type { Staff } from '../../../src/types';
-import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
+import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
 
 export interface Env {
     DB: D1Database;
@@ -27,7 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 .filter((d: any) => d.staffId === staffId)
                 .map((d: any) => ({
                     day: d.dayOfWeek,
-                    weeks: d.weeks ? JSON.parse(d.weeks) : undefined
+                    weeks: safeJsonParse(d.weeks, undefined)
                 }));
 
             const classIds = allStaffClasses
@@ -36,7 +36,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
             return {
                 ...row,
-                availableDays: normalizedDays.length > 0 ? normalizedDays : (row.availableDays ? JSON.parse(row.availableDays) : undefined),
+                availableDays: normalizedDays.length > 0 ? normalizedDays : safeJsonParse(row.availableDays, undefined),
                 isHelpStaff: row.isHelpStaff === 1,
                 classIds: classIds,
                 accessKey: row.access_key,

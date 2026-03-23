@@ -91,9 +91,11 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
 
+        const [y, m] = yearMonth!.split('-').map(Number);
+        const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
         await context.env.DB.prepare(
-            "DELETE FROM shifts WHERE date LIKE ?"
-        ).bind(`${yearMonth}%`).run();
+            "DELETE FROM shifts WHERE date >= ? AND date < ?"
+        ).bind(`${yearMonth}-01`, nextMonth).run();
 
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {

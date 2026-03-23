@@ -1,5 +1,5 @@
 import type { ShiftPreference } from '../../../src/types';
-import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
+import { createValidationError, handleServerError, validateYearMonth, safeJsonParse } from '../../utils/validation';
 
 export interface Env {
     DB: D1Database;
@@ -44,8 +44,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 id: legacyRow?.id || `pref_${staffId}_${yearMonth}`,
                 staffId,
                 yearMonth,
-                unavailableDates: staffDetails.length > 0 ? staffDates : (legacyRow ? JSON.parse(legacyRow.unavailableDates) : []),
-                details: staffDetails.length > 0 ? staffDetails : (legacyRow ? JSON.parse(legacyRow.unavailableDates).map((d: string) => ({ date: d, startTime: null, endTime: null })) : [])
+                unavailableDates: staffDetails.length > 0 ? staffDates : safeJsonParse<string[]>(legacyRow?.unavailableDates, []),
+                details: staffDetails.length > 0 ? staffDetails : safeJsonParse<string[]>(legacyRow?.unavailableDates, []).map((d: string) => ({ date: d, startTime: null, endTime: null }))
             };
         });
 

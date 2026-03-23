@@ -13,8 +13,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const params: any[] = [];
         
         if (year) {
-            query += ' WHERE date LIKE ?';
-            params.push(`${year}-%`);
+            query += ' WHERE date >= ? AND date < ?';
+            params.push(`${year}-01-01`, `${Number(year) + 1}-01-01`);
         }
         
         query += ' ORDER BY date';

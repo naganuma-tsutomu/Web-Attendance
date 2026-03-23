@@ -152,6 +152,12 @@ export function validateMinStaffCount(count: number): string | null {
     return null;
 }
 
+// Safely parse JSON string, returning fallback on error
+export function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+    if (!value) return fallback;
+    try { return JSON.parse(value); } catch { return fallback; }
+}
+
 // Validate maxStaffCount (must be >= minStaffCount if provided)
 export function validateMaxStaffCount(count: number | null | undefined, minCount: number): string | null {
     if (count === null || count === undefined) {

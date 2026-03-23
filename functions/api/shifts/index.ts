@@ -11,12 +11,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
 
+        const [y, m] = yearMonth!.split('-').map(Number);
         const startStr = `${yearMonth}-01`;
-        const endStr = `${yearMonth}-31`;
+        const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
         const { results } = await context.env.DB.prepare(
-            "SELECT * FROM shifts WHERE date >= ? AND date <= ?"
-        ).bind(startStr, endStr).all();
+            "SELECT * FROM shifts WHERE date >= ? AND date < ?"
+        ).bind(startStr, nextMonth).all();
 
         const shifts = results.map((row: any) => ({
             ...row,

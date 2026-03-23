@@ -61,7 +61,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
-                    ).bind(`${id}_available_${Date.now()}_${idx}`, id, day, weeks)
+                    ).bind(`${id}_available_${idx}`, id, day, weeks)
                 );
             });
         }

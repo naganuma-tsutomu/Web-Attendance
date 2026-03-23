@@ -69,18 +69,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         const id = staffData.id || `staff_${Date.now()}`;
 
-        const { maxOrder } = await context.env.DB.prepare(
-            "SELECT MAX(display_order) as maxOrder FROM staffs"
-        ).first() as { maxOrder: number | null };
-
-        const displayOrder = (maxOrder || 0) + 1;
-
         const accessKey = staffData.accessKey || Math.floor(1000 + Math.random() * 9000).toString();
 
         const statements = [
             context.env.DB.prepare(
                 `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
             ).bind(
                 id,
                 staffData.name!.trim(),
@@ -91,7 +85,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 staffData.isHelpStaff ? 1 : 0,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
-                displayOrder,
                 accessKey
             )
         ];

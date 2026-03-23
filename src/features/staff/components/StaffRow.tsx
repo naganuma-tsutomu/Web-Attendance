@@ -36,7 +36,7 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
         <tr
             ref={setNodeRef}
             style={style}
-            className={`${isOverlay ? 'bg-white dark:bg-slate-800 shadow-2xl opacity-90 ring-2 ring-indigo-500 rounded-xl' : 'hover:bg-slate-50/50 transition-colors'} ${isDragging && !isOverlay ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
+            className={`${isOverlay ? 'bg-white dark:bg-slate-800 opacity-90' : 'hover:bg-slate-50/50 transition-colors'} ${isDragging && !isOverlay ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
         >
             <td className="pl-4 pr-2 py-4 w-10">
                 {!isOverlay && (

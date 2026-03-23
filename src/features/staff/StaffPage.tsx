@@ -352,8 +352,8 @@ const StaffPage = () => {
                             }),
                         }}>
                             {activeStaff ? (
-                                <div className="p-0 border-none shadow-none">
-                                    <table className="w-full">
+                                <div className="rounded-xl overflow-hidden shadow-2xl ring-2 ring-indigo-500 bg-white dark:bg-slate-800 opacity-90">
+                                    <table className="w-full border-collapse">
                                         <tbody>
                                             <StaffRow
                                                 staff={activeStaff}

@@ -9,7 +9,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             'SELECT * FROM shift_time_patterns ORDER BY display_order ASC, startTime ASC'
         ).all();
 
-        // 各パターンに紐付く役職IDも一緒に返す
+        // 各パターンに紐付くスタッフ区分IDも一緒に返す
         const { results: rp } = await context.env.DB.prepare(
             'SELECT patternId, roleId FROM role_patterns'
         ).all();
@@ -67,7 +67,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             body.sun ?? 1, body.mon ?? 1, body.tue ?? 1, body.wed ?? 1, body.thu ?? 1, body.fri ?? 1, body.sat ?? 1, body.holiday ?? 1
         ).run();
 
-        // 役職の紐付け
+        // スタッフ区分の紐付け
         if (body.roleIds && body.roleIds.length > 0) {
             const statements = body.roleIds.map(roleId =>
                 context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')

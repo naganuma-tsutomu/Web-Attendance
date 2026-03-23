@@ -70,7 +70,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             ).bind(...values).run();
         }
 
-        // 役職の紐付け同期
+        // スタッフ区分の紐付け同期
         if ((body as any).roleIds !== undefined) {
             const roleIds = (body as any).roleIds as string[];
             // 一旦削除

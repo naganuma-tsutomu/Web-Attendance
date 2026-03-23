@@ -916,7 +916,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                             </div>
                                                                             {availableStaff.length === 0 ? (
                                                                                 <div className="px-3 py-4 text-[11px] text-slate-400 text-center italic">
-                                                                                    {currentStaff ? '同じ役職の待機スタッフはいません' : '待機スタッフはいません'}
+                                                                                    {currentStaff ? '同じスタッフ区分の待機スタッフはいません' : '待機スタッフはいません'}
                                                                                 </div>
                                                                             ) : (
                                                                                 availableStaff.map(({ staff, reason, isFullDayPref, isPartialPref, isTraining, timeStr }) => {

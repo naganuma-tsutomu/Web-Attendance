@@ -167,7 +167,7 @@ export const updateTimePatternOrder = async (orders: { id: string, order: number
 };
 
 // ==========================================
-// Roles API (動的役職管理)
+// Roles API (動的スタッフ区分管理)
 // ==========================================
 
 export const getRoles = async (): Promise<DynamicRole[]> => {

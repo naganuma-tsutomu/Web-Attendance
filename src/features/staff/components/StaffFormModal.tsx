@@ -73,13 +73,13 @@ const StaffFormModal = ({
                             />
                         </div>
                         <div className="space-y-1.5 pl-1">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">役職マスタから選ぶ</label>
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">スタッフ区分マスタから選ぶ</label>
                             <select
                                 value={formData.role}
                                 onChange={e => handleRoleChange(e.target.value)}
                                 className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white appearance-none"
                             >
-                                {roles.length === 0 && <option value="">役職を登録してください</option>}
+                                {roles.length === 0 && <option value="">スタッフ区分を登録してください</option>}
                                 {roles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)}
                             </select>
                         </div>

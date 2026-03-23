@@ -57,7 +57,7 @@ const LandingPage = () => {
                         <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight lowercase">Admin</h2>
                     </div>
                     <p className="text-slate-500 dark:text-slate-400 font-medium mb-8 leading-relaxed">
-                        シフトの作成、スタッフの登録、役職やクラスの設定など、システム全般の管理を行います。
+                        シフトの作成、スタッフの登録、スタッフ区分やクラスの設定など、システム全般の管理を行います。
                     </p>
                     <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-widest text-sm">
                         <span>Management Portal</span>

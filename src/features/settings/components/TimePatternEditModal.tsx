@@ -125,11 +125,11 @@ const TimePatternEditModal = ({
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
                                     <UserCheck className="w-3.5 h-3.5 mr-2" />
-                                    連動する役職
+                                    連動するスタッフ区分
                                 </label>
                                 <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 rounded-2xl min-h-[56px]">
                                     {roles.length === 0 ? (
-                                        <span className="text-xs text-slate-400 italic">役職がありません</span>
+                                        <span className="text-xs text-slate-400 italic">スタッフ区分がありません</span>
                                     ) : roles.map(r => (
                                         <button
                                             key={r.id}

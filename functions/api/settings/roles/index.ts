@@ -2,14 +2,14 @@ export interface Env { DB: D1Database; }
 
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
 
-// GET /api/settings/roles — 役職+紐付けパターン一覧
+// GET /api/settings/roles — スタッフ区分+紐付けパターン一覧
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const { results: roles } = await context.env.DB.prepare(
             'SELECT * FROM roles ORDER BY display_order ASC, name ASC'
         ).all();
 
-        // 各役職に紐付くパターンも一緒に返す
+        // 各スタッフ区分に紐付くパターンも一緒に返す
         const { results: rp } = await context.env.DB.prepare(
             `SELECT rp.roleId, stp.*
              FROM role_patterns rp
@@ -17,7 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
              ORDER BY stp.display_order ASC`
         ).all();
 
-        // 共通パターン（どの役職にも紐付いていないパターン）を取得
+        // 共通パターン（どのスタッフ区分にも紐付いていないパターン）を取得
         const { results: commonPatterns } = await context.env.DB.prepare(
             `SELECT * FROM shift_time_patterns
              WHERE id NOT IN (SELECT patternId FROM role_patterns)
@@ -39,13 +39,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 };
 
-// POST /api/settings/roles — 役職追加
+// POST /api/settings/roles — スタッフ区分追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const body = await context.request.json() as { name: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
 
         // Validate name
-        const nameError = validateName(body.name, '役職名', 50);
+        const nameError = validateName(body.name, 'スタッフ区分名', 50);
         if (nameError) return createValidationError(nameError);
 
         // Validate targetHours if provided
@@ -54,7 +54,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const id = `stp_${crypto.randomUUID()}`;
 
-        // 1. 役職の追加 (display_order は既存の最大値 + 1)
+        // 1. スタッフ区分の追加 (display_order は既存の最大値 + 1)
         const { maxOrder } = await context.env.DB.prepare('SELECT MAX(display_order) as maxOrder FROM roles').first<{ maxOrder: number }>();
         const nextOrder = (maxOrder || 0) + 1;
 

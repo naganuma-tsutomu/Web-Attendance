@@ -69,7 +69,7 @@ const RoleEditModal = ({
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center">
                         <span className="w-1.5 h-6 bg-indigo-500 rounded-full mr-3"></span>
-                        役職の編集
+                        スタッフ区分の編集
                     </h3>
                     <button onClick={onClose} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
                         <X className="w-5 h-5" />
@@ -82,7 +82,7 @@ const RoleEditModal = ({
                             <div className="grid grid-cols-4 gap-4">
                                 <div className="col-span-3 space-y-2">
                                     <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
-                                        役職名 <span className="text-rose-500">*</span>
+                                        スタッフ区分名 <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"

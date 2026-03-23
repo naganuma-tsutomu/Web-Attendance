@@ -97,7 +97,7 @@ export function validateWeeklyHoursTarget(hours: number | null | undefined): str
 // Validate role field (must not be empty)
 export function validateRole(role: string): string | null {
     if (!role || role.trim().length === 0) {
-        return '役職を入力してください';
+        return 'スタッフ区分を入力してください';
     }
     return null;
 }

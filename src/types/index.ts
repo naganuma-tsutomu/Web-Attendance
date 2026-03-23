@@ -1,4 +1,4 @@
-export type Role = string; // 動的役職 (DBから取得)
+export type Role = string; // 動的スタッフ区分 (DBから取得)
 export type ClassType = string; // クラスID (DBから取得)
 
 export interface ShiftClass {
@@ -17,7 +17,7 @@ export interface AvailableDayConfig {
 export interface Staff {
     id: string;
     name: string;
-    role: string; // 役職名 (動的)
+    role: string; // スタッフ区分名 (動的)
     hoursTarget: number | null;
     weeklyHoursTarget?: number | null; // 週間目標時間
     isHelpStaff?: boolean;
@@ -55,7 +55,7 @@ export interface Shift {
     isError?: boolean;
 }
 
-// 勤務時間パターン (役職と無関係な時間定義)
+// 勤務時間パターン (スタッフ区分と無関係な時間定義)
 export interface ShiftTimePattern {
     id: string;
     name: string;     // 例: "早番", "遅番"
@@ -73,7 +73,7 @@ export interface ShiftTimePattern {
     holiday: number;
 }
 
-// 役職 (DB管理・動的)
+// スタッフ区分 (DB管理・動的)
 export interface DynamicRole {
     id: string;
     name: string;

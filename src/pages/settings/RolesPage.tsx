@@ -42,9 +42,9 @@ const RolesPage = () => {
                 <div className="flex items-center space-x-3 mb-6">
                     <Users className="w-8 h-8 text-indigo-500" />
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">役職管理</h2>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">スタッフ区分管理</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            スタッフに割り当てる役職と利用可能な勤務パターンを管理します。
+                            スタッフに割り当てるスタッフ区分と利用可能な勤務パターンを管理します。
                         </p>
                     </div>
                 </div>

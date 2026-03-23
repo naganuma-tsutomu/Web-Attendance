@@ -12,7 +12,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         ).bind(id).first() as { count: number };
 
         if (count > 0) {
-            return createValidationError(`この役職は${count}名のスタッフに使用されているため削除できません`);
+            return createValidationError(`このスタッフ区分は${count}名のスタッフに使用されているため削除できません`);
         }
 
         await context.env.DB.prepare('DELETE FROM roles WHERE id = ?').bind(id).run();
@@ -31,7 +31,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         // Validate name if provided
         if (body.name !== undefined) {
-            const nameError = validateName(body.name, '役職名', 50);
+            const nameError = validateName(body.name, 'スタッフ区分名', 50);
             if (nameError) return createValidationError(nameError);
         }
         
@@ -41,7 +41,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             if (hoursError) return createValidationError(hoursError);
         }
 
-        // 役職情報の更新
+        // スタッフ区分情報の更新
         if (body.name !== undefined || body.targetHours !== undefined || body.weeklyHoursTarget !== undefined) {
             const updates: string[] = [];
             const values: any[] = [];

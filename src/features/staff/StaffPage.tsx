@@ -219,7 +219,7 @@ const StaffPage = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">スタッフ管理</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報と役職の割り当てを管理します</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
                 </div>
                 <button
                     onClick={handleOpenAddModal}
@@ -302,7 +302,7 @@ const StaffPage = () => {
                                     <tr>
                                         <th className="w-12 px-4 py-4"></th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">役職</th>
+                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">スタッフ区分</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">アクセスキー</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">所属クラス</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>

@@ -80,7 +80,7 @@ const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: 
                 </div>
             </div>
 
-            {/* 中央：役職情報と設定 */}
+            {/* 中央：スタッフ区分情報と設定 */}
             <div className="flex-1 p-5 flex flex-col md:flex-row gap-6">
                 <div className="flex-1 space-y-4">
                     <div className="flex items-center justify-between">
@@ -208,7 +208,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
         try {
             await createRole(newRole.name, newRole.hoursTarget, newRole.patternIds, newRole.weeklyHoursTarget);
             setNewRole({ name: '', hoursTarget: null, weeklyHoursTarget: null, patternIds: [] });
-            showMessage('役職を追加しました');
+            showMessage('スタッフ区分を追加しました');
             onUpdate();
         } catch (err) {
             console.error(err);
@@ -258,7 +258,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
             // Update patterns
             await updateRolePatterns(editingId, editFormData.patternIds);
 
-            showMessage('役職を更新しました');
+            showMessage('スタッフ区分を更新しました');
             setIsEditModalOpen(false);
             onUpdate();
         } catch (err) {
@@ -320,11 +320,11 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
 
             {/* Role form */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-6 text-sm uppercase tracking-wide">役職の新規登録</h4>
+                <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-6 text-sm uppercase tracking-wide">スタッフ区分の新規登録</h4>
                 <form onSubmit={handleAddRole} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">役職名</label>
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">スタッフ区分名</label>
                             <input
                                 type="text"
                                 required
@@ -436,7 +436,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 dark:shadow-none transition-all flex items-center space-x-2 disabled:opacity-50"
                         >
                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                            <span>{isSubmitting ? '登録中...' : '役職を登録する'}</span>
+                            <span>{isSubmitting ? '登録中...' : 'スタッフ区分を登録する'}</span>
                         </button>
                     </div>
                 </form>
@@ -500,8 +500,8 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
             {/* Confirm Modal */}
             <ConfirmModal
                 isOpen={!!deleteConfirmId}
-                title="役職の削除"
-                message="この役職を削除しますか？スタッフの割り当ては自動では解除されませんが、今後新規に選択することはできなくなります。"
+                title="スタッフ区分の削除"
+                message="このスタッフ区分を削除しますか？スタッフの割り当ては自動では解除されませんが、今後新規に選択することはできなくなります。"
                 confirmLabel="削除する"
                 cancelLabel="キャンセル"
                 onConfirm={handleDeleteRole}

@@ -112,7 +112,7 @@ const SortablePatternRow = ({ pattern, roles, onDelete, onEdit, isOverlay = fals
                         {assignedRoles.length > 0 && (
                             <div className="flex items-center space-x-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded-md">
                                 <UserCheck className="w-2.5 h-2.5" />
-                                <span>{assignedRoles.length}役職</span>
+                                <span>{assignedRoles.length}スタッフ区分</span>
                             </div>
                         )}
                     </div>
@@ -328,11 +328,11 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center">
                                     <UserCheck className="w-3.5 h-3.5 mr-1" />
-                                    連動する役職（指定なしで共通利用）
+                                    連動するスタッフ区分（指定なしで共通利用）
                                 </label>
                                 <div className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl min-h-[44px]">
                                     {roles.length === 0 ? (
-                                        <span className="text-xs text-slate-400 animate-pulse">役職をロード中...</span>
+                                        <span className="text-xs text-slate-400 animate-pulse">スタッフ区分をロード中...</span>
                                     ) : roles.map(r => (
                                         <button
                                             key={r.id}

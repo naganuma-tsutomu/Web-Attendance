@@ -301,16 +301,21 @@ const ShiftRequirementsPage = () => {
                                     className="p-4 md:p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
                                 >
                                     <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                                        {/* 連番 */}
-                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-semibold">
+                                        {/* 連番 (PCのみ独立表示) */}
+                                        <div className="hidden lg:flex flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 items-center justify-center text-sm font-semibold">
                                             {index + 1}
                                         </div>
 
                                         {/* 曜日パターン */}
                                         <div className="flex-shrink-0 w-full lg:w-44">
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                曜日パターン
-                                            </label>
+                                            <div className="flex items-center gap-2 mb-1.5 lg:hidden">
+                                                <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold">
+                                                    {index + 1}
+                                                </div>
+                                                <label className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                    曜日パターン
+                                                </label>
+                                            </div>
                                             <select
                                                 value={req.dayOfWeek}
                                                 onChange={(e) => updateRequirement(req.id, { dayOfWeek: parseInt(e.target.value) })}
@@ -351,52 +356,54 @@ const ShiftRequirementsPage = () => {
                                             </div>
                                         </div>
 
-                                        {/* 必要人数 */}
-                                        <div className="w-full sm:w-28">
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                必要人数
-                                            </label>
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    max={20}
-                                                    value={req.minStaffCount}
-                                                    onChange={(e) => updateRequirement(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
-                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
-                                                />
-                                                <span className="ml-2 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">名</span>
+                                        <div className="flex items-end gap-3 md:gap-4 w-full lg:w-auto">
+                                            {/* 必要人数 */}
+                                            <div className="flex-[3] sm:flex-1 sm:w-28 sm:flex-none">
+                                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                                                    必要人数
+                                                </label>
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={20}
+                                                        value={req.minStaffCount}
+                                                        onChange={(e) => updateRequirement(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
+                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                                                    />
+                                                    <span className="ml-1 sm:ml-2 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">名</span>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {/* 優先度 */}
-                                        <div className="w-full sm:w-28">
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                優先度
-                                            </label>
-                                            <select
-                                                value={req.priority}
-                                                onChange={(e) => updateRequirement(req.id, { priority: parseInt(e.target.value) })}
-                                                className={`w-full px-3 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer ${
-                                                    priorityOptions.find(p => p.value === req.priority)?.color || priorityOptions[2].color
-                                                }`}
+                                            {/* 優先度 */}
+                                            <div className="flex-[4] sm:flex-1 sm:w-28 sm:flex-none">
+                                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                                                    優先度
+                                                </label>
+                                                <select
+                                                    value={req.priority}
+                                                    onChange={(e) => updateRequirement(req.id, { priority: parseInt(e.target.value) })}
+                                                    className={`w-full max-w-full truncate h-[38px] px-2 sm:px-3 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer ${
+                                                        priorityOptions.find(p => p.value === req.priority)?.color || priorityOptions[2].color
+                                                    }`}
+                                                >
+                                                    {priorityOptions.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* 削除ボタン */}
+                                            <button
+                                                onClick={() => deleteTimeSlot(req.id)}
+                                                className="p-2 mb-0.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                title="削除"
                                             >
-                                                {priorityOptions.map((opt) => (
-                                                    <option key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
                                         </div>
-
-                                        {/* 削除ボタン */}
-                                        <button
-                                            onClick={() => deleteTimeSlot(req.id)}
-                                            className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                                            title="削除"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
                                     </div>
                                 </div>
                             ))}

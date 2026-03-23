@@ -6,10 +6,19 @@ import { handleServerError, createValidationError, validateName, validateTargetH
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
+
+        const { count } = await context.env.DB.prepare(
+            'SELECT COUNT(*) as count FROM staffs WHERE role = ?'
+        ).bind(id).first() as { count: number };
+
+        if (count > 0) {
+            return createValidationError(`この役職は${count}名のスタッフに使用されているため削除できません`);
+        }
+
         await context.env.DB.prepare('DELETE FROM roles WHERE id = ?').bind(id).run();
         return Response.json({ success: true });
-    } catch (e) { 
-        return handleServerError(e, 'Database error deleting role'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error deleting role');
     }
 };
 

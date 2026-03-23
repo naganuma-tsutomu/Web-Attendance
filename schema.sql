@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS shift_preferences (
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL, -- e.g. "2024-04"
     unavailableDates TEXT NOT NULL, -- JSON array string (Legacy, will be replaced by shift_preference_dates)
-    FOREIGN KEY(staffId) REFERENCES staffs(id)
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
 -- shift_preference_dates Table (Normalized)
@@ -70,7 +70,9 @@ CREATE TABLE IF NOT EXISTS shifts (
     endTime TEXT NOT NULL, -- "HH:MM"
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
-    isError INTEGER DEFAULT 0
+    isError INTEGER DEFAULT 0,
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE,
+    FOREIGN KEY(classType) REFERENCES classes(id) ON DELETE CASCADE
 );
 
 -- Fixed Dates (Locked shifts) Table

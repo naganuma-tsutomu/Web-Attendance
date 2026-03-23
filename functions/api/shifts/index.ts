@@ -1,4 +1,4 @@
-import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
+import { createValidationError, handleServerError, validateYearMonth, validateDate, validateTimeRange } from '../../utils/validation';
 
 export interface Env {
     DB: D1Database;
@@ -35,6 +35,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const shiftsData: any[] = await context.request.json();
         if (!shiftsData || shiftsData.length === 0) {
             return Response.json({ success: true, message: 'No data to insert' });
+        }
+
+        for (let i = 0; i < shiftsData.length; i++) {
+            const shift = shiftsData[i];
+            const prefix = `shifts[${i}]`;
+
+            const dateError = validateDate(shift.date, `${prefix}.date`);
+            if (dateError) return createValidationError(dateError);
+
+            if (!shift.staffId || String(shift.staffId).trim().length === 0) {
+                return createValidationError(`${prefix}.staffId は必須です`);
+            }
+
+            if (!shift.classType || String(shift.classType).trim().length === 0) {
+                return createValidationError(`${prefix}.classType は必須です`);
+            }
+
+            const timeError = validateTimeRange(shift.startTime, shift.endTime);
+            if (timeError) return createValidationError(`${prefix}: ${timeError}`);
         }
 
         const stmt = context.env.DB.prepare(

@@ -22,7 +22,7 @@ const LandingPage = () => {
     if (loading) return null;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
+        <div className="min-h-screen flex flex-col justify-center bg-slate-50 dark:bg-slate-950 py-12 px-6">
             <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in zoom-in-95 duration-500">
                 
                 {/* 管理者用入口 */}

@@ -617,21 +617,21 @@ const SchedulePage = () => {
                                 title="スタッフ別労働時間を表示"
                             >
                                 <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
-                                <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
+                                <span className="hidden sm:inline text-sm font-bold whitespace-nowrap">労働時間</span>
                             </button>
                             <button
                                 onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns)}
                                 className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                             >
                                 <Download className="w-5 h-5 text-green-600" />
-                                <span className="sm:hidden lg:inline text-xs font-bold whitespace-nowrap">Excel</span>
+                                <span className="hidden sm:inline text-xs font-bold whitespace-nowrap">Excel</span>
                             </button>
                             <button
                                 onClick={() => exportToPDF(targetYearMonth, staffList, rawShifts)}
                                 className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                             >
                                 <Download className="w-5 h-5 text-red-600" />
-                                <span className="sm:hidden lg:inline text-xs font-bold whitespace-nowrap">PDF</span>
+                                <span className="hidden sm:inline text-xs font-bold whitespace-nowrap">PDF</span>
                             </button>
 
                         </div>

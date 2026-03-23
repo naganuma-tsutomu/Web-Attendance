@@ -75,49 +75,42 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             if (maxStaffError) return createValidationError(maxStaffError);
         }
 
-        try {
-            const statements = [];
-
-            // 既存の設定をすべて削除（全件同期のため）
-            statements.push(context.env.DB.prepare('DELETE FROM shift_requirements'));
-
-            const savedIds: string[] = [];
-
-            for (const req of requirements) {
-                // Generate ID if missing or temp
-                const id = (!req.id || req.id.startsWith('temp-'))
-                    ? `req_${crypto.randomUUID()}`
-                    : req.id;
-
-                // Insert statement
-                statements.push(
-                    context.env.DB.prepare(
-                        `INSERT INTO shift_requirements
-                         (id, classId, dayOfWeek, startTime, endTime, minStaffCount, maxStaffCount, priority)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-                    ).bind(
-                        id,
-                        req.classId.trim(),
-                        req.dayOfWeek,
-                        req.startTime,
-                        req.endTime,
-                        req.minStaffCount,
-                        req.maxStaffCount ?? null,
-                        req.priority ?? 0
-                    )
-                );
-
-                savedIds.push(id);
-            }
-
-            // 全てのステートメントをバッチ実行（トランザクションとして処理される）
-            await context.env.DB.batch(statements);
-
-            return Response.json({ ids: savedIds, count: savedIds.length }, { status: 201 });
-        } catch (e: any) {
-            console.error('Database error creating shift requirements:', e);
-            return Response.json({ error: 'Database error', details: e.message }, { status: 500 });
+        if (requirements.length === 0) {
+            return createValidationError('シフト要件を1件以上指定してください');
         }
+
+        const statements = [context.env.DB.prepare('DELETE FROM shift_requirements')];
+        const savedIds: string[] = [];
+
+        for (const req of requirements) {
+            const id = (!req.id || req.id.startsWith('temp-'))
+                ? `req_${crypto.randomUUID()}`
+                : req.id;
+
+            statements.push(
+                context.env.DB.prepare(
+                    `INSERT INTO shift_requirements
+                     (id, classId, dayOfWeek, startTime, endTime, minStaffCount, maxStaffCount, priority)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+                ).bind(
+                    id,
+                    req.classId.trim(),
+                    req.dayOfWeek,
+                    req.startTime,
+                    req.endTime,
+                    req.minStaffCount,
+                    req.maxStaffCount ?? null,
+                    req.priority ?? 0
+                )
+            );
+
+            savedIds.push(id);
+        }
+
+        // batch() はトランザクション保証あり（失敗時は全ロールバック）
+        await context.env.DB.batch(statements);
+
+        return Response.json({ ids: savedIds, count: savedIds.length }, { status: 201 });
     } catch (e) {
         return handleServerError(e, 'Database error creating shift requirements');
     }

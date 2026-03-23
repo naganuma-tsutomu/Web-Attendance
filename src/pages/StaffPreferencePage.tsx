@@ -135,7 +135,7 @@ const StaffPreferencePage = () => {
                         <h1 className="text-lg font-black text-slate-800 dark:text-white leading-none">
                             {activeTab === 'preference' ? '希望休提出' : activeTab === 'shifts' ? 'シフト確認' : '設定'}
                         </h1>
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-widest">{staff.name} さん</p>
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-widest">{staff.name} さん</p>
                     </div>
                 </div>
                 
@@ -216,13 +216,13 @@ const StaffPreferencePage = () => {
                             <div className="flex items-center justify-between px-1">
                                 <h2 className="font-black text-slate-800 dark:text-white tracking-tight flex items-center space-x-2">
                                     <span>休暇希望</span>
-                                    <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full uppercase">Tap to Select</span>
+                                    <span className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full uppercase">Tap to Select</span>
                                 </h2>
                             </div>
                             <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 p-6">
-                                <div className="grid grid-cols-7 gap-2">
+                                <div className="grid grid-cols-7 gap-1 sm:gap-2">
                                     {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
-                                        <div key={d} className={`text-center text-[10px] font-black uppercase tracking-widest pb-2 ${
+                                        <div key={d} className={`text-center text-[10px] sm:text-xs font-black uppercase tracking-widest pb-2 ${
                                             i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'
                                         }`}>
                                             {d}
@@ -340,7 +340,7 @@ const StaffPreferencePage = () => {
                                     <div className="space-y-3">
                                         {myShifts.sort((a, b) => a.date.localeCompare(b.date)).map(shift => (
                                             <div key={shift.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                                                <div className="text-[10px] font-bold text-slate-400 uppercase">{format(new Date(shift.date), 'M/d (E)', { locale: ja })}</div>
+                                                <div className="text-xs font-bold text-slate-400 uppercase">{format(new Date(shift.date), 'M/d (E)', { locale: ja })}</div>
                                                 <div className="text-sm font-black text-slate-700 dark:text-slate-300">{shift.startTime} - {shift.endTime}</div>
                                             </div>
                                         ))}
@@ -389,10 +389,10 @@ const StaffPreferencePage = () => {
                                                             <div className="flex justify-between items-start mb-1">
                                                                 <span className="text-sm font-black text-slate-800 dark:text-white">
                                                                     {staffMember?.name || '不明'}
-                                                                    {isMe && <span className="ml-2 text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>}
+                                                                    {isMe && <span className="ml-2 text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>}
                                                                 </span>
                                                                 {shiftClass && (
-                                                                    <span className="text-[10px] font-bold text-slate-400">
+                                                                    <span className="text-xs font-bold text-slate-400">
                                                                         {shiftClass.name}
                                                                     </span>
                                                                 )}
@@ -464,7 +464,7 @@ const StaffPreferencePage = () => {
                     }`}
                 >
                     <Clock className="w-6 h-6" />
-                    <span className="text-[10px] font-bold mt-1 uppercase">希望休</span>
+                    <span className="text-[10px] sm:text-xs font-bold mt-1 uppercase">希望休</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('shifts')}
@@ -473,7 +473,7 @@ const StaffPreferencePage = () => {
                     }`}
                 >
                     <Users className="w-6 h-6" />
-                    <span className="text-[10px] font-bold mt-1 uppercase">シフト</span>
+                    <span className="text-[10px] sm:text-xs font-bold mt-1 uppercase">シフト</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('settings')}
@@ -482,7 +482,7 @@ const StaffPreferencePage = () => {
                     }`}
                 >
                     <SettingsIcon className="w-6 h-6" />
-                    <span className="text-[10px] font-bold mt-1 uppercase">設定</span>
+                    <span className="text-[10px] sm:text-xs font-bold mt-1 uppercase">設定</span>
                 </button>
             </nav>
         </div>

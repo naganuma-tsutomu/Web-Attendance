@@ -97,6 +97,24 @@ const SchedulePage = () => {
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
 
+    // ウィンドウリサイズ時にカレンダーを再描画して高さを再計算するためのキー
+    const [calendarKey, setCalendarKey] = useState(0);
+
+    useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const handleResize = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                setCalendarKey(prev => prev + 1);
+            }, 150);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            clearTimeout(timeoutId);
+        };
+    }, []);
+
     const handleBackdropMouseDown = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             setMouseDownOnBackdrop(true);
@@ -771,8 +789,9 @@ const SchedulePage = () => {
                                 />
                             </div>
                         ) : (
-                            <div className="h-full rb-calendar-container overflow-auto">
+                            <div className="h-full rb-calendar-container overflow-hidden">
                                 <BigCalendar
+                                    key={calendarKey}
                                     localizer={localizer}
                                     events={summaryEvents}
                                     startAccessor="start"
@@ -863,8 +882,10 @@ const SchedulePage = () => {
                                         month: "月",
                                         week: "週",
                                         day: "日",
-                                        agenda: "予定"
+                                        agenda: "予定",
+                                        showMore: (count) => `+他${count}件`
                                     }}
+                                    popup={true}
                                 />
                             </div>
                         )}

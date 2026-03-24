@@ -78,7 +78,14 @@ export const exportToExcelAdvanced = async (
 
     worksheet.columns = columns;
 
+    // ヘッダー行の時刻セルを1時間単位で結合（4スロット = 15分×4）
+    for (let h = 0; h < END_HOUR - START_HOUR; h++) {
+        const startCol = 8 + h * 4;
+        worksheet.mergeCells(1, startCol, 1, startCol + 3);
+    }
+
     let currentRow = 2;
+    const dateRowRanges: { start: number, end: number }[] = [];
 
     days.forEach((day) => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -138,6 +145,7 @@ export const exportToExcelAdvanced = async (
                 worksheet.mergeCells(startRowForDay, 2, currentRow - 1, 2);
             }
         }
+        dateRowRanges.push({ start: startRowForDay, end: currentRow - 1 });
     });
 
     const lastRow = currentRow - 1;
@@ -159,7 +167,9 @@ export const exportToExcelAdvanced = async (
     const slotFormula = `(${START_HOUR * 60}+(COLUMN()-8)*15)/1440`;
 
     classes.forEach(cls => {
-        const barColor = getClassColor(cls.id);
+        const barColor = cls.color
+            ? `FF${cls.color.replace('#', '').toUpperCase()}`
+            : getClassColor(cls.id);
         const escapedName = cls.name.replace(/"/g, '""');
         worksheet.addConditionalFormatting({
             ref: `${firstTimelineCol}2:${lastTimelineCol}${lastRow}`,
@@ -169,28 +179,49 @@ export const exportToExcelAdvanced = async (
                     // $D2=区分, $E2=開始, $F2=終了, COLUMN()で現在列のスロット時間を動的計算
                     formulae: [`AND($D2="${escapedName}",$E2<=${slotFormula},$F2>${slotFormula})`],
                     priority: 1,
-                    style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } } }
+                    style: {
+                        fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } },
+                        border: {
+                            top: { style: 'thin', color: { argb: 'FF888888' } },
+                            bottom: { style: 'thin', color: { argb: 'FF888888' } },
+                            left: { style: 'thin', color: { argb: 'FF888888' } },
+                            right: { style: 'thin', color: { argb: 'FF888888' } },
+                        }
+                    }
                 }
             ]
         });
     });
 
     // --- スタイル仕上げ ---
-    worksheet.eachRow((row, rowNumber) => {
-        row.eachCell((cell, colNumber) => {
+    const totalCols = 8 + TOTAL_SLOTS;
+    const dateStartRows = new Set(dateRowRanges.map(r => r.start));
+    const dateEndRows = new Set(dateRowRanges.map(r => r.end));
+
+    for (let rowNumber = 1; rowNumber <= lastRow; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+        const isDateStart = dateStartRows.has(rowNumber);
+        const isDateEnd = dateEndRows.has(rowNumber);
+
+        for (let colNumber = 1; colNumber <= totalCols; colNumber++) {
+            const cell = row.getCell(colNumber);
+            const isFirstCol = colNumber === 1;
+            const isLastCol = colNumber === totalCols;
+            const isHourBoundary = colNumber === 7 || (colNumber > 7 && (colNumber - 8) % 4 === 3);
+
             cell.border = {
-                top: { style: 'thin' },
-                bottom: { style: (rowNumber > 1 && colNumber <= 7 && row.getCell(1).value !== worksheet.getRow(rowNumber + 1).getCell(1).value) ? 'medium' : 'thin' },
-                left: { style: 'thin' },
-                right: { style: colNumber === 7 || (colNumber > 7 && (colNumber - 8) % 4 === 3) ? 'medium' : 'thin' }
+                top: { style: rowNumber === 1 ? 'thin' : isDateStart ? 'medium' : 'thin' },
+                bottom: { style: isDateEnd ? 'medium' : 'thin' },
+                left: { style: isFirstCol ? 'medium' : 'thin' },
+                right: { style: isLastCol ? 'medium' : isHourBoundary ? 'medium' : 'thin' }
             };
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
             if (rowNumber === 1) {
                 cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
             }
-        });
-    });
+        }
+    }
 
     // 書き出し
     const buffer = await workbook.xlsx.writeBuffer();

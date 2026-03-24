@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin, X } from 'lucide-react';
-import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffNameList, getClasses } from '../lib/api';
-import type { Shift, ShiftClass, ShiftPreferenceDetail } from '../types';
+import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses, getTimePatterns, getRoles } from '../lib/api';
+import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole } from '../types';
+import DailyTimelineView from '../features/schedule/DailyTimelineView';
 
 type TabType = 'preference' | 'shifts' | 'settings';
 
@@ -14,8 +15,11 @@ const StaffPreferencePage = () => {
     const [activeTab, setActiveTab] = useState<TabType>('preference');
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
-    const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([]);
+    const [staffList, setStaffList] = useState<Staff[]>([]);
+    const [myAvailableDays, setMyAvailableDays] = useState<Staff['availableDays']>(undefined);
     const [classes, setClasses] = useState<ShiftClass[]>([]);
+    const [timePatterns, setTimePatterns] = useState<ShiftTimePattern[]>([]);
+    const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [savedPreferences, setSavedPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [loading, setLoading] = useState(true);
@@ -42,16 +46,22 @@ const StaffPreferencePage = () => {
             setLoading(true);
             try {
                 const monthStr = format(currentMonth, 'yyyy-MM');
-                const [shiftsData, prefsData, staffData, classesData] = await Promise.all([
+                const [shiftsData, prefsData, staffData, classesData, patternsData, rolesData] = await Promise.all([
                     getShiftsByMonth(monthStr),
                     getPreferencesByMonth(monthStr),
-                    getStaffNameList(),
-                    getClasses()
+                    getStaffList(),
+                    getClasses(),
+                    getTimePatterns(),
+                    getRoles()
                 ]);
 
                 setAllShifts(shiftsData);
                 setStaffList(staffData);
                 setClasses(classesData);
+                setTimePatterns(patternsData);
+                setRoles(rolesData);
+                const myData = staffData.find(s => s.id === staff.id);
+                setMyAvailableDays(myData?.availableDays);
                 
                 const myPref = prefsData.find(p => p.staffId === staff.id);
                 const details = myPref?.details || [];
@@ -129,6 +139,16 @@ const StaffPreferencePage = () => {
     ) !== JSON.stringify(
         [...savedPreferences].sort((a, b) => a.date.localeCompare(b.date))
     );
+
+    const isFixedHoliday = (date: Date): boolean => {
+        if (!myAvailableDays || myAvailableDays.length === 0) return false;
+        const dow = getDay(date);
+        const nthWeek = Math.ceil(date.getDate() / 7);
+        const config = myAvailableDays.find(d => (typeof d === 'number' ? d : d.day) === dow);
+        if (!config) return true;
+        if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return true;
+        return false;
+    };
 
     const days = eachDayOfInterval({
         start: startOfMonth(currentMonth),
@@ -241,24 +261,34 @@ const StaffPreferencePage = () => {
                                         const isTraining = pref && pref.type === 'training';
                                         const isPartial = pref && pref.startTime && pref.endTime && !isTraining;
                                         const hasShift = myShifts.some(s => s.date === dateStr);
-                                        
+                                        const isSunday = getDay(day) === 0;
+                                        const fixedHoliday = isSunday || isFixedHoliday(day);
+
                                         return (
                                             <button
                                                 key={dateStr}
-                                                onClick={() => handleDateClick(dateStr)}
+                                                onClick={() => !fixedHoliday && handleDateClick(dateStr)}
+                                                disabled={fixedHoliday}
                                                 className={`aspect-square rounded-2xl flex flex-col items-center justify-center p-1 transition-all relative border-2 ${
-                                                    isTraining
-                                                        ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400'
-                                                        : isSelected 
-                                                            ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400' 
-                                                            : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                    fixedHoliday
+                                                        ? isSunday
+                                                            ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-300 dark:text-red-700 cursor-not-allowed'
+                                                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                                                        : isTraining
+                                                            ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400'
+                                                            : isSelected
+                                                                ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400'
+                                                                : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                                                 }`}
                                             >
                                                 <span className="text-sm font-black">{format(day, 'd')}</span>
-                                                {hasShift && !isSelected && (
+                                                {fixedHoliday && (
+                                                    <span className="text-[8px] font-bold mt-0.5">{isSunday ? '休日' : '固定休'}</span>
+                                                )}
+                                                {!fixedHoliday && hasShift && !isSelected && (
                                                     <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-0.5" />
                                                 )}
-                                                {isSelected && (
+                                                {!fixedHoliday && isSelected && (
                                                     <span className="text-[8px] font-bold mt-0.5 uppercase">
                                                         {isTraining ? '研修' : isPartial ? '部分休' : '休'}
                                                     </span>
@@ -400,43 +430,28 @@ const StaffPreferencePage = () => {
                                     if (dayShifts.length === 0) return null;
 
                                     return (
-                                        <div key={dateStr} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-start gap-4">
-                                            <div className="sm:w-24 flex-shrink-0">
-                                                <div className={`text-sm font-black ${
-                                                    day.getDay() === 0 ? 'text-red-500' : day.getDay() === 6 ? 'text-blue-500' : 'text-slate-800 dark:text-white'
-                                                }`}>
-                                                    {format(day, 'M/d (E)', { locale: ja })}
+                                        <div key={dateStr} className="flex-shrink-0 flex flex-col space-y-0 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900/50">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`text-sm font-bold ${
+                                                        day.getDay() === 0 ? 'text-red-500' : day.getDay() === 6 ? 'text-blue-500' : 'text-slate-800 dark:text-white'
+                                                    }`}>
+                                                        {format(day, 'M/d (E)', { locale: ja })}
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                {dayShifts.map(shift => {
-                                                    const staffMember = staffList.find(s => s.id === shift.staffId);
-                                                    // @ts-ignore - Shift 型の不一致を一時的に許容、または型定義を確認
-                                                    const shiftClass = classes.find(c => c.id === (shift as any).classId);
-                                                    const isMe = shift.staffId === staff.id;
-
-                                                    return (
-                                                        <div key={shift.id} className={`p-3 rounded-xl border transition-all ${
-                                                            isMe ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 ring-1 ring-indigo-200 dark:ring-indigo-800' : 'bg-slate-50 dark:bg-slate-950 border-slate-100 dark:border-slate-800'
-                                                        }`}>
-                                                            <div className="flex justify-between items-start mb-1">
-                                                                <span className="text-sm font-black text-slate-800 dark:text-white">
-                                                                    {staffMember?.name || '不明'}
-                                                                    {isMe && <span className="ml-2 text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>}
-                                                                </span>
-                                                                {shiftClass && (
-                                                                    <span className="text-xs font-bold text-slate-400">
-                                                                        {shiftClass.name}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center text-xs font-bold text-slate-500 dark:text-slate-400 space-x-2">
-                                                                <Clock className="w-3 h-3" />
-                                                                <span>{shift.startTime} - {shift.endTime}</span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                            <div className="bg-white dark:bg-slate-800">
+                                                <DailyTimelineView
+                                                    date={day}
+                                                    shifts={dayShifts}
+                                                    staffList={staffList}
+                                                    classes={classes}
+                                                    timePatterns={timePatterns}
+                                                    roles={roles}
+                                                    readOnly={true}
+                                                    hideHeaderToggle={true}
+                                                    highlightStaffId={staff.id}
+                                                />
                                             </div>
                                         </div>
                                     );

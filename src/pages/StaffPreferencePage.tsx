@@ -17,12 +17,14 @@ const StaffPreferencePage = () => {
     const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([]);
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreferenceDetail[]>([]);
+    const [savedPreferences, setSavedPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [selectedDateAction, setSelectedDateAction] = useState<string | null>(null);
     const [selectedStartTime, setSelectedStartTime] = useState<string>('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     useEffect(() => {
         const session = localStorage.getItem('staff_session');
@@ -52,7 +54,9 @@ const StaffPreferencePage = () => {
                 setClasses(classesData);
                 
                 const myPref = prefsData.find(p => p.staffId === staff.id);
-                setPreferences(myPref?.details || []);
+                const details = myPref?.details || [];
+                setPreferences(details);
+                setSavedPreferences(details);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -108,6 +112,7 @@ const StaffPreferencePage = () => {
                 unavailableDates: preferences.filter(p => !p.startTime).map(p => p.date),
                 details: preferences
             });
+            setSavedPreferences(preferences);
             setMessage({ type: 'success', text: '休暇希望を保存しました' });
             setTimeout(() => setMessage(null), 3000);
         } catch (err) {
@@ -118,6 +123,12 @@ const StaffPreferencePage = () => {
     };
 
     if (!staff) return null;
+
+    const hasChanges = JSON.stringify(
+        [...preferences].sort((a, b) => a.date.localeCompare(b.date))
+    ) !== JSON.stringify(
+        [...savedPreferences].sort((a, b) => a.date.localeCompare(b.date))
+    );
 
     const days = eachDayOfInterval({
         start: startOfMonth(currentMonth),
@@ -201,21 +212,10 @@ const StaffPreferencePage = () => {
                     </div>
                 )}
 
-                {message && (
-                    <div className={`p-4 rounded-2xl border flex items-center space-x-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
-                        message.type === 'success' 
-                            ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800 text-green-600 dark:text-green-400'
-                            : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800 text-red-600 dark:text-red-400'
-                    }`}>
-                        {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                        <span className="font-bold text-sm">{message.text}</span>
-                    </div>
-                )}
-
                 {/* Tab Content */}
                 {activeTab === 'preference' && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="md:col-span-2 space-y-4">
+                    <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div className="space-y-4">
                             <div className="flex items-center justify-between px-1">
                                 <h2 className="font-black text-slate-800 dark:text-white tracking-tight flex items-center space-x-2">
                                     <span>休暇希望</span>
@@ -269,11 +269,26 @@ const StaffPreferencePage = () => {
                                 </div>
                             </div>
                             
-                            <div className="flex justify-end pt-2">
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                {message && (
+                                    <div className={`flex items-center space-x-2 text-sm font-bold animate-in fade-in duration-300 ${
+                                        message.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                    }`}>
+                                        {message.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                                        <span>{message.text}</span>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowCancelConfirm(true)}
+                                    disabled={saving || !hasChanges}
+                                    className="w-full md:w-auto px-8 py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 rounded-2xl transition-all font-black uppercase tracking-widest flex items-center justify-center"
+                                >
+                                    キャンセル
+                                </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={saving}
-                                    className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-black uppercase tracking-widest flex items-center justify-center space-x-2"
+                                    disabled={saving || !hasChanges}
+                                    className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-black uppercase tracking-widest flex items-center justify-center space-x-2"
                                 >
                                     {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>希望を保存</span>}
                                 </button>
@@ -337,23 +352,35 @@ const StaffPreferencePage = () => {
                             </div>
                         )}
 
-                        <div className="space-y-4">
-                            <h2 className="font-black text-slate-800 dark:text-white px-1">自分の確定シフト</h2>
-                            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 p-6">
-                                {myShifts.length === 0 ? (
-                                    <p className="text-center text-slate-400 text-sm py-8 font-bold">確定したシフトはありません</p>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {myShifts.sort((a, b) => a.date.localeCompare(b.date)).map(shift => (
-                                            <div key={shift.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                                                <div className="text-xs font-bold text-slate-400 uppercase">{format(new Date(shift.date), 'M/d (E)', { locale: ja })}</div>
-                                                <div className="text-sm font-black text-slate-700 dark:text-slate-300">{shift.startTime} - {shift.endTime}</div>
-                                            </div>
-                                        ))}
+                        {/* Cancel Confirmation Modal */}
+                        {showCancelConfirm && (
+                            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowCancelConfirm(false)}>
+                                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                        <h3 className="text-lg font-black text-slate-800 dark:text-white">変更を破棄しますか？</h3>
+                                        <button onClick={() => setShowCancelConfirm(false)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                                            <X className="w-5 h-5" />
+                                        </button>
                                     </div>
-                                )}
+                                    <div className="p-6 space-y-3">
+                                        <p className="text-sm font-bold text-slate-500 dark:text-slate-400 text-center">保存していない変更はすべて元に戻ります。</p>
+                                        <button
+                                            onClick={() => { setPreferences(savedPreferences); setShowCancelConfirm(false); }}
+                                            className="w-full p-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50"
+                                        >
+                                            破棄する
+                                        </button>
+                                        <button
+                                            onClick={() => setShowCancelConfirm(false)}
+                                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                                        >
+                                            戻る
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
                     </div>
                 )}
 

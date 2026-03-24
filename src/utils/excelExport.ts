@@ -2,6 +2,8 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { calculateDuration } from './timeUtils';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern } from '../types';
 
 /**
@@ -41,6 +43,12 @@ export const exportToExcelAdvanced = async (
     classes: ShiftClass[],
     _timePatterns: ShiftTimePattern[]
 ) => {
+    if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        toast.error('年月の形式が正しくありません（例: 2025-01）');
+        return;
+    }
+    const toastId = toast.loading('Excelファイルを生成中...');
+    try {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('シフト表');
 
@@ -106,12 +114,13 @@ export const exportToExcelAdvanced = async (
 
                 const row = worksheet.addRow(rowData);
 
-                // 実働時間の数式: =(終了 - 開始) * 24
+                // 実働時間の数式: 日またぎ対応（end < start の場合 +1日）
                 const startCell = row.getCell(5).address;
                 const endCell = row.getCell(6).address;
+                const duration = calculateDuration(shift.startTime, shift.endTime);
                 row.getCell(7).value = {
-                    formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, (${endCell}-${startCell})*24)`,
-                    result: 0
+                    formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, IF((${endCell}-${startCell})<0, (${endCell}-${startCell}+1)*24, (${endCell}-${startCell})*24))`,
+                    result: duration
                 };
                 row.getCell(7).numFmt = '0.00';
 
@@ -143,29 +152,28 @@ export const exportToExcelAdvanced = async (
     });
 
     // --- 条件付き書式 (タイムラインの動的色付け) ---
-    // カラムH(8)から
-    for (let i = 0; i <= TOTAL_SLOTS; i++) {
-        const colLetter = worksheet.getColumn(8 + i).letter;
-        const currentSlotTime = (START_HOUR * 60 + i * 15) / (24 * 60);
+    // COLUMN()を使って1クラス=1ルールで全スロットをカバー（クラス数分のみ）
+    // スロット時間 = (START_HOUR*60 + (COLUMN()-8)*15) / 1440
+    const firstTimelineCol = worksheet.getColumn(8).letter;
+    const lastTimelineCol = worksheet.getColumn(8 + TOTAL_SLOTS).letter;
+    const slotFormula = `(${START_HOUR * 60}+(COLUMN()-8)*15)/1440`;
 
-        // 各クラスごとに色を設定（区分セルと連動）
-        classes.forEach(cls => {
-            const barColor = getClassColor(cls.id);
-            worksheet.addConditionalFormatting({
-                ref: `${colLetter}2:${colLetter}${lastRow}`,
-                rules: [
-                    {
-                        type: 'expression',
-                        // 数式: (=AND(区分セル=クラス名, 開始セル<=現在のスロット, 終了セル>現在のスロット))
-                        // $D2 は区分, $E2 は開始, $F2 は終了
-                        formulae: [`AND($D2="${cls.name}", $E2<=${currentSlotTime.toFixed(10)}, $F2>${currentSlotTime.toFixed(10)})`],
-                        priority: 1,
-                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } } }
-                    }
-                ]
-            });
+    classes.forEach(cls => {
+        const barColor = getClassColor(cls.id);
+        const escapedName = cls.name.replace(/"/g, '""');
+        worksheet.addConditionalFormatting({
+            ref: `${firstTimelineCol}2:${lastTimelineCol}${lastRow}`,
+            rules: [
+                {
+                    type: 'expression',
+                    // $D2=区分, $E2=開始, $F2=終了, COLUMN()で現在列のスロット時間を動的計算
+                    formulae: [`AND($D2="${escapedName}",$E2<=${slotFormula},$F2>${slotFormula})`],
+                    priority: 1,
+                    style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } } }
+                }
+            ]
         });
-    }
+    });
 
     // --- スタイル仕上げ ---
     worksheet.eachRow((row, rowNumber) => {
@@ -187,4 +195,9 @@ export const exportToExcelAdvanced = async (
     // 書き出し
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `シフト詳細表_${yearMonth}_数式連動.xlsx`);
+    toast.success('Excelファイルを出力しました', { id: toastId });
+    } catch (err) {
+        console.error('Excel出力エラー:', err);
+        toast.error('Excelファイルの出力に失敗しました', { id: toastId });
+    }
 };

@@ -712,7 +712,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 {/* Simplified Header for readOnly mode */}
                 {readOnly && (
                     <div className="flex bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 sticky top-0 z-20">
-                        <div className="w-20 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前</div>
+                        <div className="w-36 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前 / 時間</div>
                         <div className="flex-1 relative h-6">
                             {hourLabels.map((h) => {
                                 const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
@@ -744,7 +744,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             return currentClassId === cls.id && !isError;
                         });
 
-                        if (groupShifts.length === 0 && cls.id === 'unassigned') return null;
+                        if (groupShifts.length === 0 && (cls.id === 'unassigned' || readOnly)) return null;
 
                         const groupTitle = cls.name === '特殊' ? 'ヘルプ' : cls.name;
 
@@ -985,9 +985,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="w-20 flex-shrink-0 px-2 py-1 border-r border-slate-100 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 flex flex-col justify-center overflow-hidden">
-                                                        <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate" title={staffName}>{staffName}</div>
-                                                        <div className="text-[8px] text-slate-400 font-mono tracking-tighter">
+                                                    <div className="w-36 flex-shrink-0 px-3 py-1 border-r border-slate-100 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 flex items-center justify-between overflow-hidden gap-1">
+                                                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate" title={staffName}>{staffName}</div>
+                                                        <div className="text-[10px] text-slate-400 font-mono tracking-tighter flex-shrink-0">
                                                             {toTimeStr(s.start)}-{toTimeStr(s.end)}
                                                         </div>
                                                     </div>
@@ -1007,7 +1007,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         } : {};
                                                         return (
                                                     <div
-                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${hexColor ? '' : getBarColor(currentClassType, currentIsError, conflictType)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : 'z-10 cursor-grab active:cursor-grabbing hover:scale-[1.02]'} transition-all duration-75`}
+                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${hexColor ? '' : getBarColor(currentClassType, currentIsError, conflictType)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : `z-10 ${readOnly ? '' : 'cursor-grab active:cursor-grabbing hover:scale-[1.02]'}`} transition-all duration-75`}
                                                         style={{ ...getBarStyle(shift), ...barColorStyle, transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none' }}
                                                         onPointerDown={e => {
                                                             if (readOnly) return;
@@ -1043,7 +1043,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
 
             {/* Off-duty staff section */}
-            <div className="mt-6">
+            <div className="mt-6 pb-4 px-4">
                 <div className="flex items-center gap-2 mb-3">
                     <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">本日のお休み</span>

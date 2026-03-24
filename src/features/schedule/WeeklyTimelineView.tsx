@@ -36,14 +36,17 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                 const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
                 return (
-                    <div key={dateStr} className="flex-shrink-0 flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group">
+                    <div 
+                        key={dateStr} 
+                        className="flex-shrink-0 flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => onDateClick(day)}
+                    >
                         <div
-                            className={`flex items-center justify-between px-4 py-1.5 transition-colors cursor-pointer border-b
+                            className={`flex items-center justify-between px-4 py-1.5 transition-colors border-b
                                 ${isToday
                                     ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800'
                                     : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
                                 }`}
-                            onClick={() => onDateClick(day)}
                         >
                             <div className="flex items-center gap-3">
                                 <span className={`text-sm font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>

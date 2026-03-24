@@ -22,6 +22,7 @@ interface DailyTimelineViewProps {
     isFixed?: boolean;
     onToggleFixed?: () => void;
     hideHeaderToggle?: boolean;
+    highlightStaffId?: string;
 }
 
 // 時間をHH:MM文字列に変換
@@ -162,7 +163,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     readOnly = false,
     isFixed = false,
     onToggleFixed,
-    hideHeaderToggle
+    hideHeaderToggle,
+    highlightStaffId
 }) => {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
@@ -712,7 +714,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 {/* Simplified Header for readOnly mode */}
                 {readOnly && (
                     <div className="flex bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 sticky top-0 z-20">
-                        <div className="w-36 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前 / 時間</div>
+                        <div className="w-44 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前 / 時間</div>
                         <div className="flex-1 relative h-6">
                             {hourLabels.map((h) => {
                                 const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
@@ -847,12 +849,18 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                             <div
                                                 key={shift.id}
                                                 className={`flex ${readOnly ? 'flex-row items-center border-b border-slate-100 dark:border-slate-700/50' : 'flex-col sm:flex-row border-b border-slate-200 dark:border-slate-700'} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                                style={readOnly ? { touchAction: 'pan-y' } : {}}
                                             >
                                                 {/* Left Info Column */}
                                                 {!readOnly ? (
                                                     <div className="flex w-full sm:w-[480px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
                                                         <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
-                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>{staffName}</div>
+                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
+                                                                {staffName}
+                                                                {highlightStaffId === shift.staffId && (
+                                                                    <span className="ml-1 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>
+                                                                )}
+                                                            </div>
                                                             <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-20 group-hover/name:opacity-100 transition-all bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-0.5 py-0.5 rounded shadow border border-slate-200 dark:border-slate-700/80">
                                                                 <button 
                                                                     onClick={(e) => { e.stopPropagation(); setShowSwapMenu(prev => prev === shift.id ? null : shift.id); setDeleteConfirmId(null); }}
@@ -985,16 +993,21 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="w-36 flex-shrink-0 px-3 py-1 border-r border-slate-100 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 flex items-center justify-between overflow-hidden gap-1">
-                                                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate" title={staffName}>{staffName}</div>
-                                                        <div className="text-[10px] text-slate-400 font-mono tracking-tighter flex-shrink-0">
+                                                    <div className={`w-44 flex-shrink-0 px-3 py-1 border-r border-slate-100 dark:border-slate-700/50 flex items-center justify-between overflow-hidden gap-1 ${highlightStaffId === shift.staffId ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'bg-white/50 dark:bg-slate-800/50'}`}>
+                                                        <div className="flex items-center gap-1 overflow-hidden">
+                                                            <div className={`text-xs font-bold truncate ${highlightStaffId === shift.staffId ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`} title={staffName}>{staffName}</div>
+                                                            {highlightStaffId === shift.staffId && (
+                                                                <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0">My</span>
+                                                            )}
+                                                        </div>
+                                                        <div className={`text-xs font-mono tracking-tight flex-shrink-0 ${highlightStaffId === shift.staffId ? 'text-indigo-500 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400'}`}>
                                                             {toTimeStr(s.start)}-{toTimeStr(s.end)}
                                                         </div>
                                                     </div>
                                                 )}
 
                                                 {/* Timeline Track */}
-                                                <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`}>
+                                                <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`} style={readOnly ? { touchAction: 'pan-y' } : {}}>
                                                     {renderGridLines()}
                                                     {(() => {
                                                         const currentClassType = isDragging && hoveredGroup ? hoveredGroup : (readOnly ? shift.classType : s.classType);
@@ -1007,15 +1020,16 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         } : {};
                                                         return (
                                                     <div
-                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded border shadow flex items-center ${hexColor ? '' : getBarColor(currentClassType, currentIsError, conflictType)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : `z-10 ${readOnly ? '' : 'cursor-grab active:cursor-grabbing hover:scale-[1.02]'}`} transition-all duration-75`}
-                                                        style={{ ...getBarStyle(shift), ...barColorStyle, transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none' }}
-                                                        onPointerDown={e => {
-                                                            if (readOnly) return;
-                                                            const trackEl = document.getElementById(`track-${shift.id}`);
-                                                            if (trackEl) handlePointerDown(e, shift.id, 'move', trackEl);
-                                                        }}
-                                                        onPointerUp={handlePointerUp}
-                                                        onPointerCancel={handlePointerUp}
+                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded flex items-center ${hexColor ? '' : getBarColor(currentClassType, currentIsError, conflictType)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : highlightStaffId === shift.staffId ? 'z-20 ring-2 ring-indigo-500 ring-offset-1 border-indigo-400 shadow-md transform scale-[1.01]' : `z-10 border shadow ${readOnly ? '' : 'cursor-grab active:cursor-grabbing hover:scale-[1.02]'}`} transition-all duration-75`}
+                                                        style={{ ...getBarStyle(shift), ...barColorStyle, transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none', ...(readOnly ? { pointerEvents: 'none' } : {}) }}
+                                                        {...(!readOnly ? {
+                                                            onPointerDown: (e: React.PointerEvent) => {
+                                                                const trackEl = document.getElementById(`track-${shift.id}`);
+                                                                if (trackEl) handlePointerDown(e, shift.id, 'move', trackEl);
+                                                            },
+                                                            onPointerUp: handlePointerUp,
+                                                            onPointerCancel: handlePointerUp,
+                                                        } : {})}
                                                     >
                                                         {!readOnly && (
                                                             <div className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-l transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-left', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>

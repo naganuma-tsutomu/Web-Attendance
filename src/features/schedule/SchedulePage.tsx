@@ -825,8 +825,12 @@ const SchedulePage = () => {
                                             dateHeader: (props: any) => {
                                                 const dateStr = format(props.date, 'yyyy-MM-dd');
                                                 const isFixed = fixedDates.has(dateStr);
+                                                const holidayName = getHolidayNameForDate(props.date);
                                                 return (
-                                                    <div className="flex justify-between items-center w-full px-1 py-0.5">
+                                                    <div
+                                                        className="flex justify-between items-center w-full px-1 py-0.5 cursor-pointer"
+                                                        onClick={() => handleOpenTimeline(props.date)}
+                                                    >
                                                         <button
                                                             onClick={(e) => {
                                                                 e.preventDefault();
@@ -836,12 +840,17 @@ const SchedulePage = () => {
                                                             onMouseDown={(e) => e.stopPropagation()}
                                                             onPointerDown={(e) => e.stopPropagation()}
                                                             onDoubleClick={(e) => e.stopPropagation()}
-                                                            className={`p-1 flex items-center justify-center rounded transition-colors ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                                            className={`p-1 flex items-center justify-center rounded transition-colors shrink-0 ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
                                                             title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
                                                         >
                                                             {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                                                         </button>
-                                                        <span className="font-medium text-slate-700 dark:text-slate-300 pr-1">{props.label}</span>
+                                                        {holidayName && (
+                                                            <span className="hidden sm:inline text-xs text-red-600 dark:text-red-400 font-medium truncate flex-1 text-center px-1" title={holidayName}>
+                                                                {holidayName}
+                                                            </span>
+                                                        )}
+                                                        <span className="font-medium text-slate-700 dark:text-slate-300 pr-1 shrink-0">{props.label}</span>
                                                     </div>
                                                 );
                                             }
@@ -865,11 +874,6 @@ const SchedulePage = () => {
                                                     className={`rbc-day-bg ${bgColorClass}`}
                                                     style={{ height: '100%' }}
                                                 >
-                                                    {holidayName && (
-                                                        <div className="text-xs text-red-600 dark:text-red-400 font-medium px-1 py-0.5 truncate">
-                                                            {holidayName}
-                                                        </div>
-                                                    )}
                                                     {props.children}
                                                 </div>
                                             );
@@ -885,7 +889,7 @@ const SchedulePage = () => {
                                         agenda: "予定",
                                         showMore: (count) => `+他${count}件`
                                     }}
-                                    popup={true}
+                                    onShowMore={(_events, date) => handleOpenTimeline(date)}
                                 />
                             </div>
                         )}

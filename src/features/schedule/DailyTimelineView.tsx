@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
 import { isStaffAvailableReason } from '../../lib/algorithm';
-import { calculateDuration as calculateDurationHours, formatHours } from '../../utils/timeUtils';
+import { calculateDuration as calculateDurationHours, formatHours, timeToMinutes } from '../../utils/timeUtils';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
@@ -30,12 +30,6 @@ const toTimeStr = (mins: number): string => {
     const h = Math.floor(mins / 60) % 24;
     const m = mins % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-// HH:MM文字列を分に変換
-const toMins = (timeStr: string): number => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
 };
 
 // 15分単位にスナップ
@@ -144,7 +138,7 @@ function shiftEditReducer(state: ShiftEditState, action: ShiftEditAction): Shift
 function buildInitialLocalShifts(shifts: Shift[], targetDateStr: string): Record<string, LocalShiftData> {
     const init: Record<string, LocalShiftData> = {};
     shifts.filter(s => s.date === targetDateStr).forEach(s => {
-        init[s.id] = { start: toMins(s.startTime), end: toMins(s.endTime), classType: s.classType, isError: s.isError ?? false };
+        init[s.id] = { start: timeToMinutes(s.startTime), end: timeToMinutes(s.endTime), classType: s.classType, isError: s.isError ?? false };
     });
     return init;
 }
@@ -380,8 +374,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const getBarStyle = (shift: Shift) => {
         const s = localShifts[shift.id] || {
-            start: toMins(shift.startTime),
-            end: toMins(shift.endTime),
+            start: timeToMinutes(shift.startTime),
+            end: timeToMinutes(shift.endTime),
             classType: shift.classType
         };
         const clampedStart = Math.max(START_HOUR * 60, s.start);
@@ -429,8 +423,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             if (!detail.startTime && !detail.endTime) return 'preference';
             // 時間帯希望休：シフトとの重複チェック
             if (detail.startTime && detail.endTime) {
-                const prefStart = toMins(detail.startTime);
-                const prefEnd = toMins(detail.endTime);
+                const prefStart = timeToMinutes(detail.startTime);
+                const prefEnd = timeToMinutes(detail.endTime);
                 if (shiftStartMins < prefEnd && shiftEndMins > prefStart) return 'preference';
             }
         } else if (pref.unavailableDates.includes(targetDateStr)) {
@@ -555,13 +549,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (!pattern) return;
 
         dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: {
-            start: toMins(pattern.startTime),
-            end: toMins(pattern.endTime)
+            start: timeToMinutes(pattern.startTime),
+            end: timeToMinutes(pattern.endTime)
         }});
     };
 
     const handleTimeInputChange = (shiftId: string, field: 'start' | 'end', value: string) => {
-        const mins = toMins(value);
+        const mins = timeToMinutes(value);
         const snapped = snapTo15(mins);
         dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
             const curr = prev[shiftId];
@@ -593,8 +587,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             isError: false,
         };
         dispatch({ type: 'ADD_SHIFT', shift: newShift, localData: {
-            start: toMins(startTime),
-            end: toMins(endTime),
+            start: timeToMinutes(startTime),
+            end: timeToMinutes(endTime),
             classType: classType,
             isError: false
         }});
@@ -610,8 +604,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (!oldShift) return;
 
         const oldLocal = localShifts[oldShiftId] || {
-            start: toMins(oldShift.startTime),
-            end: toMins(oldShift.endTime),
+            start: timeToMinutes(oldShift.startTime),
+            end: timeToMinutes(oldShift.endTime),
             classType: oldShift.classType,
             isError: oldShift.isError || false
         };
@@ -841,7 +835,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                     {groupShifts.map((shift) => {
                                         const staff = staffList.find(s => s.id === shift.staffId);
                                         const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
-                                        const s = localShifts[shift.id] ?? { start: toMins(shift.startTime), end: toMins(shift.endTime), classType: shift.classType };
+                                        const s = localShifts[shift.id] ?? { start: timeToMinutes(shift.startTime), end: timeToMinutes(shift.endTime), classType: shift.classType };
                                         const isDragging = activeDragId === shift.id;
                                         const allowedPatterns = roles.find(r => r.name === staff?.role)?.patterns || [];
 
@@ -1036,7 +1030,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         )}
                                                         <div className="flex-1 px-1 sm:px-2 text-[9px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
                                                             {!readOnly && <GripVertical className="inline w-3 h-3 mr-1 opacity-40" />}
-                                                            {getShiftLabel(readOnly ? toMins(shift.startTime) : s.start, readOnly ? toMins(shift.endTime) : s.end)}
+                                                            {getShiftLabel(readOnly ? timeToMinutes(shift.startTime) : s.start, readOnly ? timeToMinutes(shift.endTime) : s.end)}
                                                         </div>
                                                         {!readOnly && (
                                                             <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>

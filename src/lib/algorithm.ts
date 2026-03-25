@@ -1,4 +1,5 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek } from 'date-fns';
+import { timeToMinutes } from '../utils/timeUtils';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**
@@ -71,17 +72,12 @@ const isStaffAvailableForTimeSlot = (
         const partialEntries = pref.details.filter(d => d.date === dateStr && d.startTime && d.endTime);
         for (const entry of partialEntries) {
             // Convert to minutes for robust comparison (handles midnight crossing better if it occurs)
-            const [sH, sM] = startTime.split(':').map(Number);
-            const [eH, eM] = endTime.split(':').map(Number);
-            const [usH, usM] = entry.startTime!.split(':').map(Number);
-            const [ueH, ueM] = entry.endTime!.split(':').map(Number);
-
-            const sMin = sH * 60 + sM;
-            let eMin = eH * 60 + eM;
+            const sMin = timeToMinutes(startTime);
+            let eMin = timeToMinutes(endTime);
             if (eMin < sMin) eMin += 24 * 60;
 
-            const usMin = usH * 60 + usM;
-            let ueMin = ueH * 60 + ueM;
+            const usMin = timeToMinutes(entry.startTime!);
+            let ueMin = timeToMinutes(entry.endTime!);
             if (ueMin < usMin) ueMin += 24 * 60;
 
             // Check if [sMin, eMin] overlaps with [usMin, ueMin]
@@ -221,10 +217,8 @@ const findAvailableStaff = (
         .filter(({ staff, pattern }) => {
             const shiftStart = pattern ? pattern.startTime : startTime;
             const shiftEnd = pattern ? pattern.endTime : endTime;
-            const [sH, sM] = shiftStart.split(':').map(Number);
-            const [eH, eM] = shiftEnd.split(':').map(Number);
-            const startMins = sH * 60 + sM;
-            let endMins = eH * 60 + eM;
+            const startMins = timeToMinutes(shiftStart);
+            let endMins = timeToMinutes(shiftEnd);
             if (shiftEnd < shiftStart) endMins += 24 * 60;
             const duration = (endMins - startMins) / 60;
 
@@ -313,10 +307,8 @@ export const generateShiftsForMonth = (
         const shiftDate = new Date(shift.date);
         const weekKey = `w-${format(startOfISOWeek(shiftDate), 'yyyy-MM-dd')}`;
         
-        const [sH, sM] = shift.startTime.split(':').map(Number);
-        const [eH, eM] = shift.endTime.split(':').map(Number);
-        const startMins = sH * 60 + sM;
-        let endMins = eH * 60 + eM;
+        const startMins = timeToMinutes(shift.startTime);
+        let endMins = timeToMinutes(shift.endTime);
         if (shift.endTime < shift.startTime) endMins += 24 * 60;
         const duration = (endMins - startMins) / 60;
         
@@ -386,10 +378,8 @@ export const generateShiftsForMonth = (
                         });
 
                         // 労働時間を加算
-                        const [sH, sM] = shiftStart.split(':').map(Number);
-                        const [eH, eM] = shiftEnd.split(':').map(Number);
-                        const startMins = sH * 60 + sM;
-                        let endMins = eH * 60 + eM;
+                        const startMins = timeToMinutes(shiftStart);
+                        let endMins = timeToMinutes(shiftEnd);
 
                         // 日またぎ対応
                         if (shiftEnd < shiftStart) {

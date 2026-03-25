@@ -1,15 +1,20 @@
 /**
+ * Convert a HH:MM string to total minutes.
+ */
+export const timeToMinutes = (timeStr: string): number => {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+};
+
+/**
  * Calculate duration in hours between two HH:MM strings.
  * Supports day-crossing (e.g., 22:00 to 02:00 = 4.0 hours).
  */
 export const calculateDuration = (startTime: string, endTime: string): number => {
     if (!startTime || !endTime) return 0;
 
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-
-    const startMinutes = startH * 60 + startM;
-    let endMinutes = endH * 60 + endM;
+    const startMinutes = timeToMinutes(startTime);
+    let endMinutes = timeToMinutes(endTime);
 
     // Handle overnight shifts
     if (endMinutes < startMinutes) {

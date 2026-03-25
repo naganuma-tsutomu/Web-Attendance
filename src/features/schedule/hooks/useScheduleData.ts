@@ -5,7 +5,7 @@ import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useQueries } from '@tanstack/react-query';
 import { 
-    syncHolidays, getShiftRequirements,
+    syncHolidaysIfNeeded, getShiftRequirements,
     getShiftsByMonth, getPreferencesByMonth, getFixedDates
 } from '../../../lib/api';
 import { 
@@ -185,7 +185,7 @@ export const useScheduleData = () => {
 
     // 初期化と同期
     useEffect(() => {
-        syncHolidays().catch(err => console.error('Failed to sync holidays', err));
+        syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
     }, []);
 
     useEffect(() => {

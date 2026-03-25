@@ -301,6 +301,21 @@ export const syncHolidays = async (year?: number): Promise<{ success: boolean; m
     return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url);
 };
 
+export const syncHolidaysIfNeeded = async (): Promise<void> => {
+    try {
+        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const lastSyncStr = localStorage.getItem('lastHolidaySyncDate');
+        if (lastSyncStr === todayStr) {
+            return; // 既に今日同期済みなのでスキップ
+        }
+        
+        await syncHolidays();
+        localStorage.setItem('lastHolidaySyncDate', todayStr);
+    } catch (err) {
+        console.error('Failed to sync holidays during daily background check', err);
+    }
+};
+
 // ==========================================
 // Fixed Dates API (シフト固定状態管理)
 // ==========================================

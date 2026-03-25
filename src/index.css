@@ -66,6 +66,15 @@
     scrollbar-width: none;
   }
 
+  /* Hide scrollbar utility */
+  .hidden-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hidden-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Calendar Height Fixes for Tailwind */
   .rbc-month-row {
     flex: 1 1 0% !important;

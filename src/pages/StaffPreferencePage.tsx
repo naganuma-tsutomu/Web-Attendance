@@ -468,11 +468,8 @@ const StaffPreferencePage = () => {
                             </div>
 
                             {/* Date Navigation Sidebar */}
-                            <div className="hidden md:flex flex-col sticky top-24 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm max-h-[calc(100vh-8rem)] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                                <style dangerouslySetInnerHTML={{__html: `
-                                    .hidden-scrollbar::-webkit-scrollbar { display: none; }
-                                `}} />
-                                <div className="hidden-scrollbar flex flex-col items-center">
+                            <div className="hidden md:flex flex-col sticky top-24 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm max-h-[calc(100vh-8rem)] overflow-y-auto hidden-scrollbar">
+                                <div className="flex flex-col items-center">
                                     {days.map(d => {
                                         const dateStr = format(d, 'yyyy-MM-dd');
                                         const hasShifts = allShifts.some(s => s.date === dateStr);

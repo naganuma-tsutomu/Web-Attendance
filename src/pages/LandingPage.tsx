@@ -17,13 +17,14 @@ const LandingPage = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // すでに管理者としてログインしている場合
-        if (!loading && currentUser) {
+        if (loading) return;
+        // admin セッションを優先（Firebase 認証済みなら /admin へ）
+        if (currentUser) {
             navigate('/admin');
+            return;
         }
-        // 従業員セッションをチェック
-        const staffSession = localStorage.getItem('staff_session');
-        if (staffSession) {
+        // admin セッションがない場合のみ staff セッションをチェック
+        if (localStorage.getItem('staff_session')) {
             navigate('/staff/preference');
         }
     }, [currentUser, loading, navigate]);

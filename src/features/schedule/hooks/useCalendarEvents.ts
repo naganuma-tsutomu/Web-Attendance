@@ -96,7 +96,7 @@ export const useCalendarEvents = (
                 let isReqOff = false;
 
                 if (pref) {
-                    const detailMatch = pref.details && pref.details.find((d: any) => d.date === dateStr);
+                    const detailMatch = pref.details && pref.details.find((d) => d.date === dateStr);
                     if (detailMatch && detailMatch.type === 'training') {
                         isTraining = true;
                     } else if (detailMatch) {

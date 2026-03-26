@@ -33,9 +33,19 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?:
     if (schema) {
         const result = schema.safeParse(data);
         if (!result.success) {
-            console.warn(`[API Validation Error] ${endpoint}:`, result.error.format());
-            // エラーをスローするか警告のみに留めるか（ここではUIを壊さないよう警告にとどめる）
+            const formatted = result.error.format();
+            if (import.meta.env.DEV) {
+                // 開発環境ではエラーをスローして即座に気づけるようにする
+                console.error(`[API Validation Error] ${endpoint}:`, formatted);
+                throw new Error(`API レスポンスの型が不正です: ${endpoint}`);
+            } else {
+                // 本番環境では警告のみに留め、UIを壊さない
+                console.warn(`[API Validation Error] ${endpoint}:`, formatted);
+            }
+            return data as T;
         }
+        // パース成功時は Zod が正規化した値を返す（型安全）
+        return result.data;
     }
     
     return data as T;

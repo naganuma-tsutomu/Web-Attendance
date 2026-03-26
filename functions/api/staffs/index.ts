@@ -1,9 +1,6 @@
 import type { Staff } from '../../../src/types';
 import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -36,7 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
             return {
                 ...row,
-                availableDays: normalizedDays.length > 0 ? normalizedDays : safeJsonParse(row.availableDays, undefined),
+                availableDays: normalizedDays,
                 isHelpStaff: row.isHelpStaff === 1,
                 classIds: classIds,
                 accessKey: row.access_key,
@@ -73,15 +70,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const statements = [
             context.env.DB.prepare(
-                `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
+                `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
             ).bind(
                 id,
                 staffData.name!.trim(),
                 staffData.role!,
                 staffData.hoursTarget ?? null,
                 staffData.weeklyHoursTarget ?? null,
-                staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
                 staffData.isHelpStaff ? 1 : 0,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,

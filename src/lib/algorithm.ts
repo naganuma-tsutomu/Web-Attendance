@@ -30,9 +30,6 @@ export const isStaffAvailableReason = (
         if (pref.details && pref.details.length > 0) {
             const fullDayEntry = pref.details.find(d => d.date === dateStr && !d.startTime && !d.endTime);
             if (fullDayEntry) return 'preference';
-        } else {
-            // fallback: details がない場合は従来のunavailableDatesを使う
-            if (pref.unavailableDates.includes(dateStr)) return 'preference';
         }
     }
 
@@ -89,7 +86,7 @@ const isStaffAvailableForTimeSlot = (
 
     const roleRecord = roles.find(r => r.name === staff.role || r.id === staff.role);
     const dayOfWeek = getDay(date);
-    const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayOfWeek];
+    const dayKey = (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const)[dayOfWeek];
     const isHolidayDate = holidays.includes(dateStr);
 
     // Filter patterns based on requirements
@@ -118,7 +115,7 @@ const isStaffAvailableForTimeSlot = (
             if (isHolidayDate) {
                 if (p.holiday === 0) return false;
             } else {
-                if ((p as any)[dayKey] === 0) return false;
+                if (p[dayKey] === 0) return false;
             }
 
             // 3. Time containment

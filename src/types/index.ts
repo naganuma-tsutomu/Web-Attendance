@@ -40,7 +40,6 @@ export interface ShiftPreference {
     id: string;
     staffId: string;
     yearMonth: string;
-    unavailableDates: string[];
     details?: ShiftPreferenceDetail[];
 }
 

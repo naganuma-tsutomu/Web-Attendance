@@ -1,9 +1,6 @@
 import type { ShiftPreference } from '../../../src/types';
 import { createValidationError, handleServerError, validateYearMonth, safeJsonParse } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -12,9 +9,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
 
-        // Get legacy records
+        // Get legacy records (table kept for grouping but unavailableDates removed)
         const { results: legacyResults } = await context.env.DB.prepare(
-            "SELECT * FROM shift_preferences WHERE yearMonth = ?"
+            "SELECT id, staffId, yearMonth FROM shift_preferences WHERE yearMonth = ?"
         ).bind(yearMonth).all();
 
         // Get normalized records
@@ -36,17 +33,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                     type: d.type || null
                 }));
 
-            // unavailableDates should only contain full-day unavailabilities (startTime and endTime are null)
-            const staffDates = staffDetails
-                .filter(d => !d.startTime && !d.endTime)
-                .map(d => d.date);
-
             return {
                 id: legacyRow?.id || `pref_${staffId}_${yearMonth}`,
                 staffId,
                 yearMonth,
-                unavailableDates: staffDetails.length > 0 ? staffDates : safeJsonParse<string[]>(legacyRow?.unavailableDates, []),
-                details: staffDetails.length > 0 ? staffDetails : safeJsonParse<string[]>(legacyRow?.unavailableDates, []).map((d: string) => ({ date: d, startTime: null, endTime: null, type: null }))
+                details: staffDetails
             };
         });
 
@@ -62,29 +53,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const ymError = validateYearMonth(pref?.yearMonth);
         if (ymError) return createValidationError(ymError);
 
-        // Ensure backward compatibility if only unavailableDates is sent
-        const details = pref.details || (pref.unavailableDates || []).map(date => ({ date, startTime: null, endTime: null, type: null }));
-        const unavailableDates = details.filter(d => !d.startTime && !d.endTime && !d.type).map(d => d.date);
+        const details = pref.details || [];
 
         // Statements for batch execution
         const statements = [];
 
-        // 1. Legacy Upsert
+        // 1. Legacy Upsert (without unavailableDates)
         const existing = await context.env.DB.prepare(
             "SELECT id FROM shift_preferences WHERE staffId = ? AND yearMonth = ?"
         ).bind(pref.staffId, pref.yearMonth).first();
 
-        if (existing) {
+        if (!existing) {
             statements.push(
                 context.env.DB.prepare(
-                    "UPDATE shift_preferences SET unavailableDates = ? WHERE id = ?"
-                ).bind(JSON.stringify(unavailableDates), existing.id)
-            );
-        } else {
-            statements.push(
-                context.env.DB.prepare(
-                    "INSERT INTO shift_preferences (id, staffId, yearMonth, unavailableDates) VALUES (?, ?, ?, ?)"
-                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth, JSON.stringify(unavailableDates))
+                    "INSERT INTO shift_preferences (id, staffId, yearMonth) VALUES (?, ?, ?)"
+                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth)
             );
         }
 

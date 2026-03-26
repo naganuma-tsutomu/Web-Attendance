@@ -1,8 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
@@ -31,7 +28,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     role = COALESCE(?, role),
                     hoursTarget = COALESCE(?, hoursTarget),
                     weeklyHoursTarget = COALESCE(?, weeklyHoursTarget),
-                    availableDays = COALESCE(?, availableDays),
                     isHelpStaff = COALESCE(?, isHelpStaff),
                     defaultWorkingHoursStart = COALESCE(?, defaultWorkingHoursStart),
                     defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd),
@@ -42,7 +38,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 staffData.role !== undefined ? staffData.role : null,
                 staffData.hoursTarget !== undefined ? staffData.hoursTarget : null,
                 staffData.weeklyHoursTarget !== undefined ? staffData.weeklyHoursTarget : null,
-                staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
                 staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,

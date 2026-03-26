@@ -202,9 +202,8 @@ const PreferencesPage = () => {
             const details = preferences
                 .filter(p => p.status === 'unavailable')
                 .map(p => ({ date: p.dateStr, startTime: p.startTime || null, endTime: p.endTime || null, type: p.type || null }));
-            const unavailableDates = details.filter(d => !d.startTime && !d.type).map(d => d.date);
 
-            await savePreference({ staffId: selectedStaffId, yearMonth, unavailableDates, details });
+            await savePreference({ staffId: selectedStaffId, yearMonth, details });
 
             // ローカルキャッシュも更新
             setAllPrefsForMonth(prev => ({ ...prev, [selectedStaffId]: details }));

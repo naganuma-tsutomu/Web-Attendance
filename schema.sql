@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS staffs (
     role TEXT NOT NULL,
     hoursTarget REAL,
     weeklyHoursTarget REAL,
-    availableDays TEXT, -- JSON array string (Lgegacy, will be replaced by staff_available_days)
     isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
@@ -47,7 +46,6 @@ CREATE TABLE IF NOT EXISTS shift_preferences (
     id TEXT PRIMARY KEY,
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL, -- e.g. "2024-04"
-    unavailableDates TEXT NOT NULL, -- JSON array string (Legacy, will be replaced by shift_preference_dates)
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 

@@ -36,7 +36,12 @@ const StaffPreferencePage = () => {
             navigate('/staff/login');
             return;
         }
-        setStaff(JSON.parse(session));
+        try {
+            setStaff(JSON.parse(session));
+        } catch {
+            localStorage.removeItem('staff_session');
+            navigate('/staff/login');
+        }
     }, [navigate]);
 
     useEffect(() => {
@@ -119,7 +124,6 @@ const StaffPreferencePage = () => {
             await updatePreferences({
                 staffId: staff.id,
                 yearMonth: format(currentMonth, 'yyyy-MM'),
-                unavailableDates: preferences.filter(p => !p.startTime).map(p => p.date),
                 details: preferences
             });
             setSavedPreferences(preferences);

@@ -9,29 +9,30 @@ export const StaffSchema = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
-  hoursTarget: z.number().nullable(),
+  hoursTarget: z.number().nullable().optional(),
   weeklyHoursTarget: z.number().nullable().optional(),
-  isHelpStaff: z.boolean().optional(),
+  isHelpStaff: z.union([z.boolean(), z.number()]).optional().nullable(),
   classIds: z.array(z.string()).optional(),
   availableDays: z.array(z.union([z.number(), AvailableDayConfigSchema])).optional(),
-  defaultWorkingHoursStart: z.string().optional(),
-  defaultWorkingHoursEnd: z.string().optional(),
-  display_order: z.number().optional(),
-  accessKey: z.string().optional(),
+  defaultWorkingHoursStart: z.string().optional().nullable(),
+  defaultWorkingHoursEnd: z.string().optional().nullable(),
+  display_order: z.number().optional().nullable(),
+  accessKey: z.string().optional().nullable(),
+  access_key: z.string().optional().nullable(), // DB生のキーも拾えるか無視させる保険
 });
 
 export const ShiftClassSchema = z.object({
   id: z.string(),
   name: z.string(),
-  display_order: z.number(),
-  auto_allocate: z.number(),
+  display_order: z.number().optional().nullable(),
+  auto_allocate: z.union([z.boolean(), z.number()]).optional().nullable(),
   color: z.string().optional().nullable(),
 });
 
 export const ShiftPreferenceDetailSchema = z.object({
   date: z.string(),
-  startTime: z.string().nullable(),
-  endTime: z.string().nullable(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
   type: z.string().optional().nullable(),
 });
 
@@ -49,8 +50,8 @@ export const ShiftSchema = z.object({
   startTime: z.string(),
   endTime: z.string(),
   classType: z.string(),
-  isEarlyShift: z.boolean(),
-  isError: z.boolean().optional(),
+  isEarlyShift: z.union([z.boolean(), z.number()]).optional().nullable(),
+  isError: z.union([z.boolean(), z.number()]).optional().nullable(),
 });
 
 export const ShiftTimePatternSchema = z.object({
@@ -59,15 +60,15 @@ export const ShiftTimePatternSchema = z.object({
   startTime: z.string(),
   endTime: z.string(),
   roleIds: z.array(z.string()).optional(),
-  display_order: z.number().optional(),
+  display_order: z.number().optional().nullable(),
 });
 
 export const DynamicRoleSchema = z.object({
   id: z.string(),
   name: z.string(),
-  targetHours: z.number().optional(),
-  weeklyHoursTarget: z.number().optional(),
-  display_order: z.number().optional(),
+  targetHours: z.number().optional().nullable(),
+  weeklyHoursTarget: z.number().optional().nullable(),
+  display_order: z.number().optional().nullable(),
 });
 
 export const ShiftRequirementSchema = z.object({
@@ -77,8 +78,8 @@ export const ShiftRequirementSchema = z.object({
     startTime: z.string(),
     endTime: z.string(),
     minStaffCount: z.number().int(),
-    maxStaffCount: z.number().int().nullable().optional(),
-    priority: z.number().optional()
+    maxStaffCount: z.number().int().optional().nullable(),
+    priority: z.number().optional().nullable()
 });
 
 export const HolidaySchema = z.object({
@@ -86,11 +87,11 @@ export const HolidaySchema = z.object({
     date: z.string(),
     name: z.string(),
     type: z.string(),
-    is_workday: z.boolean().optional()
+    is_workday: z.union([z.boolean(), z.number()]).optional().nullable()
 });
 
 export const BusinessHoursSchema = z.object({
     startHour: z.number().int(),
     endHour: z.number().int(),
-    closedDays: z.array(z.number().int())
+    closedDays: z.array(z.number().int()).optional()
 });

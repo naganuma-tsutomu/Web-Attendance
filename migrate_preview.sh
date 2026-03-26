@@ -21,8 +21,14 @@ npx wrangler d1 execute web-attendance-preview-db --remote --command="ALTER TABL
 echo "5/6: display_order"
 npx wrangler d1 execute web-attendance-preview-db --remote --command="ALTER TABLE staffs ADD COLUMN display_order INTEGER DEFAULT 0;"
 
-echo "6/6: access_key"
+echo "6/7: staffs access_key"
 npx wrangler d1 execute web-attendance-preview-db --remote --command="ALTER TABLE staffs ADD COLUMN access_key TEXT;"
+
+echo "7/8: roles weeklyHoursTarget"
+npx wrangler d1 execute web-attendance-preview-db --remote --command="ALTER TABLE roles ADD COLUMN weeklyHoursTarget REAL;"
+
+echo "8/8: classes color"
+npx wrangler d1 execute web-attendance-preview-db --remote --command="ALTER TABLE classes ADD COLUMN color TEXT DEFAULT '#818cf8';"
 
 echo "最後にその他の新規テーブル作成（schema.sql）を実行します..."
 npx wrangler d1 execute web-attendance-preview-db --remote --file=schema.sql

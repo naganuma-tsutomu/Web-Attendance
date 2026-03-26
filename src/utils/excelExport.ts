@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { calculateDuration } from './timeUtils';
 import { handleApiError } from '../lib/errorHandler';
 import { createHolidayMap, isHoliday } from '../lib/holidayUtils';
-import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday } from '../types';
+import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings } from '../types';
 
 /**
  * デフォルト営業時間
@@ -45,7 +45,8 @@ export const exportToExcelAdvanced = async (
     _timePatterns: ShiftTimePattern[],
     businessHours?: BusinessHours,
     preferences: ShiftPreference[] = [],
-    holidays: Holiday[] = []
+    holidays: Holiday[] = [],
+    excelSettings?: ExcelSettings
 ) => {
     const holidayMap = createHolidayMap(holidays);
     // 休日理由の判定と色・テキストを返す
@@ -143,8 +144,14 @@ export const exportToExcelAdvanced = async (
         });
 
         // 休日スタッフの抽出
-        const holidayStaffs = staffs.filter(s => !dayShifts.some(shift => shift.staffId === s.id))
+        const isSaturday = dayOfWeek === 6;
+        let holidayStaffs = staffs.filter(s => !dayShifts.some(shift => shift.staffId === s.id))
             .map(s => getHolidayInfo(s, day, dateStr));
+
+        // 土曜日の休日スタッフ非表示設定
+        if (isSaturday && excelSettings?.excludeHolidayStaffOnSaturdays) {
+            holidayStaffs = [];
+        }
 
         const rowCount = Math.max(sortedDayShifts.length, holidayStaffs.length, 1);
 
@@ -170,7 +177,31 @@ export const exportToExcelAdvanced = async (
                 rowData.end = shift.endTime;
             }
 
+            // ハイライトルールの判定
+            let rowHighlightColor: string | null = null;
+            if (shift && excelSettings?.highlightRules) {
+                const rule = excelSettings.highlightRules.find(r => r.staffId === shift.staffId);
+                if (rule) {
+                    // 通常時間と異なるかチェック (08:00 vs 8:00 などの些細な差異を許容するため文字列比較前に正規化を検討するが、一旦直接比較)
+                    if (shift.startTime !== rule.regularStartTime || shift.endTime !== rule.regularEndTime) {
+                        rowHighlightColor = rule.highlightColor;
+                    }
+                }
+            }
+
             const row = worksheet.addRow(rowData);
+
+            // 背景色の適用 (データ列 A-H)
+            if (rowHighlightColor) {
+                for (let colIdx = 1; colIdx <= 8; colIdx++) {
+                    const cell = row.getCell(colIdx);
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: rowHighlightColor }
+                    };
+                }
+            }
 
             // 休日スタッフの文字色設定
             if (holiday) {

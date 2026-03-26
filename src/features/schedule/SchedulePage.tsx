@@ -172,6 +172,7 @@ const SchedulePage = () => {
                 onToggleSummary={() => setIsSummaryOpen(!isSummaryOpen)}
                 onRetry={schedule.loadShifts}
                 businessHours={schedule.businessHours}
+                excelSettings={schedule.excelSettings}
             />
 
             {/* Calendar and Summary Area */}

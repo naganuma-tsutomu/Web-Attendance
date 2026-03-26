@@ -4,9 +4,10 @@ import {
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
     getPreferencesByMonth, getShiftRequirements, getFixedDates, saveShiftsBatch,
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
-    getBusinessHours, updateBusinessHours
+    getBusinessHours, updateBusinessHours,
+    getExcelSettings, updateExcelSettings
 } from './api';
-import type { Staff, Shift, ShiftPreference, BusinessHours } from '../types';
+import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings } from '../types';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {
@@ -203,6 +204,27 @@ export const useUpdateBusinessHours = () => {
         mutationFn: (data: BusinessHours) => updateBusinessHours(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessHours });
+        },
+    });
+};
+
+// ==============================
+// Excel Settings (Excel出力設定)
+// ==============================
+
+export const useExcelSettings = () => {
+    return useQuery({
+        queryKey: ['excelSettings'],
+        queryFn: getExcelSettings,
+    });
+};
+
+export const useUpdateExcelSettings = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: ExcelSettings) => updateExcelSettings(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['excelSettings'] });
         },
     });
 };

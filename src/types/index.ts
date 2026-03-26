@@ -8,6 +8,7 @@
  * 既存インポート `from '../types'` はそのまま動作する。
  */
 
+import { z } from 'zod';
 import type {
     AvailableDayConfig as _AvailableDayConfig,
     StaffInferred,
@@ -20,6 +21,8 @@ import type {
     ShiftRequirementInferred,
     HolidayInferred,
     BusinessHoursInferred,
+    ExcelSettingsSchema,
+    ExcelHighlightRuleSchema
 } from './schemas';
 
 // ==========================================
@@ -93,7 +96,10 @@ export interface Holiday extends Omit<HolidayInferred, 'type' | 'isWorkday' | 'i
     updated_at?: string;
 }
 
-/** 営業時間 */
 export interface BusinessHours extends Omit<BusinessHoursInferred, 'closedDays'> {
     closedDays: number[];
 }
+
+/** Excel出力設定 */
+export type ExcelHighlightRule = z.infer<typeof ExcelHighlightRuleSchema>;
+export type ExcelSettings = z.infer<typeof ExcelSettingsSchema>;

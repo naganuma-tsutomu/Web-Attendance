@@ -13,6 +13,7 @@ import TimePatternsPage from './pages/settings/TimePatternsPage';
 import RolesPage from './pages/settings/RolesPage';
 import ClassesPage from './pages/settings/ClassesPage';
 import AppearancePage from './pages/settings/AppearancePage';
+import ExcelSettingsPage from './pages/settings/ExcelSettingsPage';
 import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import StaffPreferencePage from './pages/StaffPreferencePage';
@@ -62,6 +63,7 @@ const AppRoutes = () => {
           <Route path="settings/classes" element={<ClassesPage />} />
           <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
+          <Route path="settings/excel" element={<ExcelSettingsPage />} />
         </Route>
         <Route path="/staff/login" element={<StaffLoginPage />} />
         <Route path="/staff/preference" element={<StaffPreferencePage />} />

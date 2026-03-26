@@ -112,6 +112,18 @@ export const BusinessHoursSchema = z.object({
   closedDays: z.array(z.number().int()).optional(),
 });
 
+export const ExcelHighlightRuleSchema = z.object({
+  staffId: z.string(),
+  regularStartTime: z.string(),
+  regularEndTime: z.string(),
+  highlightColor: z.string().default('FFFFCCE5'), // Pink
+});
+
+export const ExcelSettingsSchema = z.object({
+  excludeHolidayStaffOnSaturdays: z.boolean().default(false),
+  highlightRules: z.array(ExcelHighlightRuleSchema).default([]),
+});
+
 // ==========================================
 // z.infer<> で TypeScript 型を生成
 // ==========================================

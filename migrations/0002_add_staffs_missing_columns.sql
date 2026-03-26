@@ -1,0 +1,2 @@
+-- This migration is currently empty to avoid "duplicate column" errors on existing databases.
+-- The columns are already defined in the master schema.sql for fresh installs.

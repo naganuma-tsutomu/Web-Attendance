@@ -10,7 +10,7 @@ import {
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
     useSaveShiftsBatch, useUpdateShift, useDeleteShiftsByMonth, useSaveFixedDates,
-    useBusinessHours,
+    useBusinessHours, useExcelSettings,
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
@@ -53,6 +53,7 @@ export const useScheduleData = () => {
     const { data: roles = [], isLoading: isLoadingRoles } = useRoles();
     const { data: holidays = [], isLoading: isLoadingHolidays } = useHolidays(currentDate.getFullYear());
     const { data: businessHours } = useBusinessHours();
+    const { data: excelSettings } = useExcelSettings();
 
     // 動的な複数月データフェッチ
     const { rawShifts, preferences, fixedDates, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
@@ -230,8 +231,9 @@ export const useScheduleData = () => {
         roles,
         fixedDates,
         holidays,
-        summaryEvents,
         businessHours,
+        excelSettings,
+        summaryEvents,
 
         // UI状態
         loading,

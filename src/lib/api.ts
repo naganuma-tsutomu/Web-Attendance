@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings } from '../types';
 import { 
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema, 
-    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema 
+    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
 
@@ -364,6 +364,21 @@ export const getBusinessHours = async (): Promise<BusinessHours> => {
 
 export const updateBusinessHours = async (data: BusinessHours): Promise<void> => {
     await apiFetch('/settings/business-hours', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+};
+
+// ==========================================
+// Excel Settings API (Excel出力設定)
+// ==========================================
+
+export const getExcelSettings = async (): Promise<ExcelSettings> => {
+    return apiFetch<ExcelSettings>('/settings/excel-settings', {}, ExcelSettingsSchema);
+};
+
+export const updateExcelSettings = async (data: ExcelSettings): Promise<void> => {
+    await apiFetch('/settings/excel-settings', {
         method: 'PUT',
         body: JSON.stringify(data)
     });

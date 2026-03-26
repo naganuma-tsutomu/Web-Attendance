@@ -1,6 +1,7 @@
 name = "web-attendance"
 compatibility_date = "2024-03-20"
-pages_build_output_dir = "dist"
+# NOTE: Removed pages_build_output_dir as it conflicts with proxy command (`-- npm run dev:client`)
+# pages_build_output_dir = "dist"
 
 # --- [1] 本番環境（デフォルト）の設定 ---
 [vars]

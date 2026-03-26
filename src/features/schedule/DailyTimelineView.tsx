@@ -233,7 +233,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">終了</div>
                             <div className="w-14 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">時間</div>
                         </div>
-                        <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">スタッフ</div>
+                        <div className="sm:hidden w-[110px] flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">スタッフ</div>
                         <div className="flex-1 relative h-8 border-l border-slate-300 dark:border-slate-600">
                             {hourLabels.map((h) => {
                                 const leftPct = ((h * 60 - hours.displayStartMins) / hours.displayTotalMins) * 100;
@@ -251,7 +251,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 {/* Simplified readOnly header */}
                 {readOnly && (
                     <div className="flex bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 sticky top-0 z-20">
-                        <div className="w-44 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前 / 時間</div>
+                        <div className="w-[110px] sm:w-44 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center flex flex-col justify-center leading-tight"><span>名前</span><span className="hidden sm:inline"> / 時間</span></div>
                         <div className="flex-1 relative h-6">
                             {hourLabels.map((h) => {
                                 const leftPct = ((h * 60 - hours.displayStartMins) / hours.displayTotalMins) * 100;
@@ -329,14 +329,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                         return (
                                             <div
                                                 key={shift.id}
-                                                className={`flex ${readOnly ? 'flex-row items-center border-b border-slate-100 dark:border-slate-700/50' : 'flex-col sm:flex-row border-b border-slate-200 dark:border-slate-700'} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                                className={`flex flex-row ${readOnly ? 'items-center border-b border-slate-100 dark:border-slate-700/50' : 'border-b border-slate-200 dark:border-slate-700'} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                                                 style={readOnly ? { touchAction: 'pan-y' } : {}}
                                             >
                                                 {/* Left Info Column */}
                                                 {!readOnly ? (
-                                                    <div className="flex w-full sm:w-[480px] flex-shrink-0 text-sm bg-white dark:bg-slate-800">
-                                                        <div className="w-28 sm:w-28 p-2 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
-                                                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
+                                                    <div className="flex flex-col sm:flex-row w-[110px] sm:w-[480px] flex-shrink-0 text-xs sm:text-sm bg-white dark:bg-slate-800">
+                                                        <div className="w-full sm:w-28 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
+                                                            <div className="font-medium text-[11px] sm:text-[13px] text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
                                                                 {staffName}
                                                                 {highlightStaffId === shift.staffId && (
                                                                     <span className="ml-1 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>
@@ -365,9 +365,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                 onSwapStaff={(oldId, newId) => { edit.handleSwapStaff(oldId, newId); setShowSwapMenu(null); }}
                                                             />
                                                         </div>
-                                                        <div className="w-36 border-r border-slate-200 dark:border-slate-700 flex items-center px-1">
+                                                        <div className="w-full sm:w-36 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex items-center px-1 py-1 sm:py-0">
                                                             <select
-                                                                className="w-full text-[10px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+                                                                className="w-full text-[10px] sm:text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
                                                                 value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
                                                                 onChange={(e) => edit.handlePatternChange(shift.id, e.target.value)}
                                                             >
@@ -377,25 +377,27 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                 ))}
                                                             </select>
                                                         </div>
-                                                        <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                            <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => edit.handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                        <div className="flex flex-row w-full sm:w-40 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-700">
+                                                            <div className="flex-1 sm:w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-0.5 sm:px-1 py-1 sm:py-0">
+                                                                <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => edit.handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-[10px] sm:text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                            </div>
+                                                            <div className="flex-1 sm:w-20 flex items-center justify-center px-0.5 sm:px-1 py-1 sm:py-0">
+                                                                <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => edit.handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-[10px] sm:text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                            </div>
                                                         </div>
-                                                        <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                            <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => edit.handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
-                                                        </div>
-                                                        <div className="w-14 p-2 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
+                                                        <div className="hidden sm:flex w-14 p-2 border-r border-slate-200 dark:border-slate-700 items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
                                                             {calculateDuration(s.start, s.end)}
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className={`w-44 flex-shrink-0 px-3 py-1 border-r border-slate-100 dark:border-slate-700/50 flex items-center justify-between overflow-hidden gap-1 ${highlightStaffId === shift.staffId ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'bg-white/50 dark:bg-slate-800/50'}`}>
-                                                        <div className="flex items-center gap-1 overflow-hidden">
-                                                            <div className={`text-xs font-bold truncate ${highlightStaffId === shift.staffId ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`} title={staffName}>{staffName}</div>
+                                                    <div className={`w-[110px] sm:w-44 flex-shrink-0 px-2 sm:px-3 py-1 border-r border-slate-100 dark:border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-center sm:justify-between overflow-hidden gap-0 sm:gap-1 ${highlightStaffId === shift.staffId ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'bg-white/50 dark:bg-slate-800/50'}`}>
+                                                        <div className="flex items-center gap-1 overflow-hidden w-full">
+                                                            <div className={`text-[10px] sm:text-xs font-bold truncate ${highlightStaffId === shift.staffId ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`} title={staffName}>{staffName}</div>
                                                             {highlightStaffId === shift.staffId && (
                                                                 <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0">My</span>
                                                             )}
                                                         </div>
-                                                        <div className={`text-xs font-mono tracking-tight flex-shrink-0 ${highlightStaffId === shift.staffId ? 'text-indigo-500 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                        <div className={`text-[10px] sm:text-xs font-mono tracking-tight flex-shrink-0 ${highlightStaffId === shift.staffId ? 'text-indigo-500 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400'}`}>
                                                             {toTimeStr(s.start)}-{toTimeStr(s.end)}
                                                         </div>
                                                     </div>

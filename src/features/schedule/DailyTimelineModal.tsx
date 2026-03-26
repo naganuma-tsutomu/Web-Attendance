@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { X, Save } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../types';
+import { toast } from 'sonner';
+import { X, Save, Lock, Unlock } from 'lucide-react';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
@@ -12,8 +13,12 @@ interface DailyTimelineModalProps {
     staffList: Staff[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
+    preferences: ShiftPreference[];
     onClose: () => void;
     onShiftUpdate?: () => void;
+    isFixed?: boolean;
+    onToggleFixed?: () => void;
 }
 
 const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
@@ -22,8 +27,12 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     staffList,
     classes,
     timePatterns,
+    roles,
+    preferences,
     onClose,
-    onShiftUpdate
+    onShiftUpdate,
+    isFixed,
+    onToggleFixed
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
@@ -35,9 +44,15 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
         setSavingAll(true);
         try {
             await saveRef.current();
+            toast.success('保存しました');
             onClose();
         } catch (error) {
-            alert('保存に失敗しました。');
+            console.error(error);
+            if (error instanceof Error && error.message) {
+                toast.error(error.message);
+            } else {
+                toast.error('保存に失敗しました。');
+            }
         } finally {
             setSavingAll(false);
         }
@@ -51,12 +66,26 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
         }
     }, [isModified, onClose]);
 
+    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
+
+    const handleBackdropMouseDown = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            setMouseDownOnBackdrop(true);
+        }
+    };
+
+    const handleBackdropMouseUp = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+            handleClose();
+        }
+        setMouseDownOnBackdrop(false);
+    };
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-auto select-none"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) handleClose();
-            }}
+            onMouseDown={handleBackdropMouseDown}
+            onMouseUp={handleBackdropMouseUp}
         >
             <div
                 className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700"
@@ -73,9 +102,24 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                             バーをドラッグ・または左の入力欄で時間を変更できます（15分スナップ）
                         </p>
                     </div>
-                    <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {onToggleFixed && (
+                            <button
+                                onClick={onToggleFixed}
+                                title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                                className={`flex items-center p-2 rounded-lg transition-colors border shadow-sm ${
+                                    isFixed
+                                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                {isFixed ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                            </button>
+                        )}
+                        <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -86,9 +130,14 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         staffList={staffList}
                         classes={classes}
                         timePatterns={timePatterns}
+                        roles={roles}
+                        preferences={preferences}
                         onShiftUpdate={onShiftUpdate}
                         onModifiedChange={setIsModified}
                         saveRef={saveRef}
+                        isFixed={isFixed}
+                        onToggleFixed={onToggleFixed}
+                        hideHeaderToggle={true}
                     />
 
                     {/* Footer Buttons */}
@@ -96,7 +145,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         {isModified && (
                             <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-4">
                                 <Save className="w-4 h-4" />
-                                <span className="font-medium">変更後は「保存する」ボタンで確定してください</span>
+                                <span className="font-medium">変更後は「保存」ボタンで確定してください</span>
                             </div>
                         )}
                         <button
@@ -119,7 +168,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                             ) : (
                                 <>
                                     <Save className="w-3.5 h-3.5" />
-                                    保存する
+                                    保存
                                 </>
                             )}
                         </button>

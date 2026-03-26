@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, GraduationCap } from 'lucide-react';
+import { GraduationCap } from 'lucide-react';
 import { getClasses, getStaffList } from '../../lib/api';
+import { handleApiError } from '../../lib/errorHandler';
 import type { ShiftClass, Staff } from '../../types';
 import ClassesSettings from '../../features/settings/components/ClassesSettings';
 
@@ -8,7 +9,6 @@ const ClassesPage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [staffs, setStaffs] = useState<Staff[]>([]);
     const [loading, setLoading] = useState(true);
-    const [message, setMessage] = useState('');
 
     const fetchData = async () => {
         setLoading(true);
@@ -20,7 +20,7 @@ const ClassesPage = () => {
             setClasses(classesData);
             setStaffs(staffsData);
         } catch (err) {
-            console.error('Failed to load classes or staffs', err);
+            handleApiError(err, 'クラスデータの読み込みに失敗しました');
         } finally {
             setLoading(false);
         }
@@ -29,11 +29,6 @@ const ClassesPage = () => {
     useEffect(() => {
         fetchData();
     }, []);
-
-    const showMessage = (msg: string) => {
-        setMessage(msg);
-        setTimeout(() => setMessage(''), 3000);
-    };
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
@@ -49,21 +44,12 @@ const ClassesPage = () => {
                     </div>
                 </div>
 
-                {/* Toast Message */}
-                {message && (
-                    <div className="fixed top-20 right-4 z-50 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="text-sm font-medium">{message}</span>
-                    </div>
-                )}
-
                 <ClassesSettings
                     classes={classes}
                     staffs={staffs}
                     loading={loading}
                     onUpdate={fetchData}
                     setClasses={setClasses}
-                    showMessage={showMessage}
                 />
             </div>
         </div>

@@ -1,19 +1,20 @@
-export interface Env {
-    DB: D1Database;
-}
+import { createValidationError, handleServerError, validateYearMonth, validateDate, validateTimeRange } from '../../utils/validation';
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth payload', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
+        const [y, m] = yearMonth!.split('-').map(Number);
         const startStr = `${yearMonth}-01`;
-        const endStr = `${yearMonth}-31`;
+        const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
         const { results } = await context.env.DB.prepare(
-            "SELECT * FROM shifts WHERE date >= ? AND date <= ?"
-        ).bind(startStr, endStr).all();
+            "SELECT * FROM shifts WHERE date >= ? AND date < ?"
+        ).bind(startStr, nextMonth).all();
 
         const shifts = results.map((row: any) => ({
             ...row,
@@ -23,7 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         return Response.json(shifts);
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'GET /shifts');
     }
 };
 
@@ -32,6 +33,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const shiftsData: any[] = await context.request.json();
         if (!shiftsData || shiftsData.length === 0) {
             return Response.json({ success: true, message: 'No data to insert' });
+        }
+
+        for (let i = 0; i < shiftsData.length; i++) {
+            const shift = shiftsData[i];
+            const prefix = `shifts[${i}]`;
+
+            const dateError = validateDate(shift.date, `${prefix}.date`);
+            if (dateError) return createValidationError(dateError);
+
+            if (!shift.staffId || String(shift.staffId).trim().length === 0) {
+                return createValidationError(`${prefix}.staffId は必須です`);
+            }
+
+            if (!shift.classType || String(shift.classType).trim().length === 0) {
+                return createValidationError(`${prefix}.classType は必須です`);
+            }
+
+            const timeError = validateTimeRange(shift.startTime, shift.endTime);
+            if (timeError) return createValidationError(`${prefix}: ${timeError}`);
         }
 
         const stmt = context.env.DB.prepare(
@@ -58,8 +78,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: `Successfully inserted ${shiftsData.length} shifts` });
     } catch (e) {
-        console.error('Batch insert error:', e);
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'POST /shifts');
     }
 };
 
@@ -67,14 +86,17 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
+        const [y, m] = yearMonth!.split('-').map(Number);
+        const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
         await context.env.DB.prepare(
-            "DELETE FROM shifts WHERE date LIKE ?"
-        ).bind(`${yearMonth}%`).run();
+            "DELETE FROM shifts WHERE date >= ? AND date < ?"
+        ).bind(`${yearMonth}-01`, nextMonth).run();
 
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'DELETE /shifts');
     }
 };

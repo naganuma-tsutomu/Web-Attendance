@@ -2,6 +2,7 @@ import { GripVertical, Edit2, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Staff, ShiftClass } from '../../../types';
+import { formatHours } from '../../../utils/timeUtils';
 
 interface StaffRowProps {
     staff: Staff;
@@ -35,7 +36,7 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
         <tr
             ref={setNodeRef}
             style={style}
-            className={`${isOverlay ? 'bg-white dark:bg-slate-800 shadow-2xl opacity-90 ring-2 ring-indigo-500 rounded-xl' : 'hover:bg-slate-50/50 transition-colors'} ${isDragging && !isOverlay ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
+            className={`${isOverlay ? 'bg-white dark:bg-slate-800 opacity-90' : 'hover:bg-slate-50/50 transition-colors'} ${isDragging && !isOverlay ? 'bg-indigo-50/50 outline-2 outline-indigo-200 outline-dashed' : ''}`}
         >
             <td className="pl-4 pr-2 py-4 w-10">
                 {!isOverlay && (
@@ -54,6 +55,11 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
             <td className="px-6 py-4 whitespace-nowrap">
                 <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
                     {staff.role}
+                </span>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap">
+                <span className="text-sm font-mono font-bold text-slate-600 dark:text-slate-300">
+                    {staff.accessKey || '----'}
                 </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
@@ -78,16 +84,21 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                         {staff.hoursTarget !== null ? (
                             <>
                                 <span className={`font-bold ${currentMonthHours > staff.hoursTarget ? 'text-red-500' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                    {currentMonthHours.toFixed(1)}h
+                                    {formatHours(currentMonthHours)}h
                                 </span>
                                 <span className="text-xs text-slate-400 font-normal ml-1">
                                     / {staff.hoursTarget}h
                                 </span>
                             </>
                         ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-200">{currentMonthHours.toFixed(1)}h</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{formatHours(currentMonthHours)}h</span>
                         )}
                     </div>
+                    {staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined && (
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">
+                            週目標: {staff.weeklyHoursTarget}h
+                        </div>
+                    )}
                     {staff.hoursTarget !== null && staff.hoursTarget > 0 && (
                         <div className="h-1.5 w-24 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div

@@ -1,12 +1,11 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 // PUT /api/settings/classes/[id] — クラス更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string, display_order?: number, auto_allocate?: number };
+        const body = await context.request.json() as { name?: string, display_order?: number, auto_allocate?: number, color?: string };
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -29,6 +28,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (body.auto_allocate !== undefined) {
             sets.push('auto_allocate = ?');
             params.push(body.auto_allocate);
+        }
+        if (body.color !== undefined) {
+            sets.push('color = ?');
+            params.push(body.color);
         }
 
         if (sets.length === 0) {

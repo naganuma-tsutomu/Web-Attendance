@@ -2,7 +2,7 @@ import React from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ExternalLink } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 
 interface WeeklyTimelineViewProps {
@@ -11,6 +11,7 @@ interface WeeklyTimelineViewProps {
     staffList: Staff[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
     onDateClick: (date: Date) => void;
 }
 
@@ -20,6 +21,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
     staffList,
     classes,
     timePatterns,
+    roles,
     onDateClick
 }) => {
     // 週の開始日を取得
@@ -34,14 +36,17 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                 const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
                 return (
-                    <div key={dateStr} className="flex-shrink-0 flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group">
+                    <div 
+                        key={dateStr} 
+                        className="flex-shrink-0 flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => onDateClick(day)}
+                    >
                         <div
-                            className={`flex items-center justify-between px-4 py-1.5 transition-colors cursor-pointer border-b
+                            className={`flex items-center justify-between px-4 py-1.5 transition-colors border-b
                                 ${isToday
                                     ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800'
                                     : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
                                 }`}
-                            onClick={() => onDateClick(day)}
                         >
                             <div className="flex items-center gap-3">
                                 <span className={`text-sm font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -63,6 +68,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                                 staffList={staffList}
                                 classes={classes}
                                 timePatterns={timePatterns}
+                                roles={roles}
                                 readOnly={true}
                             />
                         </div>
@@ -82,7 +88,9 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                         <span>{c.name === '特殊' ? 'ヘルプ' : c.name}</span>
                     </div>
                 ))}
-                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-red-400 border border-red-500 rounded-sm" /><span>不足</span></div>
+                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-slate-300 border border-slate-400 dark:bg-slate-600 dark:border-slate-500 rounded-sm" /><span>不足</span></div>
+                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-amber-400 border border-amber-500 rounded-sm" /><span>研修</span></div>
+                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-red-400 border border-red-500 rounded-sm" /><span>希望休</span></div>
                 <div className="ml-auto italic">※クリックで詳細な編集が可能です</div>
             </div>
         </div>

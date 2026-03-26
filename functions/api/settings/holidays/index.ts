@@ -1,6 +1,5 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 // GET /api/holidays — 祝日一覧取得
 // Query: ?year=2025 (年指定、省略時は全件)
@@ -13,8 +12,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const params: any[] = [];
         
         if (year) {
-            query += ' WHERE date LIKE ?';
-            params.push(`${year}-%`);
+            query += ' WHERE date >= ? AND date < ?';
+            params.push(`${year}-01-01`, `${Number(year) + 1}-01-01`);
         }
         
         query += ' ORDER BY date';

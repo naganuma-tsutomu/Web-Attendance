@@ -7,7 +7,7 @@ interface StaffFormModalProps {
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => Promise<void>;
     editingStaff: Staff | null;
-    formData: Omit<Staff, 'id'> | Staff;
+    formData: any; // We'll just define it as any or extend Omit<Staff, 'id'> locally. Actually it was any
     setFormData: React.Dispatch<React.SetStateAction<any>>;
     roles: DynamicRole[];
     classes: ShiftClass[];
@@ -27,14 +27,28 @@ const StaffFormModal = ({
     isSubmitting,
     handleRoleChange
 }: StaffFormModalProps) => {
+    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = React.useState(false);
+
     if (!isOpen) return null;
+
+    const handleBackdropMouseDown = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            setMouseDownOnBackdrop(true);
+        }
+    };
+
+    const handleBackdropMouseUp = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+            onClose();
+        }
+        setMouseDownOnBackdrop(false);
+    };
 
     return (
         <div
             className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) onClose();
-            }}
+            onMouseDown={handleBackdropMouseDown}
+            onMouseUp={handleBackdropMouseUp}
         >
             <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
@@ -59,15 +73,37 @@ const StaffFormModal = ({
                             />
                         </div>
                         <div className="space-y-1.5 pl-1">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">役職マスタから選ぶ</label>
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">スタッフ区分マスタから選ぶ</label>
                             <select
                                 value={formData.role}
                                 onChange={e => handleRoleChange(e.target.value)}
                                 className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white appearance-none"
                             >
-                                {roles.length === 0 && <option value="">役職を登録してください</option>}
+                                {roles.length === 0 && <option value="">スタッフ区分を登録してください</option>}
                                 {roles.map(role => <option key={role.id} value={role.name}>{role.name}</option>)}
                             </select>
+                        </div>
+                        <div className="space-y-1.5 pl-1">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">アクセスキー (4桁の数字)</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, accessKey: Math.floor(1000 + Math.random() * 9000).toString() })}
+                                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                                >
+                                    自動生成
+                                </button>
+                            </div>
+                            <input
+                                type="text"
+                                required
+                                maxLength={4}
+                                pattern="\d{4}"
+                                value={formData.accessKey || ''}
+                                onChange={e => setFormData({ ...formData, accessKey: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                                className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-mono font-bold tracking-widest text-slate-700 dark:text-white"
+                                placeholder="1234"
+                            />
                         </div>
                         <div className="space-y-3 pl-1">
                             <div className="flex items-center justify-between">
@@ -97,6 +133,39 @@ const StaffFormModal = ({
                                 placeholder="設定されていません"
                                 className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-indigo-500 font-medium transition-all
                                     ${formData.hoursTarget === null
+                                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                        : 'bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-white'
+                                    }`}
+                            />
+                        </div>
+                        <div className="space-y-3 pl-1">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">週間労働時間 (h/週)</label>
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{formData.weeklyHoursTarget === null ? '設定なし' : '設定する'}</span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={formData.weeklyHoursTarget !== null && formData.weeklyHoursTarget !== undefined}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setFormData({ ...formData, weeklyHoursTarget: checked ? 40 : null });
+                                            }}
+                                        />
+                                        <div className="w-8 h-4 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                            <input
+                                type="number"
+                                required
+                                value={formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined ? '' : formData.weeklyHoursTarget}
+                                disabled={formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined}
+                                onChange={e => setFormData({ ...formData, weeklyHoursTarget: parseInt(e.target.value) || 0 })}
+                                placeholder="設定されていません"
+                                className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-indigo-500 font-medium transition-all
+                                    ${(formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined)
                                         ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed'
                                         : 'bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-white'
                                     }`}
@@ -217,7 +286,7 @@ const StaffFormModal = ({
                                                 onClick={() => {
                                                     const currentIds = formData.classIds || [];
                                                     const nextIds = isSelected
-                                                        ? currentIds.filter(id => id !== cls.id)
+                                                        ? currentIds.filter((id: string) => id !== cls.id)
                                                         : [...currentIds, cls.id];
                                                     setFormData({ ...formData, classIds: nextIds });
                                                 }}
@@ -255,7 +324,7 @@ const StaffFormModal = ({
                             onClick={onClose}
                             className="flex-1 px-6 py-4 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest text-xs"
                         >
-                            Cancel
+                            キャンセル
                         </button>
                         <button
                             type="submit"
@@ -265,10 +334,10 @@ const StaffFormModal = ({
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span>Saving...</span>
+                                    <span>保存中...</span>
                                 </>
                             ) : (
-                                <span>Confirm & Save</span>
+                                <span>保存</span>
                             )}
                         </button>
                     </div>

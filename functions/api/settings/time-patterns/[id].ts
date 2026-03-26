@@ -1,6 +1,5 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 // PUT /api/settings/time-patterns/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
@@ -70,7 +69,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             ).bind(...values).run();
         }
 
-        // 役職の紐付け同期
+        // スタッフ区分の紐付け同期
         if ((body as any).roleIds !== undefined) {
             const roleIds = (body as any).roleIds as string[];
             // 一旦削除

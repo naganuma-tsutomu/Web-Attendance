@@ -1,6 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Users, Plus, Trash2, Loader2, AlertCircle, GripVertical } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { toast } from 'sonner';
 import { getClasses, getShiftRequirements, saveShiftRequirements } from '../../lib/api';
+import { handleApiError } from '../../lib/errorHandler';
 import type { ShiftClass, ShiftRequirement } from '../../types';
 
 // 曜日パターンの選択肢
@@ -35,15 +54,184 @@ const createEmptyRequirement = (): ShiftRequirement => ({
     priority: 3,
 });
 
+// ソータブルな行コンポーネント
+const SortableRequirementRow = ({
+    req,
+    index,
+    onUpdate,
+    onDeleteRequest,
+}: {
+    req: ShiftRequirement;
+    index: number;
+    onUpdate: (id: string, updates: Partial<ShiftRequirement>) => void;
+    onDeleteRequest: (id: string) => void;
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: req.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 10 : undefined,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="p-4 md:p-6 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+        >
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                {/* ドラッグハンドル + 連番 (PC) */}
+                <div className="hidden lg:flex flex-shrink-0 items-center gap-1">
+                    <button
+                        {...attributes}
+                        {...listeners}
+                        className="p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded"
+                        title="ドラッグして並び替え"
+                    >
+                        <GripVertical className="w-4 h-4" />
+                    </button>
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-semibold">
+                        {index + 1}
+                    </div>
+                </div>
+
+                {/* 曜日パターン */}
+                <div className="flex-shrink-0 w-full lg:w-44">
+                    <div className="flex items-center gap-2 mb-1.5 lg:hidden">
+                        <button
+                            {...attributes}
+                            {...listeners}
+                            className="p-0.5 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded"
+                            title="ドラッグして並び替え"
+                        >
+                            <GripVertical className="w-4 h-4" />
+                        </button>
+                        <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold">
+                            {index + 1}
+                        </div>
+                        <label className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            曜日パターン
+                        </label>
+                    </div>
+                    <select
+                        value={req.dayOfWeek}
+                        onChange={(e) => onUpdate(req.id, { dayOfWeek: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                        {dayOfWeekOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* 時間範囲 */}
+                <div className="flex items-center gap-2 flex-1">
+                    <div className="flex-1">
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                            開始時間
+                        </label>
+                        <input
+                            type="time"
+                            value={req.startTime}
+                            onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                    <span className="text-slate-400 hidden sm:block">〜</span>
+                    <div className="flex-1">
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                            終了時間
+                        </label>
+                        <input
+                            type="time"
+                            value={req.endTime}
+                            onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-end gap-3 md:gap-4 w-full lg:w-auto">
+                    {/* 必要人数 */}
+                    <div className="flex-[3] sm:flex-1 sm:w-28 sm:flex-none">
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                            必要人数
+                        </label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                min={1}
+                                max={20}
+                                value={req.minStaffCount}
+                                onChange={(e) => onUpdate(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
+                            />
+                            <span className="ml-1 sm:ml-2 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">名</span>
+                        </div>
+                    </div>
+
+                    {/* 優先度 */}
+                    <div className="flex-[4] sm:flex-1 sm:w-28 sm:flex-none">
+                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                            優先度
+                        </label>
+                        <select
+                            value={req.priority}
+                            onChange={(e) => onUpdate(req.id, { priority: parseInt(e.target.value) })}
+                            className={`w-full max-w-full truncate h-[38px] px-2 sm:px-3 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer ${
+                                priorityOptions.find(p => p.value === req.priority)?.color || priorityOptions[2].color
+                            }`}
+                        >
+                            {priorityOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* 削除ボタン */}
+                    <button
+                        onClick={() => onDeleteRequest(req.id)}
+                        className="p-2 mb-0.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                        title="削除"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ShiftRequirementsPage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [requirements, setRequirements] = useState<ShiftRequirement[]>([]);
+    const [savedRequirements, setSavedRequirements] = useState<ShiftRequirement[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [selectedClass, setSelectedClass] = useState<string>('');
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+    const isDirty = JSON.stringify(requirements) !== JSON.stringify(savedRequirements);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
 
     // 初期データ読み込み
     useEffect(() => {
@@ -58,6 +246,7 @@ const ShiftRequirementsPage = () => {
                 // 必要人数設定を取得
                 const requirementsData = await getShiftRequirements();
                 setRequirements(requirementsData);
+                setSavedRequirements(requirementsData);
 
                 // 最初のクラスを選択状態に
                 if (classesData.length > 0) {
@@ -97,12 +286,6 @@ const ShiftRequirementsPage = () => {
         fetchData();
     };
 
-    // メッセージ表示（自動非表示）
-    const showMessage = (msg: string) => {
-        setMessage(msg);
-        setTimeout(() => setMessage(''), 3000);
-    };
-
     // エラー表示（自動非表示）
     const showError = (msg: string) => {
         setError(msg);
@@ -121,16 +304,39 @@ const ShiftRequirementsPage = () => {
         setRequirements([...requirements, newRequirement]);
     };
 
-    // タイムスロットを削除
-    const deleteTimeSlot = (id: string) => {
-        setRequirements(requirements.filter(r => r.id !== id));
+    // 削除確認ダイアログを開く
+    const handleDeleteRequest = (id: string) => {
+        setDeleteTargetId(id);
+    };
+
+    // 削除を実行
+    const handleDeleteConfirm = () => {
+        if (deleteTargetId) {
+            setRequirements(requirements.filter(r => r.id !== deleteTargetId));
+        }
+        setDeleteTargetId(null);
     };
 
     // 要件を更新
     const updateRequirement = (id: string, updates: Partial<ShiftRequirement>) => {
-        setRequirements(requirements.map(r => 
+        setRequirements(requirements.map(r =>
             r.id === id ? { ...r, ...updates } : r
         ));
+    };
+
+    // ドラッグ終了時の並び替え
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const filtered = requirements.filter(r => r.classId === selectedClass);
+        const others = requirements.filter(r => r.classId !== selectedClass);
+
+        const oldIndex = filtered.findIndex(r => r.id === active.id);
+        const newIndex = filtered.findIndex(r => r.id === over.id);
+        const reordered = arrayMove(filtered, oldIndex, newIndex);
+
+        setRequirements([...others, ...reordered]);
     };
 
     // 時間の重複チェック
@@ -157,7 +363,7 @@ const ShiftRequirementsPage = () => {
     // 保存処理
     const handleSave = async () => {
         // バリデーション
-        const invalidRequirements = requirements.filter(r => 
+        const invalidRequirements = requirements.filter(r =>
             !r.classId || !r.startTime || !r.endTime || r.minStaffCount < 1
         );
 
@@ -183,19 +389,19 @@ const ShiftRequirementsPage = () => {
         setError('');
         try {
             await saveShiftRequirements(requirements);
-            showMessage('保存しました');
+            setSavedRequirements(requirements);
+            toast.success('保存しました');
         } catch (err) {
-            console.error('Failed to save', err);
-            showError('保存に失敗しました');
+            handleApiError(err, '保存に失敗しました');
         } finally {
             setSaving(false);
         }
     };
 
     // フィルタリングされた要件を取得
-    const filteredRequirements = selectedClass 
+    const filteredRequirements = selectedClass
         ? requirements.filter(r => r.classId === selectedClass)
-        : requirements;
+        : [];
 
     if (loading) {
         return (
@@ -243,13 +449,6 @@ const ShiftRequirementsPage = () => {
                 </div>
 
                 {/* Toast Messages */}
-                {message && (
-                    <div className="fixed top-20 right-4 z-50 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="text-sm font-medium">{message}</span>
-                    </div>
-                )}
-
                 {error && (
                     <div className="fixed top-20 right-4 z-50 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
                         <AlertCircle className="w-5 h-5" />
@@ -277,7 +476,7 @@ const ShiftRequirementsPage = () => {
                 </div>
 
                 {/* Time Slots List */}
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {selectedClass && <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
                             時間帯設定
@@ -294,113 +493,28 @@ const ShiftRequirementsPage = () => {
                             <p className="text-sm mt-1">「時間帯を追加」ボタンから設定を追加してください</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {filteredRequirements.map((req, index) => (
-                                <div 
-                                    key={req.id} 
-                                    className="p-4 md:p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
-                                >
-                                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                                        {/* 連番 */}
-                                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm font-semibold">
-                                            {index + 1}
-                                        </div>
-
-                                        {/* 曜日パターン */}
-                                        <div className="flex-shrink-0 w-full lg:w-44">
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                曜日パターン
-                                            </label>
-                                            <select
-                                                value={req.dayOfWeek}
-                                                onChange={(e) => updateRequirement(req.id, { dayOfWeek: parseInt(e.target.value) })}
-                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                {dayOfWeekOptions.map((opt) => (
-                                                    <option key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* 時間範囲 */}
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <div className="flex-1">
-                                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                    開始時間
-                                                </label>
-                                                <input
-                                                    type="time"
-                                                    value={req.startTime}
-                                                    onChange={(e) => updateRequirement(req.id, { startTime: e.target.value })}
-                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                />
-                                            </div>
-                                            <span className="text-slate-400 hidden sm:block">〜</span>
-                                            <div className="flex-1">
-                                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                    終了時間
-                                                </label>
-                                                <input
-                                                    type="time"
-                                                    value={req.endTime}
-                                                    onChange={(e) => updateRequirement(req.id, { endTime: e.target.value })}
-                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* 必要人数 */}
-                                        <div className="w-full sm:w-28">
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                必要人数
-                                            </label>
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    max={20}
-                                                    value={req.minStaffCount}
-                                                    onChange={(e) => updateRequirement(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
-                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center"
-                                                />
-                                                <span className="ml-2 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">名</span>
-                                            </div>
-                                        </div>
-
-                                        {/* 優先度 */}
-                                        <div className="w-full sm:w-28">
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                                                優先度
-                                            </label>
-                                            <select
-                                                value={req.priority}
-                                                onChange={(e) => updateRequirement(req.id, { priority: parseInt(e.target.value) })}
-                                                className={`w-full px-3 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer ${
-                                                    priorityOptions.find(p => p.value === req.priority)?.color || priorityOptions[2].color
-                                                }`}
-                                            >
-                                                {priorityOptions.map((opt) => (
-                                                    <option key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* 削除ボタン */}
-                                        <button
-                                            onClick={() => deleteTimeSlot(req.id)}
-                                            className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                                            title="削除"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <SortableContext
+                                items={filteredRequirements.map(r => r.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                                    {filteredRequirements.map((req, index) => (
+                                        <SortableRequirementRow
+                                            key={req.id}
+                                            req={req}
+                                            index={index}
+                                            onUpdate={updateRequirement}
+                                            onDeleteRequest={handleDeleteRequest}
+                                        />
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </SortableContext>
+                        </DndContext>
                     )}
 
                     {/* Add Button */}
@@ -414,13 +528,22 @@ const ShiftRequirementsPage = () => {
                             <span>時間帯を追加</span>
                         </button>
                     </div>
-                </div>
+                </div>}
 
                 {/* Save Button */}
-                <div className="flex justify-end pt-4">
+                {selectedClass && <div className="flex justify-end gap-3 pt-4">
+                    {isDirty && (
+                        <button
+                            onClick={() => setRequirements(savedRequirements)}
+                            disabled={saving}
+                            className="px-6 py-3 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            キャンセル
+                        </button>
+                    )}
                     <button
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={saving || !isDirty}
                         className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-xl shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                     >
                         {saving ? (
@@ -432,8 +555,43 @@ const ShiftRequirementsPage = () => {
                             <span>保存</span>
                         )}
                     </button>
-                </div>
+                </div>}
             </div>
+
+            {/* 削除確認ダイアログ */}
+            {deleteTargetId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
+                    <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-sm animate-in fade-in zoom-in-95">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-slate-800 dark:text-white">時間帯を削除</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">この操作は取り消せません</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+                            この時間帯設定を削除しますか？
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setDeleteTargetId(null)}
+                                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleDeleteConfirm}
+                                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                            >
+                                削除する
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

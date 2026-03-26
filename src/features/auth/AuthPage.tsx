@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, LogIn, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Lock, LogIn, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 
 const AuthPage = () => {
@@ -7,6 +8,7 @@ const AuthPage = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
+    const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -15,7 +17,6 @@ const AuthPage = () => {
 
         try {
             await login(password);
-            // On successful login, AuthContext state changes, triggering AuthRoute redirect
         } catch (err: any) {
             setError(err.message || 'ログインに失敗しました。');
         } finally {
@@ -27,7 +28,7 @@ const AuthPage = () => {
         setIsLoading(true);
         setError('');
         try {
-            await login('admin'); // デフォルトのパスワードを使用してログイン
+            await login('admin');
         } catch (err: any) {
             setError('テストログインに失敗しました。');
         } finally {
@@ -36,86 +37,66 @@ const AuthPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="flex justify-center">
-                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center transform rotate-3 shadow-lg">
-                        <span className="text-white text-3xl font-bold">星</span>
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 shrink-0">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl p-8 border border-white dark:border-slate-800 animate-in zoom-in-95 duration-300 relative">
+                <button
+                    onClick={() => navigate('/')}
+                    className="absolute left-8 top-8 p-3 bg-slate-50 dark:bg-slate-950 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-2xl transition-all border border-slate-100 dark:border-slate-800 group cursor-pointer"
+                    title="戻る"
+                >
+                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                </button>
+
+                <div className="text-center space-y-2 mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 mb-2">
+                        <Lock className="w-8 h-8" />
                     </div>
+                    <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">管理者ログイン</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">管理者パスワードを入力してください</p>
                 </div>
-                <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    星空児童館
-                </h2>
-                <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
-                    シフト管理システム
-                </p>
-            </div>
 
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white dark:bg-slate-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-100 dark:border-slate-700">
-                    <form className="space-y-6" onSubmit={handleLogin}>
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                管理者パスワード
-                            </label>
-                            <div className="mt-1 relative rounded-md shadow-sm">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-                                </div>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-slate-300 dark:border-slate-600 rounded-md py-3 bg-white dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
-                                    placeholder="システムパスワードを入力"
-                                />
-                            </div>
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">パスワード</label>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <input
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700 dark:text-white transition-all"
+                                placeholder="••••••••"
+                            />
                         </div>
+                    </div>
 
-                        {error && (
-                            <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4 border border-red-100 dark:border-red-800">
-                                <div className="flex">
-                                    <div className="flex-shrink-0">
-                                        <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400" />
-                                    </div>
-                                    <div className="ml-3">
-                                        <h3 className="text-sm font-medium text-red-800 dark:text-red-300">{error}</h3>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="space-y-3">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                            >
-                                {isLoading ? (
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                ) : (
-                                    <LogIn className="w-5 h-5 mr-2" />
-                                )}
-                                {isLoading ? 'ログイン中...' : 'ログイン'}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={handleTestLogin}
-                                disabled={isLoading}
-                                className="w-full flex justify-center py-3 px-4 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                【検証用】パスワードなしでログイン
-                            </button>
+                    {error && (
+                        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-2xl text-red-600 dark:text-red-400 text-sm font-bold text-center animate-in shake duration-300">
+                            {error}
                         </div>
-                    </form>
-                </div>
+                    )}
+
+                    <div className="space-y-3">
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-bold uppercase tracking-widest flex items-center justify-center space-x-2 cursor-pointer disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
+                            <span>{isLoading ? 'ログイン中...' : 'ログイン'}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleTestLogin}
+                            disabled={isLoading}
+                            className="w-full py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all font-bold text-sm cursor-pointer disabled:cursor-not-allowed"
+                        >
+                            【検証用】パスワードなしでログイン
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

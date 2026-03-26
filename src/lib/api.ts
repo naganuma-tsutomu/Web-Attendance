@@ -1,11 +1,16 @@
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday } from '../types';
+import { z } from 'zod';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours } from '../types';
+import { 
+    StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema, 
+    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema 
+} from '../types/schemas';
 
 const API_BASE = '/api';
 
 /**
  * 共通のAPIリクエスト関数
  */
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?: z.ZodType<T>): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
     const response = await fetch(url, {
@@ -18,18 +23,22 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
+        throw new Error(errorData.error || errorData.message || `API Error: ${response.status} ${response.statusText}`);
     }
 
-    // 共通のパース処理
-    const text = await response.text();
-    if (!text) return {} as T;
-
-    try {
-        return JSON.parse(text);
-    } catch (e) {
-        throw new Error(`Invalid JSON response from API: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`);
+    if (response.status === 204) return {} as T;
+    
+    const data = await response.json();
+    
+    if (schema) {
+        const result = schema.safeParse(data);
+        if (!result.success) {
+            console.warn(`[API Validation Error] ${endpoint}:`, result.error.format());
+            // エラーをスローするか警告のみに留めるか（ここではUIを壊さないよう警告にとどめる）
+        }
     }
+    
+    return data as T;
 }
 
 // ==========================================
@@ -37,7 +46,11 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 // ==========================================
 
 export const getStaffList = async (): Promise<Staff[]> => {
-    return apiFetch<Staff[]>('/staffs');
+    return apiFetch<Staff[]>('/staffs', {}, z.array(StaffSchema) as any);
+};
+
+export const getStaffNameList = async (): Promise<{ id: string, name: string }[]> => {
+    return apiFetch<{ id: string, name: string }[]>('/staffs/list');
 };
 
 export const createStaff = async (staffData: Omit<Staff, 'id'>): Promise<string> => {
@@ -73,7 +86,7 @@ export const updateStaffOrder = async (orders: { id: string, order: number }[]):
 // ==========================================
 
 export const getPreferencesByMonth = async (yearMonth: string): Promise<ShiftPreference[]> => {
-    return apiFetch<ShiftPreference[]>(`/preferences?yearMonth=${yearMonth}`);
+    return apiFetch<ShiftPreference[]>(`/preferences?yearMonth=${yearMonth}`, {}, z.array(ShiftPreferenceSchema) as any);
 };
 
 export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): Promise<string> => {
@@ -84,12 +97,19 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
     return id;
 };
 
+export const updatePreferences = async (data: Omit<ShiftPreference, 'id'>): Promise<void> => {
+    await apiFetch('/preferences', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+};
+
 // ==========================================
 // Shifts API
 // ==========================================
 
 export const getShiftsByMonth = async (yearMonth: string): Promise<Shift[]> => {
-    return apiFetch<Shift[]>(`/shifts?yearMonth=${yearMonth}`);
+    return apiFetch<Shift[]>(`/shifts?yearMonth=${yearMonth}`, {}, z.array(ShiftSchema) as any);
 };
 
 export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void> => {
@@ -99,11 +119,11 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     });
 };
 
-export const deleteShiftsByMonth = async (yearMonth: string): Promise<void> => {
-    await apiFetch(`/shifts?yearMonth=${yearMonth}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
+    await apiFetch('/shifts/clear', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, exceptDates })
+    });
 };
 
 export const updateShift = async (id: string, shiftData: Partial<Shift>): Promise<void> => {
@@ -124,71 +144,64 @@ export const deleteShift = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getTimePatterns = async (): Promise<ShiftTimePattern[]> => {
-    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', { credentials: 'include' } as RequestInit);
+    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', {}, z.array(ShiftTimePatternSchema) as any);
 };
 
 export const createTimePattern = async (pattern: Omit<ShiftTimePattern, 'id'>): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/time-patterns', {
         method: 'POST',
-        body: JSON.stringify(pattern),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(pattern)
+    });
     return id;
 };
 
 export const deleteTimePattern = async (id: string): Promise<void> => {
     await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'
+    });
 };
 
 export const updateTimePattern = async (id: string, pattern: Partial<ShiftTimePattern>): Promise<void> => {
     await apiFetch(`/settings/time-patterns/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        body: JSON.stringify(pattern),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(pattern)
+    });
 };
 
 export const updateTimePatternOrder = async (orders: { id: string, order: number }[]): Promise<void> => {
     await apiFetch('/settings/time-patterns/reorder', {
         method: 'PUT',
-        body: JSON.stringify({ orders }),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify({ orders })
+    });
 };
 
 // ==========================================
-// Roles API (動的役職管理)
+// Roles API (動的スタッフ区分管理)
 // ==========================================
 
 export const getRoles = async (): Promise<DynamicRole[]> => {
-    return apiFetch<DynamicRole[]>('/settings/roles', { credentials: 'include' } as RequestInit);
+    return apiFetch<DynamicRole[]>('/settings/roles', {}, z.array(DynamicRoleSchema) as any);
 };
 
-export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = []): Promise<string> => {
+export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = [], weeklyHoursTarget: number | null = null): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/roles', {
         method: 'POST',
-        body: JSON.stringify({ name, targetHours, patternIds }),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify({ name, targetHours, patternIds, weeklyHoursTarget })
+    });
     return id;
 };
 
-export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, patternIds?: string[] }): Promise<void> => {
+export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] }): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(data)
+    });
 };
 
 export const deleteRole = async (id: string): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'
+    });
 };
 
 export const updateRolePatterns = async (roleId: string, patternIds: string[]): Promise<void> => {
@@ -207,17 +220,17 @@ export const updateRoleOrder = async (orders: { id: string, order: number }[]): 
 // ==========================================
 
 export const getClasses = async (): Promise<ShiftClass[]> => {
-    return apiFetch<ShiftClass[]>('/settings/classes');
+    return apiFetch<ShiftClass[]>('/settings/classes', {}, z.array(ShiftClassSchema) as any);
 };
 
-export const createClass = async (name: string, autoAllocate: number = 1): Promise<{ id: string }> => {
+export const createClass = async (name: string, autoAllocate: number = 1, color?: string): Promise<{ id: string }> => {
     return apiFetch<{ id: string }>('/settings/classes', {
         method: 'POST',
-        body: JSON.stringify({ name, auto_allocate: autoAllocate })
+        body: JSON.stringify({ name, auto_allocate: autoAllocate, color })
     });
 };
 
-export const updateClass = async (id: string, data: { name?: string, display_order?: number, auto_allocate?: number }): Promise<void> => {
+export const updateClass = async (id: string, data: { name?: string, display_order?: number, auto_allocate?: number, color?: string }): Promise<void> => {
     await apiFetch(`/settings/classes/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data)
@@ -233,9 +246,8 @@ export const updateClassOrder = async (orders: { id: string, order: number }[]):
 
 export const deleteClass = async (id: string): Promise<void> => {
     await apiFetch(`/settings/classes/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'
+    });
 };
 
 // ==========================================
@@ -243,22 +255,20 @@ export const deleteClass = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getShiftRequirements = async (): Promise<ShiftRequirement[]> => {
-    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', { credentials: 'include' } as RequestInit);
+    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', {}, z.array(ShiftRequirementSchema) as any);
 };
 
 export const saveShiftRequirements = async (requirements: ShiftRequirement[]): Promise<void> => {
     await apiFetch('/settings/shift-requirements', {
         method: 'POST',
-        body: JSON.stringify(requirements),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(requirements)
+    });
 };
 
 export const deleteShiftRequirement = async (id: string): Promise<void> => {
     await apiFetch(`/settings/shift-requirements/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'
+    });
 };
 
 // ==========================================
@@ -269,36 +279,78 @@ export const getHolidays = async (year?: number): Promise<Holiday[]> => {
     const url = year
         ? `/settings/holidays?year=${year}`
         : '/settings/holidays';
-    return apiFetch<Holiday[]>(url, { credentials: 'include' } as RequestInit);
+    return apiFetch<Holiday[]>(url, {}, z.array(HolidaySchema) as any);
 };
 
 export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
     const { id } = await apiFetch<{ id: string }>('/settings/holidays', {
         method: 'POST',
-        body: JSON.stringify(holiday),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(holiday)
+    });
     return id;
 };
 
 export const updateHoliday = async (id: string, data: Partial<Holiday>): Promise<void> => {
     await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
-        credentials: 'include'
-    } as RequestInit);
+        body: JSON.stringify(data)
+    });
 };
 
 export const deleteHoliday = async (id: string): Promise<void> => {
     await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    } as RequestInit);
+        method: 'DELETE'
+    });
 };
 
 export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
     const url = year
         ? `/settings/holidays/sync?year=${year}`
         : '/settings/holidays/sync';
-    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, { credentials: 'include' } as RequestInit);
+    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url);
+};
+
+export const syncHolidaysIfNeeded = async (): Promise<void> => {
+    try {
+        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const lastSyncStr = localStorage.getItem('lastHolidaySyncDate');
+        if (lastSyncStr === todayStr) {
+            return; // 既に今日同期済みなのでスキップ
+        }
+        
+        await syncHolidays();
+        localStorage.setItem('lastHolidaySyncDate', todayStr);
+    } catch (err) {
+        console.error('Failed to sync holidays during daily background check', err);
+    }
+};
+
+// ==========================================
+// Fixed Dates API (シフト固定状態管理)
+// ==========================================
+
+export const getFixedDates = async (yearMonth: string): Promise<string[]> => {
+    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`);
+};
+
+export const saveFixedDates = async (yearMonth: string, dates: string[]): Promise<void> => {
+    await apiFetch('/fixed-dates', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, dates })
+    });
+};
+
+// ==========================================
+// Business Hours API (営業時間設定)
+// ==========================================
+
+export const getBusinessHours = async (): Promise<BusinessHours> => {
+    return apiFetch<BusinessHours>('/settings/business-hours', {}, BusinessHoursSchema as any);
+};
+
+export const updateBusinessHours = async (data: BusinessHours): Promise<void> => {
+    await apiFetch('/settings/business-hours', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
 };

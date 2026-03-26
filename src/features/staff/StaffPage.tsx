@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
+import { handleApiError } from '../../lib/errorHandler';
 import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { getStaffList, deleteStaff, createStaff, updateStaff, getRoles, updateStaffOrder, getClasses, getShiftsByMonth } from '../../lib/api';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { calculateTotalHours } from '../../utils/timeUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import type { Staff, DynamicRole, ShiftClass } from '../../types';
+import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder } from '../../lib/hooks';
+import type { Staff } from '../../types';
 import {
     DndContext,
     closestCenter,
@@ -30,85 +32,50 @@ import StaffRow from './components/StaffRow';
 import StaffFormModal from './components/StaffFormModal';
 
 const StaffPage = () => {
-    const [staffList, setStaffList] = useState<Staff[]>([]);
-    const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [classes, setClasses] = useState<ShiftClass[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [currentMonth, setCurrentMonth] = useState(() => loadActiveMonth());
-    const [shiftTotals, setShiftTotals] = useState<Record<string, number>>({});
-    const [loadingShifts, setLoadingShifts] = useState(false);
 
     const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
         name: '',
         role: '',
         hoursTarget: null,
+        weeklyHoursTarget: null,
         classIds: []
     });
 
-    const [retrying, setRetrying] = useState(false);
+    // --- React Query Hooks ---
+    const { data: staffList = [], isLoading: isStaffLoading, isError: isStaffError, refetch: refetchStaff } = useStaffList();
+    const { data: roles = [], isLoading: isRolesLoading, isError: isRolesError, refetch: refetchRoles } = useRoles();
+    const { data: classes = [], isLoading: isClassesLoading, isError: isClassesError, refetch: refetchClasses } = useClasses();
 
-    const fetchData = async () => {
-        setLoading(true);
-        setRetrying(true);
-        try {
-            const [staffData, rolesData, classesData] = await Promise.all([
-                getStaffList(),
-                getRoles(),
-                getClasses()
-            ]);
-            setStaffList(staffData);
-            setRoles(rolesData);
-            setClasses(classesData);
+    const monthStr = format(currentMonth, 'yyyy-MM');
+    const { data: shifts = [], isLoading: loadingShifts, isFetching: isShiftsFetching, refetch: refetchShifts } = useShiftsByMonth(monthStr);
 
-            if (rolesData.length > 0 && !formData.role) {
-                setFormData(prev => ({ ...prev, role: rolesData[0].name }));
-            }
+    const createStaffMut = useCreateStaff();
+    const updateStaffMut = useUpdateStaff();
+    const deleteStaffMut = useDeleteStaff();
+    const updateOrderMut = useUpdateStaffOrder();
 
-            setError('');
-        } catch (err) {
-            console.error("Fetch error", err);
-            setError('データの読み込みに失敗しました。設定で役職が登録されているか確認してください。');
-        } finally {
-            setLoading(false);
-            setRetrying(false);
-        }
-    };
+    const shiftTotals = useMemo(() => calculateTotalHours(shifts), [shifts]);
 
-    const fetchShifts = async () => {
-        setLoadingShifts(true);
-        try {
-            const monthStr = format(currentMonth, 'yyyy-MM');
-            const shifts = await getShiftsByMonth(monthStr);
-            const totals = calculateTotalHours(shifts);
-            setShiftTotals(totals);
-        } catch (err) {
-            console.error("Fetch shifts error", err);
-        } finally {
-            setLoadingShifts(false);
-        }
-    };
+    const loading = isStaffLoading || isRolesLoading || isClassesLoading;
+    const error = (isStaffError || isRolesError || isClassesError) ? 'データの読み込みに失敗しました。' : '';
+    const isSubmitting = createStaffMut.isPending || updateStaffMut.isPending;
 
     const handleRetry = () => {
-        fetchData();
-        fetchShifts();
+        refetchStaff();
+        refetchRoles();
+        refetchClasses();
+        refetchShifts();
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    useEffect(() => {
-        fetchShifts();
-        saveActiveMonth(currentMonth);
-    }, [currentMonth]);
+    // Update active month when currentMonth changes
+    useMemo(() => saveActiveMonth(currentMonth), [currentMonth]);
 
     const handleDeleteClick = (id: string, name: string) => {
         setDeleteConfirm({ id, name });
@@ -118,12 +85,11 @@ const StaffPage = () => {
         if (!deleteConfirm) return;
         setIsDeleting(true);
         try {
-            await deleteStaff(deleteConfirm.id);
-            setStaffList(prev => prev.filter(s => s.id !== deleteConfirm.id));
+            await deleteStaffMut.mutateAsync(deleteConfirm.id);
             setDeleteConfirm(null);
+            toast.success("スタッフを削除しました。");
         } catch (err) {
-            console.error(err);
-            alert("削除に失敗しました。");
+            handleApiError(err, '削除に失敗しました');
         } finally {
             setIsDeleting(false);
         }
@@ -136,6 +102,7 @@ const StaffPage = () => {
             name: '',
             role: defaultRole?.name || '',
             hoursTarget: defaultRole?.targetHours ?? null,
+            weeklyHoursTarget: defaultRole?.weeklyHoursTarget ?? null,
             defaultWorkingHoursStart: '',
             defaultWorkingHoursEnd: '',
             isHelpStaff: false,
@@ -150,7 +117,8 @@ const StaffPage = () => {
         setFormData(prev => ({
             ...prev,
             role: roleName,
-            hoursTarget: selectedRole ? (selectedRole.targetHours ?? null) : prev.hoursTarget
+            hoursTarget: selectedRole ? (selectedRole.targetHours ?? null) : prev.hoursTarget,
+            weeklyHoursTarget: selectedRole ? (selectedRole.weeklyHoursTarget ?? null) : prev.weeklyHoursTarget
         }));
     };
 
@@ -160,31 +128,29 @@ const StaffPage = () => {
             name: staff.name,
             role: staff.role,
             hoursTarget: staff.hoursTarget ?? null,
+            weeklyHoursTarget: staff.weeklyHoursTarget ?? null,
             isHelpStaff: staff.isHelpStaff || false,
             availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
             defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',
             defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || '',
-            classIds: staff.classIds || []
+            classIds: staff.classIds || [],
+            accessKey: staff.accessKey || ''
         });
         setIsModalOpen(true);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
         try {
             if (editingStaff) {
-                await updateStaff(editingStaff.id, formData);
+                await updateStaffMut.mutateAsync({ id: editingStaff.id, data: formData });
             } else {
-                await createStaff(formData);
+                await createStaffMut.mutateAsync(formData);
             }
             setIsModalOpen(false);
-            fetchData();
+            toast.success(editingStaff ? "スタッフ情報を更新しました。" : "スタッフを追加しました。");
         } catch (err) {
-            console.error(err);
-            alert("保存に失敗しました。");
-        } finally {
-            setIsSubmitting(false);
+            handleApiError(err, '保存に失敗しました');
         }
     };
 
@@ -196,18 +162,15 @@ const StaffPage = () => {
         const { active, over } = event;
         setActiveId(null);
         if (over && active.id !== over.id) {
-            setStaffList((items) => {
-                const oldIndex = items.findIndex((i) => i.id === active.id);
-                const newIndex = items.findIndex((i) => i.id === over.id);
-                const newList = arrayMove(items, oldIndex, newIndex);
+            const oldIndex = staffList.findIndex((i) => i.id === active.id);
+            const newIndex = staffList.findIndex((i) => i.id === over.id);
+            const newList = arrayMove(staffList, oldIndex, newIndex);
 
-                const orders = newList.map((s, idx) => ({ id: s.id, order: idx + 1 }));
-                updateStaffOrder(orders).catch(err => {
-                    console.error("Failed to save order", err);
-                    alert("並び替えの保存に失敗しました。");
-                });
-
-                return newList;
+            const orders = newList.map((s, idx) => ({ id: s.id, order: idx + 1 }));
+            
+            // 楽観的更新のためにキャッシュを直接操作することも可能だが、ここでは再フェッチに任せるか直接mutationを実行
+            updateOrderMut.mutate(orders, {
+                onError: (err) => handleApiError(err, '並び替えの保存に失敗しました')
             });
         }
     };
@@ -253,7 +216,7 @@ const StaffPage = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">スタッフ管理</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報と役職の割り当てを管理します</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
                 </div>
                 <button
                     onClick={handleOpenAddModal}
@@ -274,7 +237,7 @@ const StaffPage = () => {
                         onClick={handleRetry}
                         className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
                     >
-                        {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                         再試行
                     </button>
                 </div>
@@ -305,7 +268,7 @@ const StaffPage = () => {
                         <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                             {format(currentMonth, 'yyyy年M月', { locale: ja })}
                         </span>
-                        {loadingShifts && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
+                        {(loadingShifts || isShiftsFetching) && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
                     </div>
                     <button
                         onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
@@ -336,7 +299,8 @@ const StaffPage = () => {
                                     <tr>
                                         <th className="w-12 px-4 py-4"></th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">役職</th>
+                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">スタッフ区分</th>
+                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">アクセスキー</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">所属クラス</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>
                                         <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">固定休日</th>
@@ -346,7 +310,7 @@ const StaffPage = () => {
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center">
+                                            <td colSpan={8} className="px-6 py-12 text-center">
                                                 <div className="flex justify-center">
                                                     <Loader2 className="w-8 h-8 animate-spin text-indigo-300" />
                                                 </div>
@@ -354,7 +318,7 @@ const StaffPage = () => {
                                         </tr>
                                     ) : filteredStaff.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-medium">
                                                 該当するスタッフが見つかりません
                                             </td>
                                         </tr>
@@ -385,8 +349,8 @@ const StaffPage = () => {
                             }),
                         }}>
                             {activeStaff ? (
-                                <div className="p-0 border-none shadow-none">
-                                    <table className="w-full">
+                                <div className="rounded-xl overflow-hidden shadow-2xl ring-2 ring-indigo-500 bg-white dark:bg-slate-800 opacity-90">
+                                    <table className="w-full border-collapse">
                                         <tbody>
                                             <StaffRow
                                                 staff={activeStaff}

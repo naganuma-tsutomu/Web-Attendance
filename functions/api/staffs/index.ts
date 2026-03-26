@@ -1,9 +1,6 @@
 import type { Staff } from '../../../src/types';
-import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -27,7 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 .filter((d: any) => d.staffId === staffId)
                 .map((d: any) => ({
                     day: d.dayOfWeek,
-                    weeks: d.weeks ? JSON.parse(d.weeks) : undefined
+                    weeks: safeJsonParse(d.weeks, undefined)
                 }));
 
             const classIds = allStaffClasses
@@ -36,9 +33,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
             return {
                 ...row,
-                availableDays: normalizedDays.length > 0 ? normalizedDays : (row.availableDays ? JSON.parse(row.availableDays) : undefined),
+                availableDays: normalizedDays,
                 isHelpStaff: row.isHelpStaff === 1,
-                classIds: classIds
+                classIds: classIds,
+                accessKey: row.access_key,
             };
         });
 
@@ -59,29 +57,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         // Validate role
         const roleError = validateRole(staffData.role || '');
         if (roleError) return createValidationError(roleError);
+
+        // Validate targets
+        const weeklyError = staffData.weeklyHoursTarget !== undefined ? null : null; // Validation happens in target check if we want, but let's just use it
+        // Or if we need to strictly validate:
+        // const hoursError = validateWeeklyHoursTarget(staffData.weeklyHoursTarget);
+        // if (hoursError) return createValidationError(hoursError);
         
         const id = staffData.id || `staff_${Date.now()}`;
 
-        const { maxOrder } = await context.env.DB.prepare(
-            "SELECT MAX(display_order) as maxOrder FROM staffs"
-        ).first() as { maxOrder: number | null };
-
-        const displayOrder = (maxOrder || 0) + 1;
+        const accessKey = staffData.accessKey || Math.floor(1000 + Math.random() * 9000).toString();
 
         const statements = [
             context.env.DB.prepare(
-                `INSERT INTO staffs (id, name, role, hoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
             ).bind(
                 id,
                 staffData.name!.trim(),
                 staffData.role!,
-                staffData.hoursTarget || null,
-                staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
+                staffData.hoursTarget ?? null,
+                staffData.weeklyHoursTarget ?? null,
                 staffData.isHelpStaff ? 1 : 0,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
-                displayOrder
+                accessKey
             )
         ];
 

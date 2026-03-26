@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
 import AuthPage from './features/auth/AuthPage';
@@ -10,6 +12,9 @@ import RolesPage from './pages/settings/RolesPage';
 import ClassesPage from './pages/settings/ClassesPage';
 import AppearancePage from './pages/settings/AppearancePage';
 import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
+import StaffLoginPage from './pages/StaffLoginPage';
+import StaffPreferencePage from './pages/StaffPreferencePage';
+import LandingPage from './pages/LandingPage';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -32,12 +37,13 @@ const AppRoutes = () => {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route
           path="/login"
-          element={currentUser ? <Navigate to="/" /> : <AuthPage />}
+          element={currentUser ? <Navigate to="/admin" /> : <AuthPage />}
         />
         <Route
-          path="/"
+          path="/admin"
           element={
             <PrivateRoute>
               <Layout />
@@ -47,23 +53,37 @@ const AppRoutes = () => {
           <Route index element={<SchedulePage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="preferences" element={<PreferencesPage />} />
-          <Route path="settings" element={<Navigate to="/settings/patterns" replace />} />
+          <Route path="settings" element={<Navigate to="/admin/settings/patterns" replace />} />
           <Route path="settings/patterns" element={<TimePatternsPage />} />
           <Route path="settings/roles" element={<RolesPage />} />
           <Route path="settings/classes" element={<ClassesPage />} />
           <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
         </Route>
+        <Route path="/staff/login" element={<StaffLoginPage />} />
+        <Route path="/staff/preference" element={<StaffPreferencePage />} />
       </Routes>
     </Router>
   );
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
+
 function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <Toaster position="top-right" richColors />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

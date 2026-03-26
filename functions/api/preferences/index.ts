@@ -1,18 +1,17 @@
 import type { ShiftPreference } from '../../../src/types';
-
-export interface Env {
-    DB: D1Database;
-}
+import { createValidationError, handleServerError, validateYearMonth, safeJsonParse } from '../../utils/validation';
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearMonth = url.searchParams.get('yearMonth');
-        if (!yearMonth) return new Response('Missing yearMonth payload', { status: 400 });
+        const ymError = validateYearMonth(yearMonth);
+        if (ymError) return createValidationError(ymError);
 
-        // Get legacy records
+        // Get legacy records (table kept for grouping but unavailableDates removed)
         const { results: legacyResults } = await context.env.DB.prepare(
-            "SELECT * FROM shift_preferences WHERE yearMonth = ?"
+            "SELECT id, staffId, yearMonth FROM shift_preferences WHERE yearMonth = ?"
         ).bind(yearMonth).all();
 
         // Get normalized records
@@ -25,48 +24,50 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         const prefs = staffIds.map(staffId => {
             const legacyRow = legacyResults.find((r: any) => r.staffId === staffId);
-            const staffDates = normalizedDates
+            const staffDetails = normalizedDates
                 .filter((d: any) => d.staffId === staffId)
-                .map((d: any) => d.date);
+                .map((d: any) => ({
+                    date: d.date,
+                    startTime: d.startTime || null,
+                    endTime: d.endTime || null,
+                    type: d.type || null
+                }));
 
             return {
                 id: legacyRow?.id || `pref_${staffId}_${yearMonth}`,
                 staffId,
                 yearMonth,
-                // Prefer normalized dates, fallback to legacy
-                unavailableDates: staffDates.length > 0 ? staffDates : (legacyRow ? JSON.parse(legacyRow.unavailableDates) : [])
+                details: staffDetails
             };
         });
 
         return Response.json(prefs);
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'GET /preferences');
     }
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const pref: Omit<ShiftPreference, 'id'> = await context.request.json();
+        const ymError = validateYearMonth(pref?.yearMonth);
+        if (ymError) return createValidationError(ymError);
+
+        const details = pref.details || [];
 
         // Statements for batch execution
         const statements = [];
 
-        // 1. Legacy Upsert
+        // 1. Legacy Upsert (without unavailableDates)
         const existing = await context.env.DB.prepare(
             "SELECT id FROM shift_preferences WHERE staffId = ? AND yearMonth = ?"
         ).bind(pref.staffId, pref.yearMonth).first();
 
-        if (existing) {
+        if (!existing) {
             statements.push(
                 context.env.DB.prepare(
-                    "UPDATE shift_preferences SET unavailableDates = ? WHERE id = ?"
-                ).bind(JSON.stringify(pref.unavailableDates), existing.id)
-            );
-        } else {
-            statements.push(
-                context.env.DB.prepare(
-                    "INSERT INTO shift_preferences (id, staffId, yearMonth, unavailableDates) VALUES (?, ?, ?, ?)"
-                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth, JSON.stringify(pref.unavailableDates))
+                    "INSERT INTO shift_preferences (id, staffId, yearMonth) VALUES (?, ?, ?)"
+                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth)
             );
         }
 
@@ -77,17 +78,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             ).bind(pref.staffId, pref.yearMonth)
         );
 
-        pref.unavailableDates.forEach((date, idx) => {
+        details.forEach((d, idx) => {
             statements.push(
                 context.env.DB.prepare(
-                    "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date) VALUES (?, ?, ?, ?)"
-                ).bind(`prefd_${pref.staffId}_${date}_${idx}`, pref.staffId, pref.yearMonth, date)
+                    "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime, type) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                ).bind(`prefd_${pref.staffId}_${d.date}_${idx}`, pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime, d.type || null)
             );
         });
 
         await context.env.DB.batch(statements);
         return Response.json({ success: true });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'POST /preferences');
     }
 };

@@ -1,8 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
@@ -30,19 +27,21 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     name = COALESCE(?, name),
                     role = COALESCE(?, role),
                     hoursTarget = COALESCE(?, hoursTarget),
-                    availableDays = COALESCE(?, availableDays),
+                    weeklyHoursTarget = COALESCE(?, weeklyHoursTarget),
                     isHelpStaff = COALESCE(?, isHelpStaff),
                     defaultWorkingHoursStart = COALESCE(?, defaultWorkingHoursStart),
-                    defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd)
+                    defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd),
+                    access_key = COALESCE(?, access_key)
                  WHERE id = ?`
             ).bind(
                 staffData.name !== undefined ? staffData.name.trim() : null,
                 staffData.role !== undefined ? staffData.role : null,
-                staffData.hoursTarget || null,
-                staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
+                staffData.hoursTarget !== undefined ? staffData.hoursTarget : null,
+                staffData.weeklyHoursTarget !== undefined ? staffData.weeklyHoursTarget : null,
                 staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
+                staffData.accessKey || null,
                 id
             )
         ];
@@ -57,7 +56,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
-                    ).bind(`${id}_available_${Date.now()}_${idx}`, id, day, weeks)
+                    ).bind(`${id}_available_${idx}`, id, day, weeks)
                 );
             });
         }

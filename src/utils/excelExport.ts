@@ -2,16 +2,18 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import type { Staff, Shift, ShiftClass, ShiftTimePattern } from '../types';
+import { toast } from 'sonner';
+import { calculateDuration } from './timeUtils';
+import { handleApiError } from '../lib/errorHandler';
+import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours } from '../types';
 
 /**
- * 営業時間は 8:00 - 19:00
+ * デフォルト営業時間
  * 15分刻み
  */
-const START_HOUR = 8;
-const END_HOUR = 19;
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 19;
 const SLOTS_PER_HOUR = 4;
-const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR;
 
 /**
  * HH:MM 形式を Excel 用の数値（1日=1.0）に変換
@@ -22,10 +24,16 @@ const timeToExcelValue = (timeStr: string): number => {
 };
 
 const getClassColor = (classId: string) => {
-    if (classId.includes('niji')) return 'FFFFE599'; // 虹 = 黄色
-    if (classId.includes('smile')) return 'FF9FC5E8'; // スマイル = 青
-    if (classId.includes('special')) return 'FFB6D7A8'; // 特殊 = 緑
-    return 'FFD9D2E9'; // その他 = 紫
+    let hash = 0;
+    for (let i = 0; i < classId.length; i++) {
+        hash = classId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    const hex = '000000'.substring(0, 6 - c.length) + c;
+    const r = Math.floor((parseInt(hex.substring(0, 2), 16) + 255) / 2);
+    const g = Math.floor((parseInt(hex.substring(2, 4), 16) + 255) / 2);
+    const b = Math.floor((parseInt(hex.substring(4, 6), 16) + 255) / 2);
+    return `FF${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
 };
 
 export const exportToExcelAdvanced = async (
@@ -33,8 +41,18 @@ export const exportToExcelAdvanced = async (
     staffs: Staff[],
     shifts: Shift[],
     classes: ShiftClass[],
-    _timePatterns: ShiftTimePattern[]
+    _timePatterns: ShiftTimePattern[],
+    businessHours?: BusinessHours
 ) => {
+    const START_HOUR = businessHours?.startHour ?? DEFAULT_START_HOUR;
+    const END_HOUR = businessHours?.endHour ?? DEFAULT_END_HOUR;
+    const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR;
+    if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        toast.error('年月の形式が正しくありません（例: 2025-01）');
+        return;
+    }
+    const toastId = toast.loading('Excelファイルを生成中...');
+    try {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('シフト表');
 
@@ -64,7 +82,14 @@ export const exportToExcelAdvanced = async (
 
     worksheet.columns = columns;
 
+    // ヘッダー行の時刻セルを1時間単位で結合（4スロット = 15分×4）
+    for (let h = 0; h < END_HOUR - START_HOUR; h++) {
+        const startCol = 8 + h * 4;
+        worksheet.mergeCells(1, startCol, 1, startCol + 3);
+    }
+
     let currentRow = 2;
+    const dateRowRanges: { start: number, end: number }[] = [];
 
     days.forEach((day) => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -100,12 +125,13 @@ export const exportToExcelAdvanced = async (
 
                 const row = worksheet.addRow(rowData);
 
-                // 実働時間の数式: =(終了 - 開始) * 24
+                // 実働時間の数式: 日またぎ対応（end < start の場合 +1日）
                 const startCell = row.getCell(5).address;
                 const endCell = row.getCell(6).address;
+                const duration = calculateDuration(shift.startTime, shift.endTime);
                 row.getCell(7).value = {
-                    formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, (${endCell}-${startCell})*24)`,
-                    result: 0
+                    formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, IF((${endCell}-${startCell})<0, (${endCell}-${startCell}+1)*24, (${endCell}-${startCell})*24))`,
+                    result: duration
                 };
                 row.getCell(7).numFmt = '0.00';
 
@@ -123,6 +149,7 @@ export const exportToExcelAdvanced = async (
                 worksheet.mergeCells(startRowForDay, 2, currentRow - 1, 2);
             }
         }
+        dateRowRanges.push({ start: startRowForDay, end: currentRow - 1 });
     });
 
     const lastRow = currentRow - 1;
@@ -137,48 +164,74 @@ export const exportToExcelAdvanced = async (
     });
 
     // --- 条件付き書式 (タイムラインの動的色付け) ---
-    // カラムH(8)から
-    for (let i = 0; i <= TOTAL_SLOTS; i++) {
-        const colLetter = worksheet.getColumn(8 + i).letter;
-        const currentSlotTime = (START_HOUR * 60 + i * 15) / (24 * 60);
+    // COLUMN()を使って1クラス=1ルールで全スロットをカバー（クラス数分のみ）
+    // スロット時間 = (START_HOUR*60 + (COLUMN()-8)*15) / 1440
+    const firstTimelineCol = worksheet.getColumn(8).letter;
+    const lastTimelineCol = worksheet.getColumn(8 + TOTAL_SLOTS).letter;
+    const slotFormula = `(${START_HOUR * 60}+(COLUMN()-8)*15)/1440`;
 
-        // 各クラスごとに色を設定（区分セルと連動）
-        classes.forEach(cls => {
-            const barColor = getClassColor(cls.id);
-            worksheet.addConditionalFormatting({
-                ref: `${colLetter}2:${colLetter}${lastRow}`,
-                rules: [
-                    {
-                        type: 'expression',
-                        // 数式: (=AND(区分セル=クラス名, 開始セル<=現在のスロット, 終了セル>現在のスロット))
-                        // $D2 は区分, $E2 は開始, $F2 は終了
-                        formulae: [`AND($D2="${cls.name}", $E2<=${currentSlotTime.toFixed(10)}, $F2>${currentSlotTime.toFixed(10)})`],
-                        priority: 1,
-                        style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } } }
+    classes.forEach(cls => {
+        const barColor = cls.color
+            ? `FF${cls.color.replace('#', '').toUpperCase()}`
+            : getClassColor(cls.id);
+        const escapedName = cls.name.replace(/"/g, '""');
+        worksheet.addConditionalFormatting({
+            ref: `${firstTimelineCol}2:${lastTimelineCol}${lastRow}`,
+            rules: [
+                {
+                    type: 'expression',
+                    // $D2=区分, $E2=開始, $F2=終了, COLUMN()で現在列のスロット時間を動的計算
+                    formulae: [`AND($D2="${escapedName}",$E2<=${slotFormula},$F2>${slotFormula})`],
+                    priority: 1,
+                    style: {
+                        fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } },
+                        border: {
+                            top: { style: 'thin', color: { argb: 'FF888888' } },
+                            bottom: { style: 'thin', color: { argb: 'FF888888' } },
+                            left: { style: 'thin', color: { argb: 'FF888888' } },
+                            right: { style: 'thin', color: { argb: 'FF888888' } },
+                        }
                     }
-                ]
-            });
+                }
+            ]
         });
-    }
+    });
 
     // --- スタイル仕上げ ---
-    worksheet.eachRow((row, rowNumber) => {
-        row.eachCell((cell, colNumber) => {
+    const totalCols = 8 + TOTAL_SLOTS;
+    const dateStartRows = new Set(dateRowRanges.map(r => r.start));
+    const dateEndRows = new Set(dateRowRanges.map(r => r.end));
+
+    for (let rowNumber = 1; rowNumber <= lastRow; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+        const isDateStart = dateStartRows.has(rowNumber);
+        const isDateEnd = dateEndRows.has(rowNumber);
+
+        for (let colNumber = 1; colNumber <= totalCols; colNumber++) {
+            const cell = row.getCell(colNumber);
+            const isFirstCol = colNumber === 1;
+            const isLastCol = colNumber === totalCols;
+            const isHourBoundary = colNumber === 7 || (colNumber > 7 && (colNumber - 8) % 4 === 3);
+
             cell.border = {
-                top: { style: 'thin' },
-                bottom: { style: (rowNumber > 1 && colNumber <= 7 && row.getCell(1).value !== worksheet.getRow(rowNumber + 1).getCell(1).value) ? 'medium' : 'thin' },
-                left: { style: 'thin' },
-                right: { style: colNumber === 7 || (colNumber > 7 && (colNumber - 8) % 4 === 3) ? 'medium' : 'thin' }
+                top: { style: rowNumber === 1 ? 'thin' : isDateStart ? 'medium' : 'thin' },
+                bottom: { style: isDateEnd ? 'medium' : 'thin' },
+                left: { style: isFirstCol ? 'medium' : 'thin' },
+                right: { style: isLastCol ? 'medium' : isHourBoundary ? 'medium' : 'thin' }
             };
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
             if (rowNumber === 1) {
                 cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
             }
-        });
-    });
+        }
+    }
 
     // 書き出し
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `シフト詳細表_${yearMonth}_数式連動.xlsx`);
+    toast.success('Excelファイルを出力しました', { id: toastId });
+    } catch (err) {
+        handleApiError(err, 'Excelファイルの出力に失敗しました');
+    }
 };

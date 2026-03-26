@@ -1,4 +1,4 @@
-import { format, parse } from 'date-fns';
+import { format, parse, isValid } from 'date-fns';
 
 const STORAGE_KEY = 'active_working_month';
 
@@ -18,7 +18,9 @@ export const loadActiveMonth = (): Date => {
     if (!saved) return new Date();
 
     try {
-        return parse(saved, 'yyyy-MM', new Date());
+        const parsed = parse(saved, 'yyyy-MM', new Date());
+        if (!isValid(parsed)) return new Date();
+        return parsed;
     } catch (e) {
         console.error('Failed to parse saved month', e);
         return new Date();

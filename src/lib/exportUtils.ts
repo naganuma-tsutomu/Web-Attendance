@@ -4,11 +4,19 @@ import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, eachDayOfInterval, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Staff, Shift } from '../types';
+import { formatHours, calculateDuration } from '../utils/timeUtils';
+import { toast } from 'sonner';
+import { handleApiError } from './errorHandler';
 
 /**
  * シフトデータをExcel形式で書き出す
  */
 export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[]) => {
+    if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        toast.error('年月の形式が正しくありません（例: 2025-01）');
+        return;
+    }
+    try {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(startDate);
@@ -25,24 +33,21 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
         days.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd'); // 正しい日フォーマット
 
-            const dayShift = shifts.find(s => s.staffId === staff.id && s.date === dateStr);
+            const dayShifts = shifts.filter(s => s.staffId === staff.id && s.date === dateStr);
 
-            if (dayShift) {
-                const startTime = dayShift.startTime;
-                const endTime = dayShift.endTime;
-                rowData.push(`${startTime}-${endTime}`);
+            if (dayShifts.length > 0) {
+                const shiftTexts = dayShifts.map(s => `${s.startTime}-${s.endTime}`).join('\n');
+                rowData.push(shiftTexts);
 
-                // 時間計算 (簡易)
-                const [sh, sm] = startTime.split(':').map(Number);
-                const [eh, em] = endTime.split(':').map(Number);
-                const diff = (eh * 60 + em) - (sh * 60 + sm);
-                totalMinutes += diff;
+                dayShifts.forEach(dayShift => {
+                    totalMinutes += calculateDuration(dayShift.startTime, dayShift.endTime) * 60;
+                });
             } else {
                 rowData.push('');
             }
         });
 
-        const totalHours = (totalMinutes / 60).toFixed(1);
+        const totalHours = formatHours(totalMinutes / 60);
         rowData.push(totalHours);
         return rowData;
     });
@@ -53,6 +58,10 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
 
     // ファイル保存
     XLSX.writeFile(workbook, `シフト表_${yearMonth}.xlsx`);
+    toast.success('Excelファイルを出力しました');
+    } catch (err) {
+        handleApiError(err, 'Excelファイルの出力に失敗しました');
+    }
 };
 
 /**
@@ -61,6 +70,11 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
  * ここでは、ブラウザの印刷機能（PDF保存）を代替案として示唆しつつ、基本的なテーブル構造のみ実装する。
  */
 export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[]) => {
+    if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+        toast.error('年月の形式が正しくありません（例: 2025-01）');
+        return;
+    }
+    try {
     const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -84,23 +98,26 @@ export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[])
 
         days.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd'); // 注意: formatの仕方に注意 (YYYY-MM-DD)
-            const dayShift = shifts.find(s => s.staffId === staff.id && s.date === dateStr);
+            const dayShifts = shifts.filter(s => s.staffId === staff.id && s.date === dateStr);
 
-            if (dayShift) {
+            if (dayShifts.length > 0) {
                 // PDFはスペースが狭いため略記 (例: 10-18)
-                const [sh] = dayShift.startTime.split(':');
-                const [eh] = dayShift.endTime.split(':');
-                row.push(`${sh}-${eh}`);
+                const shiftTexts = dayShifts.map(dayShift => {
+                    const [sh] = dayShift.startTime.split(':');
+                    const [eh] = dayShift.endTime.split(':');
+                    return `${sh}-${eh}`;
+                }).join('\n');
+                row.push(shiftTexts);
 
-                const [shm, sm] = dayShift.startTime.split(':').map(Number);
-                const [ehm, em] = dayShift.endTime.split(':').map(Number);
-                totalMinutes += (ehm * 60 + em) - (shm * 60 + sm);
+                dayShifts.forEach(dayShift => {
+                    totalMinutes += calculateDuration(dayShift.startTime, dayShift.endTime) * 60;
+                });
             } else {
                 row.push('');
             }
         });
 
-        row.push((totalMinutes / 60).toFixed(1));
+        row.push(formatHours(totalMinutes / 60));
         return row;
     });
 
@@ -120,5 +137,8 @@ export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[])
 
     doc.save(`シフト表_${yearMonth}.pdf`);
 
-    alert('日本語フォントの制約により、PDFでの日本語表示には制限がある場合があります。表の形が崩れる場合はブラウザの「印刷」機能からPDF保存をお試しください。');
+    toast.warning('PDFの日本語表示には制限がある場合があります。きれいに印刷する場合はブラウザの印刷機能をご利用ください。', { duration: 6000 });
+    } catch (err) {
+        handleApiError(err, 'PDFファイルの出力に失敗しました');
+    }
 };

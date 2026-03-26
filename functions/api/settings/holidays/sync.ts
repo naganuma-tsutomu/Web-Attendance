@@ -1,7 +1,6 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError } from '../../../utils/validation';
 import holiday_jp from '@holiday-jp/holiday_jp';
+import type { Env } from '../../../types';
 
 // GET /api/holidays/sync — 外部データと同期（@holiday-jp/holiday_jpパッケージ使用）
 // Query: ?year=2025 (年指定、省略時は今年と来年)

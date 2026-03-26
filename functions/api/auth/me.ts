@@ -1,12 +1,13 @@
 import { verifyCookie } from '../../utils';
-
-export interface Env {
-    ADMIN_PASSWORD?: string;
-}
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     const cookieHeader = context.request.headers.get('Cookie');
-    const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD || "admin";
+    const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
+
+    if (!ADMIN_PASSWORD) {
+        return Response.json({ authenticated: false, error: 'Server Configuration Error' }, { status: 500 });
+    }
 
     if (cookieHeader && cookieHeader.includes('auth_token=')) {
         const match = cookieHeader.match(/auth_token=([^;]+)/);

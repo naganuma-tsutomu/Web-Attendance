@@ -9,9 +9,7 @@ import {
     validateMaxStaffCount 
 } from '../../../utils/validation';
 
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../../types';
 
 // PUT /api/settings/shift-requirements/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {

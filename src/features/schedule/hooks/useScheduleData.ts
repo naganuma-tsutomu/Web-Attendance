@@ -196,7 +196,6 @@ export const useScheduleData = () => {
 
             let titleSuffix = '';
             if (shift.isError) titleSuffix = '(エラー)';
-            else if (className === '特殊' || className === 'ヘルプ') titleSuffix = '(ヘルプ)';
             else titleSuffix = shift.isEarlyShift ? '(早番)' : '(遅番)';
 
             return {
@@ -207,7 +206,8 @@ export const useScheduleData = () => {
                 resourceId: shift.classType,
                 isError: shift.isError ?? false,
                 isEarly: shift.isEarlyShift,
-                classNameValue: className
+                classNameValue: className,
+                classColor: shiftClass?.color
             };
         });
         return { events: calendarEvents, errorCount: errCount };
@@ -395,15 +395,8 @@ export const useScheduleData = () => {
             style.backgroundColor = '#cbd5e1';
             style.color = '#475569';
         } else if (event.type === 'class') {
-            if (event.classColor) {
-                style.backgroundColor = event.classColor;
-            } else {
-                const clsName = event.classNameValue;
-                if (clsName === '虹組') style.backgroundColor = '#f59e0b';
-                else if (clsName === 'スマイル組') style.backgroundColor = '#3b82f6';
-                else if (clsName === '特殊' || clsName === 'ヘルプ') style.backgroundColor = '#10b981';
-                else style.backgroundColor = '#6366f1';
-            }
+            // DB の color フィールドのみを使用（ハードコード色なし）
+            style.backgroundColor = event.classColor || '#6366f1';
         } else if (event.isEarly) {
             style.backgroundColor = '#3b82f6';
         } else {

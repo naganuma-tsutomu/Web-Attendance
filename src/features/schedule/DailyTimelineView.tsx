@@ -261,20 +261,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         return lines;
     }, [hours]);
 
-    // ── Class group color helper ──
-    const getDynamicColor = (classId: string, className: string) => {
-        const colorMap: Record<string, string> = {
-            'class_smile': 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800',
-            'class_niji': 'text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-100 dark:border-yellow-800',
-            'class_special': 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800',
-            'unassigned': 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
-        };
-        if (colorMap[classId]) return colorMap[classId];
-        if (className === 'スマイル組') return colorMap['class_smile'];
-        if (className === '虹組') return colorMap['class_niji'];
-        if (className === '特殊' || className === 'ヘルプ') return colorMap['class_special'];
-        if (classId === 'unassigned') return colorMap['unassigned'];
-        return 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800';
+    // ── Class group color helper (DB color フィールドのみ使用) ──
+    const getDynamicColor = (classId: string) => {
+        if (classId === 'unassigned') {
+            return 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700';
+        }
+        // DB の color が存在しない / 取得できていない場合のニュートラルフォールバック
+        return 'text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700';
     };
 
     // ── Add from OffDutySection ──
@@ -360,8 +353,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
                         if (groupShifts.length === 0 && (cls.id === 'unassigned' || readOnly)) return null;
 
-                        const groupTitle = cls.name === '特殊' ? 'ヘルプ' : cls.name;
-                        const titleColor = getDynamicColor(cls.id, cls.name);
+                        const groupTitle = cls.name;
+                        const titleColor = getDynamicColor(cls.id);
                         const titleCustomStyle = cls.color && hoveredGroup !== cls.id ? {
                             backgroundColor: hexToRgba(cls.color, 0.12),
                             borderColor: hexToRgba(cls.color, 0.25),

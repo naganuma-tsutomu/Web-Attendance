@@ -141,37 +141,39 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                     />
 
                     {/* Footer Buttons */}
-                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-end gap-3 text-xs">
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex flex-col sm:flex-row items-end sm:items-center justify-between sm:justify-end gap-4 sm:gap-3 text-xs">
                         {isModified && (
-                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-4">
-                                <Save className="w-4 h-4" />
-                                <span className="font-medium">変更後は「保存」ボタンで確定してください</span>
+                            <div className="flex items-start sm:items-center gap-2 text-indigo-600 dark:text-indigo-400 w-full sm:w-auto bg-indigo-50/50 sm:bg-transparent dark:bg-indigo-900/20 dark:sm:bg-transparent p-2 sm:p-0 rounded-md">
+                                <Save className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0" />
+                                <span className="font-medium leading-relaxed">変更後は「保存」ボタンで確定してください</span>
                             </div>
                         )}
-                        <button
-                            onClick={handleClose}
-                            disabled={savingAll}
-                            className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
-                        >
-                            キャンセル
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={savingAll || !isModified}
-                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 active:scale-95"
-                        >
-                            {savingAll ? (
-                                <>
-                                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    保存中...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-3.5 h-3.5" />
-                                    保存
-                                </>
-                            )}
-                        </button>
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                            <button
+                                onClick={handleClose}
+                                disabled={savingAll}
+                                className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600 whitespace-nowrap shrink-0"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={savingAll || !isModified}
+                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap shrink-0 sm:min-w-[80px]"
+                            >
+                                {savingAll ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        保存中...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-3.5 h-3.5 flex-shrink-0" />
+                                        保存
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

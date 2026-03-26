@@ -196,41 +196,39 @@ const SchedulePage = () => {
                                     isFixed={schedule.fixedDates.has(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                     onToggleFixed={() => schedule.toggleFixedDate(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                 />
-                                {schedule.isDayModified && (
-                                    <div className="mt-4 flex-shrink-0 flex items-center justify-end gap-3 animate-in slide-in-from-bottom-2 pb-2">
-                                        <div className="hidden sm:flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-2 text-xs">
-                                            <Save className="w-4 h-4" />
-                                            <span>未保存の変更があります</span>
-                                        </div>
-                                        <button
-                                            onClick={() => schedule.loadShifts()}
-                                            className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
-                                        >
-                                            破棄
-                                        </button>
-                                        <button
-                                            onClick={async () => {
-                                                if (schedule.daySaveRef.current) {
-                                                    try {
-                                                        await schedule.daySaveRef.current();
-                                                        toast.success('保存しました');
-                                                    } catch (e) {
-                                                        console.error(e);
-                                                        if (e instanceof Error && e.message) {
-                                                            toast.error(e.message);
-                                                        } else {
-                                                            toast.error('保存に失敗しました');
-                                                        }
+                                <div className={`mt-4 flex-shrink-0 flex items-center justify-end gap-3 transition-all duration-200 pb-2 ${schedule.isDayModified ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
+                                    <div className="hidden sm:flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-2 text-xs">
+                                        <Save className="w-4 h-4" />
+                                        <span>未保存の変更があります</span>
+                                    </div>
+                                    <button
+                                        onClick={() => schedule.loadShifts()}
+                                        className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
+                                    >
+                                        破棄
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (schedule.daySaveRef.current) {
+                                                try {
+                                                    await schedule.daySaveRef.current();
+                                                    toast.success('保存しました');
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    if (e instanceof Error && e.message) {
+                                                        toast.error(e.message);
+                                                    } else {
+                                                        toast.error('保存に失敗しました');
                                                     }
                                                 }
-                                            }}
-                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-md transition-all flex items-center gap-2"
-                                        >
-                                            <Save className="w-4 h-4" />
-                                            保存
-                                        </button>
-                                    </div>
-                                )}
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-md transition-all flex items-center gap-2"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        保存
+                                    </button>
+                                </div>
                             </div>
                         ) : schedule.view === Views.WEEK ? (
                             <div className="flex-1 overflow-hidden">

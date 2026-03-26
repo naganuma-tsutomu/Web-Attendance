@@ -104,12 +104,11 @@ export const getPreferencesByMonth = async (yearMonth: string): Promise<ShiftPre
     return apiFetch<ShiftPreference[]>(`/preferences?yearMonth=${yearMonth}`, {}, z.array(ShiftPreferenceSchema));
 };
 
-export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): Promise<string> => {
-    const { id } = await apiFetch<{ id: string }>('/preferences', {
+export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): Promise<void> => {
+    await apiFetch('/preferences', {
         method: 'POST',
         body: JSON.stringify(preference)
     });
-    return id;
 };
 
 export const updatePreferences = async (data: Omit<ShiftPreference, 'id'>): Promise<void> => {

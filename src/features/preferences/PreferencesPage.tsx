@@ -187,7 +187,8 @@ const PreferencesPage = () => {
             setMessage({ text: '休日設定を保存しました！', type: 'success' });
         } catch (err) {
             console.error(err);
-            setMessage({ text: '保存に失敗しました。', type: 'error' });
+            const errMsg = err instanceof Error ? err.message : '保存に失敗しました。';
+            setMessage({ text: errMsg, type: 'error' });
         } finally {
             setTimeout(() => setMessage({ text: '', type: '' }), 3000);
         }

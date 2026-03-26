@@ -186,7 +186,7 @@ const StaffPage = () => {
         })
     );
 
-    const getHolidayDisplay = (availableDays?: (number | { day: number, weeks?: number[] })[]) => {
+    const getHolidayDisplay = (availableDays?: (number | { day: number, weeks?: number[] | null })[]) => {
         if (!availableDays || availableDays.length === 0) return '設定なし';
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         const allDays = [1, 2, 3, 4, 5, 6];

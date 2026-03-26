@@ -70,7 +70,7 @@ const PreferencesPage = () => {
 
     // rawPrefs → staffId ごとの details マップに変換
     const allPrefsForMonth = useMemo(() => {
-        const map: Record<string, { date: string, startTime: string | null, endTime: string | null, type?: string | null }[]> = {};
+        const map: Record<string, { date: string, startTime?: string | null, endTime?: string | null, type?: string | null }[]> = {};
         rawPrefs.forEach(p => {
             map[p.staffId] = p.details || [];
         });

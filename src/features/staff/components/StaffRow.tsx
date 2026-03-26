@@ -10,7 +10,7 @@ interface StaffRowProps {
     onEdit?: (staff: Staff) => void;
     onDelete?: (id: string, name: string) => void;
     isOverlay?: boolean;
-    getHolidayDisplay: (availableDays?: (number | { day: number, weeks?: number[] })[]) => string;
+    getHolidayDisplay: (availableDays?: (number | { day: number, weeks?: number[] | null })[]) => string;
     currentMonthHours?: number;
 }
 

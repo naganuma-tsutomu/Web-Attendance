@@ -8,14 +8,14 @@ import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUti
 
 const API_BASE = '/api';
 
-type ParseableSchema<T> = {
-    safeParse(data: unknown): { success: true; data: T } | { success: false; error: { format(): unknown } };
+type ParseableSchema = {
+    safeParse(data: unknown): { success: boolean; data?: unknown; error?: { format(): unknown } };
 };
 
 /**
  * 共通のAPIリクエスト関数
  */
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?: ParseableSchema<T>): Promise<T> {
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?: ParseableSchema): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
     const response = await fetch(url, {
@@ -38,7 +38,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?:
     if (schema) {
         const result = schema.safeParse(data);
         if (!result.success) {
-            const formatted = result.error.format();
+            const formatted = result.error?.format();
             if (import.meta.env.DEV) {
                 // 開発環境ではエラーをスローして即座に気づけるようにする
                 console.error(`[API Validation Error] ${endpoint}:`, formatted);
@@ -50,7 +50,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?:
             return data as T;
         }
         // パース成功時は Zod が正規化した値を返す（型安全）
-        return result.data;
+        return result.data as T;
     }
     
     return data as T;

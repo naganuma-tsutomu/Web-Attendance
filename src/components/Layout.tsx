@@ -28,7 +28,7 @@ const Layout = () => {
         { path: '/admin/settings/roles', label: 'スタッフ区分管理', icon: Users },
         { path: '/admin/settings/classes', label: 'クラス管理', icon: GraduationCap },
         { path: '/admin/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
-        { path: '/admin/settings/appearance', label: '外観設定', icon: Palette },
+        { path: '/admin/settings/appearance', label: '設定', icon: Palette },
     ];
 
     return (

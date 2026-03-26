@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { GripVertical } from 'lucide-react';
 import { timeToMinutes } from '../../../utils/timeUtils';
 import { toTimeStr } from '../hooks/useShiftEdit';
@@ -45,6 +45,7 @@ const TimelineBar: React.FC<TimelineBarProps> = ({
     onPointerDown, onPointerUp, renderGridLines
 }) => {
     const s = localData;
+    const trackRef = useRef<HTMLDivElement>(null);
 
     const getBarStyle = () => {
         const clampedStart = Math.max(hours.startHour * 60, s.start);
@@ -72,20 +73,18 @@ const TimelineBar: React.FC<TimelineBarProps> = ({
     const handleResizePointerDown = (e: React.PointerEvent, type: DragType) => {
         e.stopPropagation();
         if (readOnly) return;
-        const trackEl = document.getElementById(`track-${shift.id}`);
-        if (trackEl) onPointerDown(e, shift.id, type, trackEl);
+        if (trackRef.current) onPointerDown(e, shift.id, type, trackRef.current);
     };
 
     return (
-        <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`} style={{ touchAction: 'pan-y' }}>
+        <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} ref={trackRef} style={{ touchAction: 'pan-y' }}>
             {renderGridLines()}
             <div
                 className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded flex items-center ${hexColor ? '' : getBarColor(currentClassType, currentIsError, conflictType)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : highlightStaffId === shift.staffId ? 'z-20 ring-2 ring-indigo-500 ring-offset-1 border-indigo-400 shadow-md transform scale-[1.01]' : `z-10 border shadow ${readOnly ? '' : 'cursor-grab active:cursor-grabbing hover:scale-[1.02]'}`} transition-all duration-75`}
                 style={{ ...getBarStyle(), ...barColorStyle, transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none', ...(readOnly ? { pointerEvents: 'none' } : { touchAction: 'none' }) }}
                 {...(!readOnly ? {
                     onPointerDown: (e: React.PointerEvent) => {
-                        const trackEl = document.getElementById(`track-${shift.id}`);
-                        if (trackEl) onPointerDown(e, shift.id, 'move', trackEl);
+                        if (trackRef.current) onPointerDown(e, shift.id, 'move', trackRef.current);
                     },
                     onPointerUp,
                     onPointerCancel: onPointerUp,

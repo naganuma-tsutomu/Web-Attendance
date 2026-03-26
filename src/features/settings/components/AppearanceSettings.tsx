@@ -76,7 +76,7 @@ const AppearanceSettings = () => {
     };
 
     const hourOptions = Array.from({ length: 25 }, (_, i) => i); // 0-24
-    const DAYS_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+    const DAYS_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土', '祝日'];
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">

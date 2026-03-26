@@ -9,7 +9,7 @@ const AppearancePage = () => {
                 <div className="flex items-center space-x-3 mb-6">
                     <Palette className="w-8 h-8 text-indigo-500" />
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">外観設定</h2>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">設定</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             アプリケーションの表示テーマやカレンダーの設定を変更します。
                         </p>

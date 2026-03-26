@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, type Locale } from 'date-fns';
+import { format, parse, startOfWeek, startOfMonth, addDays, getDay, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { toast } from 'sonner';
@@ -54,6 +54,59 @@ const SchedulePage = () => {
             clearTimeout(timeoutId);
         };
     }, []);
+
+    const lastTouchOpenRef = useRef<number>(0);
+    const isTouchDevice = useRef(typeof window !== 'undefined' && navigator.maxTouchPoints > 0);
+    const calendarContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = calendarContainerRef.current;
+        if (!el || !isTouchDevice.current) return;
+
+        let startX = 0, startY = 0;
+
+        const onTouchStart = (e: TouchEvent) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        };
+
+        const onTouchEnd = (e: TouchEvent) => {
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            if (Math.abs(endX - startX) > 10 || Math.abs(endY - startY) > 10) return;
+
+            const monthView = el.querySelector('.rbc-month-view');
+            if (!monthView) return;
+
+            const rect = monthView.getBoundingClientRect();
+            const header = monthView.querySelector('.rbc-row.rbc-month-header');
+            const headerHeight = header ? header.getBoundingClientRect().height : 0;
+
+            const relX = endX - rect.left;
+            const relY = endY - rect.top - headerHeight;
+            if (relY < 0 || relX < 0 || relX > rect.width) return;
+
+            const col = Math.floor((relX / rect.width) * 7);
+            const monthRows = monthView.querySelectorAll('.rbc-month-row');
+            if (!monthRows.length) return;
+            const rowHeight = (rect.height - headerHeight) / monthRows.length;
+            const row = Math.floor(relY / rowHeight);
+
+            const weekStartsOn = getWeekStartsOn() as 0 | 1;
+            const calendarStart = startOfWeek(startOfMonth(schedule.currentDate), { weekStartsOn });
+            const date = addDays(calendarStart, row * 7 + col);
+
+            lastTouchOpenRef.current = Date.now();
+            handleOpenTimeline(date);
+        };
+
+        el.addEventListener('touchstart', onTouchStart, { passive: true });
+        el.addEventListener('touchend', onTouchEnd, { passive: true });
+        return () => {
+            el.removeEventListener('touchstart', onTouchStart);
+            el.removeEventListener('touchend', onTouchEnd);
+        };
+    }, [schedule.view, schedule.currentDate, calendarKey]);
 
     const handleOpenTimeline = (date: Date) => {
         setSelectedDateForTimeline(date);
@@ -192,7 +245,7 @@ const SchedulePage = () => {
                                 />
                             </div>
                         ) : (
-                            <div className="h-full rb-calendar-container overflow-hidden">
+                            <div className="h-full rb-calendar-container overflow-hidden" ref={calendarContainerRef}>
                                 <BigCalendar
                                     key={calendarKey}
                                     localizer={localizer}
@@ -200,7 +253,7 @@ const SchedulePage = () => {
                                     startAccessor="start"
                                     endAccessor="end"
                                     culture="ja"
-                                    selectable={true}
+                                    selectable={!isTouchDevice.current}
                                     onSelectSlot={({ start }) => handleOpenTimeline(start as Date)}
                                     eventPropGetter={schedule.eventStyleGetter}
                                     onSelectEvent={(event: any) => {
@@ -230,7 +283,10 @@ const SchedulePage = () => {
                                                 return (
                                                     <div
                                                         className="flex justify-between items-center w-full px-1 py-0.5 cursor-pointer"
-                                                        onClick={() => handleOpenTimeline(props.date)}
+                                                        onClick={() => {
+                                                            if (Date.now() - lastTouchOpenRef.current < 500) return;
+                                                            handleOpenTimeline(props.date);
+                                                        }}
                                                     >
                                                         <button
                                                             onClick={(e) => {
@@ -241,7 +297,7 @@ const SchedulePage = () => {
                                                             onMouseDown={(e) => e.stopPropagation()}
                                                             onPointerDown={(e) => e.stopPropagation()}
                                                             onDoubleClick={(e) => e.stopPropagation()}
-                                                            className={`p-1 flex items-center justify-center rounded transition-colors shrink-0 ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                                            className={`p-1 hidden sm:flex items-center justify-center rounded transition-colors shrink-0 ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
                                                             title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
                                                         >
                                                             {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}

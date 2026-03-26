@@ -62,8 +62,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (endHour - startHour < 2) {
             return createValidationError('営業時間は最低2時間必要です');
         }
-        if (!Array.isArray(closedDays) || !closedDays.every(d => Number.isInteger(d) && d >= 0 && d <= 6)) {
-             return createValidationError('休館日は0〜6の曜日の配列で指定してください');
+        if (!Array.isArray(closedDays) || !closedDays.every(d => Number.isInteger(d) && d >= 0 && d <= 7)) {
+            return createValidationError('休館日は0〜7の数で指定してください');
         }
 
         await context.env.DB.prepare(

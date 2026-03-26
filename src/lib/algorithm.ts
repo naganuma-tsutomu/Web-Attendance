@@ -326,8 +326,9 @@ export const generateShiftsForMonth = (
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
 
-        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
-            return; // 休館日・祝日・固定日はスキップ
+        const isClosedHoliday = closedDays.includes(7) && holidays.includes(dateStr);
+        if (closedDays.includes(dayOfWeek) || isClosedHoliday || fixedDates.includes(dateStr)) {
+            return; // 休館日(曜日指定)・祝日(休館指定あり)・固定日はスキップ
         }
 
         const availableStaff = staffList.filter(staff =>

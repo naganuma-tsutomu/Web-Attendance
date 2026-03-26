@@ -1,4 +1,4 @@
-import { signCookie } from '../../utils';
+import { signCookie, TOKEN_MAX_AGE_SECONDS, ADMIN_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
 
 /**
@@ -53,7 +53,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const token = await signCookie(ADMIN_PASSWORD);
         const isSecure = context.request.url.startsWith('https');
-        const cookie = `auth_token=${token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict${isSecure ? '; Secure' : ''}`;
+        const cookie = `${ADMIN_COOKIE_NAME}=${token}; HttpOnly; Path=/; Max-Age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Strict${isSecure ? '; Secure' : ''}`;
 
         return new Response(JSON.stringify({ success: true }), {
             status: 200,

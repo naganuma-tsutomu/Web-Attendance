@@ -11,6 +11,7 @@ import TimelineBar, { hexToRgba } from './components/TimelineBar';
 import { AddStaffMenu, SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions } from './components/ShiftActionMenus';
 import type { OffDutyStaffInfo } from './components/ShiftActionMenus';
 import OffDutySection from './components/OffDutySection';
+import { UNASSIGNED_STAFF_ID } from '../../constants';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
@@ -86,10 +87,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     const staffMonthlyHours = useMemo(() => {
         const hrs: Record<string, number> = {};
         const base = shifts.filter(s =>
-            s.date.startsWith(targetYearMonth) && !deletedIds.has(s.id) && s.staffId !== 'UNASSIGNED'
+            s.date.startsWith(targetYearMonth) && !deletedIds.has(s.id) && s.staffId !== UNASSIGNED_STAFF_ID
         );
         const added = addedShifts.filter(s =>
-            s.date.startsWith(targetYearMonth) && s.staffId !== 'UNASSIGNED'
+            s.date.startsWith(targetYearMonth) && s.staffId !== UNASSIGNED_STAFF_ID
         );
         [...base, ...added].forEach(s => {
             const duration = calculateDurationHours(s.startTime, s.endTime);

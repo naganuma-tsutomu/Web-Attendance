@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from 'date-fns';
 import { isStaffAvailableReason } from '../../../lib/algorithm';
+import { CALENDAR_COLORS, DEFAULT_CLOSED_DAYS } from '../../../constants';
 import type { Shift, Staff, ShiftClass, ShiftPreference, BusinessHours } from '../../../types';
 
 export interface CalendarEvent {
@@ -79,7 +80,7 @@ export const useCalendarEvents = (
         const dStart = startOfMonth(new Date(year, month - 1));
         const dEnd = endOfMonth(dStart);
         const daysInMonth = eachDayOfInterval({ start: dStart, end: dEnd });
-        const closedDays = businessHours?.closedDays || [0];
+        const closedDays = businessHours?.closedDays || DEFAULT_CLOSED_DAYS;
 
         daysInMonth.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
@@ -148,20 +149,20 @@ export const useCalendarEvents = (
         };
 
         if (event.isError || event.type === 'error') {
-            style.backgroundColor = '#94a3b8';
+            style.backgroundColor = CALENDAR_COLORS.error;
         } else if (event.type === 'requested-off') {
-            style.backgroundColor = '#ef4444';
+            style.backgroundColor = CALENDAR_COLORS.requestedOff;
         } else if (event.type === 'training') {
-            style.backgroundColor = '#f59e0b';
+            style.backgroundColor = CALENDAR_COLORS.training;
         } else if (event.type === 'fixed-off') {
-            style.backgroundColor = '#cbd5e1';
-            style.color = '#475569';
+            style.backgroundColor = CALENDAR_COLORS.fixedOffBg;
+            style.color = CALENDAR_COLORS.fixedOffText;
         } else if (event.type === 'class') {
-            style.backgroundColor = event.classColor || '#6366f1';
+            style.backgroundColor = event.classColor || CALENDAR_COLORS.classFallback;
         } else if (event.isEarly) {
-            style.backgroundColor = '#3b82f6';
+            style.backgroundColor = CALENDAR_COLORS.early;
         } else {
-            style.backgroundColor = '#f59e0b';
+            style.backgroundColor = CALENDAR_COLORS.late;
         }
 
         return { style };

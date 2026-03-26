@@ -1,4 +1,6 @@
-const TOKEN_MAX_AGE_SECONDS = 86400; // 24 hours
+export const TOKEN_MAX_AGE_SECONDS = 86400; // 24 hours
+export const ADMIN_COOKIE_NAME = 'auth_token';
+export const STAFF_COOKIE_NAME = 'staff_token';
 
 // ==========================================
 // Staff session token utilities

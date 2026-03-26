@@ -2,6 +2,7 @@ import { useReducer, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../../lib/api';
 import { timeToMinutes } from '../../../utils/timeUtils';
+import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import type { Shift, ClassType, ShiftTimePattern } from '../../../types';
 
 // ── Default Constants ──
@@ -198,7 +199,7 @@ export function useShiftEdit({
                 if (deletedIds.has(id)) return false;
                 const originalShift = [...shifts, ...addedShifts].find(shift => shift.id === id);
                 if (!originalShift) return false;
-                return originalShift.staffId === 'UNASSIGNED' && localShifts[id].classType !== 'unassigned' && localShifts[id].isError === false;
+                return originalShift.staffId === UNASSIGNED_STAFF_ID && localShifts[id].classType !== 'unassigned' && localShifts[id].isError === false;
             });
 
             if (hasInvalidUnassigned) {

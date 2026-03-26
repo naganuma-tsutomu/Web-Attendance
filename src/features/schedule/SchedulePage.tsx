@@ -15,6 +15,7 @@ import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
 import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/useScheduleData';
 import { getWeekStartsOn } from '../../utils/dateUtils';
+import { UNASSIGNED_STAFF_ID } from '../../constants';
 
 const localizer = dateFnsLocalizer({
     format,
@@ -118,7 +119,7 @@ const SchedulePage = () => {
         const shift = schedule.rawShifts.find(s => s.id === event.id);
         if (shift) {
             setEditFormData({
-                staffId: shift.staffId === 'UNASSIGNED' ? '' : shift.staffId,
+                staffId: shift.staffId === UNASSIGNED_STAFF_ID ? '' : shift.staffId,
                 date: shift.date,
                 startTime: shift.startTime,
                 endTime: shift.endTime

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateShiftsForMonth, isStaffAvailable } from '../algorithm';
+import { UNASSIGNED_STAFF_ID } from '../../constants';
 import type { Staff, ShiftPreference, DynamicRole, ShiftRequirement } from '../../types';
 
 // テスト用のスタッフデータ
@@ -61,7 +62,7 @@ describe('generateShiftsForMonth', () => {
 
         const errorShifts = shifts.filter(s => s.isError === true && s.date === '2025-06-02');
         expect(errorShifts).toHaveLength(1);
-        expect(errorShifts[0].staffId).toBe('UNASSIGNED');
+        expect(errorShifts[0].staffId).toBe(UNASSIGNED_STAFF_ID);
     });
 
     it('同一スタッフが重複して割り当てられない', () => {

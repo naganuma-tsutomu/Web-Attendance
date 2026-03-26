@@ -1,4 +1,4 @@
-import { verifyCookie } from '../../utils';
+import { verifyCookie, ADMIN_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -9,8 +9,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         return Response.json({ authenticated: false, error: 'Server Configuration Error' }, { status: 500 });
     }
 
-    if (cookieHeader && cookieHeader.includes('auth_token=')) {
-        const match = cookieHeader.match(/auth_token=([^;]+)/);
+    if (cookieHeader && cookieHeader.includes(`${ADMIN_COOKIE_NAME}=`)) {
+        const match = cookieHeader.match(new RegExp(`${ADMIN_COOKIE_NAME}=([^;]+)`));
         if (match) {
             const isValid = await verifyCookie(match[1], ADMIN_PASSWORD);
             if (isValid) {

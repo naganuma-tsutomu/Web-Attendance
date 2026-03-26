@@ -14,6 +14,7 @@ import {
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
+import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import { useScheduleQueries } from './useScheduleQueries';
 import { useCalendarEvents } from './useCalendarEvents';
 import type { ShiftPreference } from '../../../types';
@@ -128,7 +129,7 @@ export const useScheduleData = () => {
                 Array.from(fixedDates),
                 businessHours?.closedDays
             );
-            const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
+            const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
 
             await saveShiftsMutation.mutateAsync(generatedShifts);
             setConfirmAction(null);
@@ -184,7 +185,7 @@ export const useScheduleData = () => {
                 await updateShiftMutation.mutateAsync({
                     id: selectedEvent.id,
                     data: {
-                        staffId: editFormData.staffId || 'UNASSIGNED',
+                        staffId: editFormData.staffId || UNASSIGNED_STAFF_ID,
                         startTime: editFormData.startTime,
                         endTime: editFormData.endTime,
                         isError: editFormData.staffId === ''
@@ -194,7 +195,7 @@ export const useScheduleData = () => {
                 const dateStr = editFormData.date || format(currentDate, 'yyyy-MM-01');
                 await saveShiftsMutation.mutateAsync([{
                     date: dateStr,
-                    staffId: editFormData.staffId || 'UNASSIGNED',
+                    staffId: editFormData.staffId || UNASSIGNED_STAFF_ID,
                     startTime: editFormData.startTime,
                     endTime: editFormData.endTime,
                     classType: classes[0]?.id || 'class_niji',

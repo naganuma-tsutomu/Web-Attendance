@@ -1,4 +1,4 @@
-import { verifyCookie, verifyStaffCookie } from '../utils';
+import { verifyCookie, verifyStaffCookie, ADMIN_COOKIE_NAME, STAFF_COOKIE_NAME } from '../utils';
 import type { Env } from '../types';
 
 /**
@@ -62,7 +62,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     };
 
     // ── 6. 管理者認証 ──
-    const adminToken = extractToken('auth_token');
+    const adminToken = extractToken(ADMIN_COOKIE_NAME);
     const isAdminAuthenticated = adminToken
         ? await verifyCookie(adminToken, ADMIN_PASSWORD)
         : false;
@@ -72,7 +72,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     }
 
     // ── 7. スタッフ認証 ──
-    const staffToken = extractToken('staff_token');
+    const staffToken = extractToken(STAFF_COOKIE_NAME);
     const staffId = staffToken
         ? await verifyStaffCookie(staffToken, ADMIN_PASSWORD)
         : null;

@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError } from '../../utils/validation';
-import { signStaffCookie } from '../../utils';
+import { signStaffCookie, TOKEN_MAX_AGE_SECONDS, STAFF_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -25,7 +25,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const token = await signStaffCookie(staff.id, ADMIN_PASSWORD);
         const isSecure = context.request.url.startsWith('https');
-        const cookie = `staff_token=${token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict${isSecure ? '; Secure' : ''}`;
+        const cookie = `${STAFF_COOKIE_NAME}=${token}; HttpOnly; Path=/; Max-Age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Strict${isSecure ? '; Secure' : ''}`;
 
         return new Response(JSON.stringify({ id: staff.id, name: staff.name }), {
             status: 200,

@@ -1,3 +1,5 @@
+import { UNASSIGNED_STAFF_ID } from '../constants';
+
 /**
  * Convert a HH:MM string to total minutes.
  */
@@ -31,7 +33,7 @@ export const calculateTotalHours = (shifts: { staffId: string, startTime: string
     const totals: Record<string, number> = {};
 
     shifts.forEach(shift => {
-        if (!shift.staffId || shift.staffId === 'UNASSIGNED' || shift.isError) return;
+        if (!shift.staffId || shift.staffId === UNASSIGNED_STAFF_ID || shift.isError) return;
 
         const duration = calculateDuration(shift.startTime, shift.endTime);
         totals[shift.staffId] = (totals[shift.staffId] || 0) + duration;

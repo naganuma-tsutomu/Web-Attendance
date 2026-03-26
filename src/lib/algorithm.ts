@@ -1,5 +1,6 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek } from 'date-fns';
 import { timeToMinutes } from '../utils/timeUtils';
+import { UNASSIGNED_STAFF_ID, DAY_WEEKDAYS, DAY_EVERYDAY, DEFAULT_CLOSED_DAYS, CLOSED_DAY_HOLIDAY } from '../constants';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**
@@ -169,7 +170,7 @@ const countStaffInTimeSlot = (
         if (shift.date !== dateStr) return false;
         if (shift.classType !== classId) return false;
         if (shift.isError) return false;
-        if (shift.staffId === 'UNASSIGNED') return false;
+        if (shift.staffId === UNASSIGNED_STAFF_ID) return false;
 
         // Check if the shift overlaps with the time slot
         return (shift.startTime < endTime && shift.endTime > startTime);
@@ -251,9 +252,9 @@ const getRequirementsForDay = (
             const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
             let dayMatches = false;
-            if (req.dayOfWeek === 8) {
+            if (req.dayOfWeek === DAY_EVERYDAY) {
                 dayMatches = true; // Everyday
-            } else if (req.dayOfWeek === 7) {
+            } else if (req.dayOfWeek === DAY_WEEKDAYS) {
                 dayMatches = isWeekday; // Weekdays only
             } else {
                 dayMatches = req.dayOfWeek === dayOfWeek;
@@ -282,7 +283,7 @@ export const generateShiftsForMonth = (
     requirements: ShiftRequirement[] = [], // New: shift requirements
     existingShifts: Shift[] = [], // New: shifts from adjacent months for weekly hours context
     fixedDates: string[] = [], // New: locked dates to avoid rewriting
-    closedDays: number[] = [0] // New: 施設が休館の曜日リスト (0=日, 1=月...6=土)
+    closedDays: number[] = DEFAULT_CLOSED_DAYS // New: 施設が休館の曜日リスト (0=日, 1=月...6=土)
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
@@ -301,7 +302,7 @@ export const generateShiftsForMonth = (
 
     // Populate currentWeeklyHours with context from existing shifts
     existingShifts.forEach(shift => {
-        if (!shift.staffId || shift.staffId === 'UNASSIGNED' || shift.isError) return;
+        if (!shift.staffId || shift.staffId === UNASSIGNED_STAFF_ID || shift.isError) return;
         const shiftDate = new Date(shift.date);
         const weekKey = `w-${format(startOfISOWeek(shiftDate), 'yyyy-MM-dd')}`;
         
@@ -326,9 +327,8 @@ export const generateShiftsForMonth = (
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
 
-        const isClosedHoliday = closedDays.includes(7) && holidays.includes(dateStr);
-        if (closedDays.includes(dayOfWeek) || isClosedHoliday || fixedDates.includes(dateStr)) {
-            return; // 休館日(曜日指定)・祝日(休館指定あり)・固定日はスキップ
+        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
+            return; // 休館日・祝日・固定日はスキップ
         }
 
         const availableStaff = staffList.filter(staff =>
@@ -399,7 +399,7 @@ export const generateShiftsForMonth = (
                         generatedShifts.push({
                             id: `err_${dateStr}_req_${req.id}_miss_${i}`,
                             date: dateStr,
-                            staffId: 'UNASSIGNED',
+                            staffId: UNASSIGNED_STAFF_ID,
                             startTime: req.startTime,
                             endTime: req.endTime,
                             classType: req.classId,

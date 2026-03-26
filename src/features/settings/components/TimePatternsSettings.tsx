@@ -166,6 +166,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
     });
 
     // Modal state
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editFormData, setEditFormData] = useState({
@@ -193,12 +194,21 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
         getRoles().then(setRoles).catch(err => handleApiError(err, 'スタッフ区分の読み込みに失敗しました'));
     }, []);
 
+    const handleOpenAddModal = () => {
+        setFormData({
+            name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
+            ...getDefaultDayValues()
+        });
+        setIsAddModalOpen(true);
+    };
+
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
             await createTimePattern(formData);
             toast.success('パターンを追加しました');
+            setIsAddModalOpen(false);
             setFormData({
                 name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
                 ...getDefaultDayValues()
@@ -292,116 +302,15 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
-            {/* Create Pattern form */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition-all">
-                <div className="flex justify-between items-center mb-6">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider flex items-center">
-                        <span className="w-1 h-4 bg-indigo-500 rounded-full mr-2"></span>
-                        新しい勤務パターン
-                    </h4>
-                </div>
-
-                <form onSubmit={handleCreateSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">パターン名称 <span className="text-rose-500">*</span></label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="例: 早番, 遅番, 9時間拘束..."
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white outline-none"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">開始</label>
-                                    <input
-                                        type="time"
-                                        required
-                                        value={formData.startTime}
-                                        onChange={e => setFormData({ ...formData, startTime: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm font-mono outline-none"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">終了</label>
-                                    <input
-                                        type="time"
-                                        required
-                                        value={formData.endTime}
-                                        onChange={e => setFormData({ ...formData, endTime: e.target.value })}
-                                        className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm font-mono outline-none"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center">
-                                    <UserCheck className="w-3.5 h-3.5 mr-1" />
-                                    連動するスタッフ区分（指定なしで共通利用）
-                                </label>
-                                <div className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl min-h-[44px]">
-                                    {roles.length === 0 ? (
-                                        <span className="text-xs text-slate-400 animate-pulse">スタッフ区分をロード中...</span>
-                                    ) : roles.map(r => (
-                                        <button
-                                            key={r.id}
-                                            type="button"
-                                            onClick={() => toggleRole(r.id, false)}
-                                            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${formData.roleIds.includes(r.id)
-                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300'
-                                                }`}
-                                        >
-                                            {r.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center">
-                                    <Calendar className="w-3.5 h-3.5 mr-1" />
-                                    有効な曜日・属性
-                                </label>
-                                <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
-                                    {DAYS.map(d => (
-                                        <button
-                                            key={d.key}
-                                            type="button"
-                                            onClick={() => setFormData(prev => ({ ...prev, [d.key]: (prev as any)[d.key] === 1 ? 0 : 1 }))}
-                                            className={`h-11 rounded-xl flex flex-col items-center justify-center transition-all border ${(formData as any)[d.key] === 1
-                                                ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300'
-                                                }`}
-                                        >
-                                            <span className="text-[10px] font-black">{d.label}</span>
-                                            {(formData as any)[d.key] === 1 ? <CheckCircle2 className="w-3 h-3 mt-1" /> : <AlertCircle className="w-3 h-3 mt-1 opacity-20" />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="pt-2">
-                        <button
-                            disabled={isSubmitting}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 text-white py-3 rounded-xl text-sm font-bold shadow-lg dark:shadow-none transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
-                        >
-                            {isSubmitting ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <Plus className="w-4 h-4 text-white/50" />
-                            )}
-                            <span>{isSubmitting ? '処理中...' : '新しく登録する'}</span>
-                        </button>
-                    </div>
-                </form>
+            {/* Add Pattern Button */}
+            <div className="flex justify-end">
+                <button
+                    onClick={handleOpenAddModal}
+                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span>パターン追加</span>
+                </button>
             </div>
 
             {/* Patterns list */}
@@ -473,6 +382,19 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
                 </div>
             </div>
 
+            {/* Add Modal */}
+            <TimePatternEditModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSubmit={handleCreateSubmit}
+                formData={formData}
+                setFormData={setFormData}
+                roles={roles}
+                isSubmitting={isSubmitting}
+                title="新しい勤務パターン"
+            />
+
+            {/* Edit Modal */}
             <TimePatternEditModal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}

@@ -168,6 +168,7 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
 
 const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: ClassesSettingsProps) => {
     const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingClass, setEditingClass] = useState<ShiftClass | null>(null);
     const [editForm, setEditForm] = useState({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -180,6 +181,11 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
+    const handleOpenAddModal = () => {
+        setNewClass({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
+        setIsAddModalOpen(true);
+    };
+
     const handleAddClass = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newClass.name.trim() || isSubmitting) return;
@@ -188,6 +194,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
             await createClass(newClass.name, newClass.auto_allocate, newClass.color);
             setNewClass({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
             toast.success(`クラス「${newClass.name}」を追加しました`);
+            setIsAddModalOpen(false);
             onUpdate();
         } catch (err) {
             handleApiError(err, 'クラスの追加に失敗しました');
@@ -272,51 +279,15 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
 
-            {/* Class form */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm ring-1 ring-slate-200/50">
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-5 text-sm uppercase tracking-wider flex items-center">
-                    <span className="w-1 h-4 bg-indigo-500 rounded-full mr-2"></span>
-                    クラスの新規作成
-                </h4>
-                <form onSubmit={handleAddClass} className="space-y-5">
-                    <div className="space-y-3">
-                        <div className="flex gap-4 items-end">
-                            <div className="space-y-1.5 flex-1">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">クラス名</label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="例: ひまわり組, 事務, キッチン..."
-                                    value={newClass.name}
-                                    onChange={e => setNewClass({ ...newClass, name: e.target.value })}
-                                    className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-sm dark:text-white transition-all outline-none"
-                                />
-                            </div>
-                            <button
-                                disabled={isSubmitting || !newClass.name.trim()}
-                                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-400 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-md shadow-indigo-200 dark:shadow-none transition-all h-[44px] flex items-center justify-center space-x-2 min-w-[100px]"
-                            >
-                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /><span>追加</span></>}
-                            </button>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">クラスカラー</label>
-                            <ColorPicker value={newClass.color} onChange={c => setNewClass({ ...newClass, color: c })} />
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-3 pl-1">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={newClass.auto_allocate === 1}
-                                onChange={(e) => setNewClass({ ...newClass, auto_allocate: e.target.checked ? 1 : 0 })}
-                            />
-                            <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                        </label>
-                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">このクラスを自動シフト作成の対象にする</span>
-                    </div>
-                </form>
+            {/* Add Class Button */}
+            <div className="flex justify-end">
+                <button
+                    onClick={handleOpenAddModal}
+                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span>クラス追加</span>
+                </button>
             </div>
 
             {/* Classes list */}

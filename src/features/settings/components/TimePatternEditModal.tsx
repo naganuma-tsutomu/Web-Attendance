@@ -10,6 +10,7 @@ interface TimePatternEditModalProps {
     setFormData: React.Dispatch<React.SetStateAction<any>>;
     roles: DynamicRole[];
     isSubmitting: boolean;
+    title?: string;
 }
 
 const DAYS = [
@@ -30,7 +31,8 @@ const TimePatternEditModal = ({
     formData,
     setFormData,
     roles,
-    isSubmitting
+    isSubmitting,
+    title = '勤務パターンの編集'
 }: TimePatternEditModalProps) => {
     const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = React.useState(false);
 
@@ -68,7 +70,7 @@ const TimePatternEditModal = ({
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center">
                         <span className="w-1.5 h-6 bg-indigo-500 rounded-full mr-3"></span>
-                        勤務パターンの編集
+                        {title}
                     </h3>
                     <button onClick={onClose} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
                         <X className="w-5 h-5" />
@@ -187,10 +189,10 @@ const TimePatternEditModal = ({
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span>更新中...</span>
+                                    <span>{title === '新しい勤務パターン' ? '登録中...' : '更新中...'}</span>
                                 </>
                             ) : (
-                                <span>パターンの更新を保存</span>
+                                <span>{title === '新しい勤務パターン' ? 'パターンを登録' : 'パターンの更新を保存'}</span>
                             )}
                         </button>
                     </div>

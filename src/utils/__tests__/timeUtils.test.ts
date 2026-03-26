@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { timeToMinutes, calculateDuration, calculateTotalHours, formatHours } from '../timeUtils';
+import { UNASSIGNED_STAFF_ID } from '../../constants';
 
 describe('timeUtils', () => {
     describe('timeToMinutes', () => {
@@ -42,12 +43,12 @@ describe('timeUtils', () => {
         it('未割り当て(UNASSIGNED)やエラーシフトは除外される', () => {
             const shifts = [
                 { staffId: 's1', startTime: '09:00', endTime: '18:00' },
-                { staffId: 'UNASSIGNED', startTime: '10:00', endTime: '15:00' },
+                { staffId: UNASSIGNED_STAFF_ID, startTime: '10:00', endTime: '15:00' },
                 { staffId: 's2', startTime: '09:00', endTime: '13:00', isError: true }
             ];
             const totals = calculateTotalHours(shifts);
             expect(totals['s1']).toBe(9);
-            expect(totals['UNASSIGNED']).toBeUndefined();
+            expect(totals[UNASSIGNED_STAFF_ID]).toBeUndefined();
             expect(totals['s2']).toBeUndefined();
         });
     });

@@ -243,9 +243,10 @@ const SchedulePage = () => {
                                 />
                             </div>
                         ) : (
-                            <div className="h-full rb-calendar-container overflow-hidden" ref={calendarContainerRef}>
-                                <BigCalendar
-                                    key={calendarKey}
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 hidden-scrollbar" ref={calendarContainerRef}>
+                                <div className="rb-calendar-container h-full">
+                                    <BigCalendar
+                                        key={calendarKey}
                                     localizer={localizer}
                                     events={schedule.summaryEvents}
                                     startAccessor="start"
@@ -344,6 +345,7 @@ const SchedulePage = () => {
                                     }}
                                     onShowMore={(_events, date) => handleOpenTimeline(date)}
                                 />
+                                </div>
                             </div>
                         )}
                     </div>

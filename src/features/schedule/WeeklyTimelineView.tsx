@@ -31,7 +31,12 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     return (
-        <div className="h-full overflow-y-auto flex flex-col space-y-4 p-4">
+        <div className="h-full overflow-y-auto flex flex-col p-4">
+            <div className="flex justify-end text-[10px] text-slate-500 dark:text-slate-400 italic mb-2">
+                ※クリックで詳細な編集が可能です
+            </div>
+            
+            <div className="flex flex-col space-y-4">
             {days.map((day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
@@ -76,23 +81,6 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                     </div>
                 );
             })}
-
-            {/* Global Legend for Weekly View */}
-            <div className="sticky bottom-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md pt-3 pb-1 border-t border-slate-100 dark:border-slate-700/50 flex flex-wrap items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400">
-                {classes.map(c => (
-                    <div key={c.id} className="flex items-center space-x-1">
-                        <div className={`w-2.5 h-2.5 rounded-sm border ${c.id === 'class_niji' ? 'bg-amber-300 border-amber-400' :
-                            c.id === 'class_smile' ? 'bg-blue-300 border-blue-400' :
-                                c.id === 'class_special' ? 'bg-emerald-300 border-emerald-400' :
-                                    'bg-purple-300 border-purple-400'
-                            }`} />
-                        <span>{c.name === '特殊' ? 'ヘルプ' : c.name}</span>
-                    </div>
-                ))}
-                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-slate-300 border border-slate-400 dark:bg-slate-600 dark:border-slate-500 rounded-sm" /><span>不足</span></div>
-                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-amber-400 border border-amber-500 rounded-sm" /><span>研修</span></div>
-                <div className="flex items-center space-x-1"><div className="w-2.5 h-2.5 bg-red-400 border border-red-500 rounded-sm" /><span>希望休</span></div>
-                <div className="ml-auto italic">※クリックで詳細な編集が可能です</div>
             </div>
         </div>
     );

@@ -15,7 +15,7 @@ import {
 } from '../../../lib/hooks';
 import { generateShiftsForMonth, isStaffAvailableReason } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
-import type { ShiftPreference, ShiftClass, ShiftTimePattern, Holiday, DynamicRole } from '../../../types';
+
 
 // カレンダーイベントの型定義
 export interface CalendarEvent {
@@ -240,7 +240,7 @@ export const useScheduleData = () => {
                     const detailMatch = pref.details && pref.details.find(d => d.date === dateStr);
                     if (detailMatch && detailMatch.type === 'training') {
                         isTraining = true;
-                    } else if (pref.unavailableDates.includes(dateStr) || detailMatch) {
+                    } else if (detailMatch) {
                         isReqOff = true;
                     }
                 }

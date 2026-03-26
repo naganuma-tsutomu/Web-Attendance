@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateShiftsForMonth } from '../algorithm';
+import { generateShiftsForMonth, isStaffAvailable } from '../algorithm';
 import type { Staff, ShiftPreference, DynamicRole, ShiftRequirement } from '../../types';
 
 // テスト用のスタッフデータ
@@ -206,7 +206,7 @@ describe('generateShiftsForMonth', () => {
     it('ShiftPreference (希望休) で指定された日付には割り当てられない', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
         const prefs: ShiftPreference[] = [
-            { id: 'p1', staffId: 's1', yearMonth: '2025-06', unavailableDates: ['2025-06-05', '2025-06-06'] }
+            { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-05', startTime: null, endTime: null, type: null }, { date: '2025-06-06', startTime: null, endTime: null, type: null }] }
         ];
         const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
 
@@ -248,5 +248,36 @@ describe('generateShiftsForMonth', () => {
         const week1Shifts = assignedShifts.filter(s => s.date >= '2025-06-02' && s.date <= '2025-06-08');
         // 9時間/日 x 2日 = 18時間。3日目は27時間になりNG。なので週に最大2日まで。
         expect(week1Shifts.length).toBeLessThanOrEqual(2);
+    });
+});
+
+describe('isStaffAvailable', () => {
+    it('スタッフのデフォルト出勤可能日（availableDays）に基づく判定ができる', () => {
+        const staff = makeStaff({ 
+            id: 's1', 
+            name: 'スタッフA', 
+            role: 'パート',
+            availableDays: [1, 2, 3] // 月・火・水のみ
+        });
+        // 2025-06-02は月曜日
+        expect(isStaffAvailable(staff, new Date(2025, 5, 2), '2025-06-02', [])).toBe(true);
+        // 2025-06-05は木曜日
+        expect(isStaffAvailable(staff, new Date(2025, 5, 5), '2025-06-05', [])).toBe(false);
+    });
+
+    it('終日の希望休（detailsに時間指定なし）がある場合は不可と判定される', () => {
+        const staff = makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' });
+        const prefs: ShiftPreference[] = [
+            { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-05', startTime: null, endTime: null, type: null }] }
+        ];
+        expect(isStaffAvailable(staff, new Date(2025, 5, 5), '2025-06-05', prefs)).toBe(false);
+    });
+    
+    it('研修や時間の指定がある希望休の場合は（終日不可ではないため）availableと判定される', () => {
+        const staff = makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' });
+        const prefs: ShiftPreference[] = [
+            { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-05', startTime: '10:00', endTime: '12:00', type: null }] }
+        ];
+        expect(isStaffAvailable(staff, new Date(2025, 5, 5), '2025-06-05', prefs)).toBe(true);
     });
 });

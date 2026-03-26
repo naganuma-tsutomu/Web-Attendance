@@ -21,15 +21,8 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
         throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
     }
 
-    // 共通のパース処理
-    const text = await response.text();
-    if (!text) return {} as T;
-
-    try {
-        return JSON.parse(text);
-    } catch (e) {
-        throw new Error(`Invalid JSON response from API: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`);
-    }
+    if (response.status === 204) return {} as T;
+    return response.json();
 }
 
 // ==========================================

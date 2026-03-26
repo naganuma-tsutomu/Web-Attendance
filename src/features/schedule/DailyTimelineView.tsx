@@ -351,8 +351,6 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 timeStr = `${detail.startTime}-${detail.endTime}`;
                             }
                         }
-                    } else if (pref.unavailableDates.includes(targetDateStr)) {
-                        isFullDayPref = true;
                     }
                 }
 
@@ -427,9 +425,6 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 const prefEnd = timeToMinutes(detail.endTime);
                 if (shiftStartMins < prefEnd && shiftEndMins > prefStart) return 'preference';
             }
-        } else if (pref.unavailableDates.includes(targetDateStr)) {
-            // 終日希望休
-            return 'preference';
         }
         return 'none';
     };

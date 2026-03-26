@@ -40,7 +40,7 @@ describe('API - Staff functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockStaff))
+                json: () => Promise.resolve(mockStaff)
             });
 
             const result = await getStaffList();
@@ -69,7 +69,7 @@ describe('API - Staff functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockStaff))
+                json: () => Promise.resolve(mockStaff)
             });
 
             const result = await getStaffNameList();
@@ -86,7 +86,7 @@ describe('API - Staff functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockResponse))
+                json: () => Promise.resolve(mockResponse)
             });
 
             const result = await createStaff(newStaff);
@@ -108,7 +108,7 @@ describe('API - Staff functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve('')
+                status: 204, json: () => Promise.resolve({})
             });
 
             await expect(updateStaff(staffId, updates)).resolves.not.toThrow();
@@ -128,7 +128,7 @@ describe('API - Staff functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve('')
+                status: 204, json: () => Promise.resolve({})
             });
 
             await expect(deleteStaff(staffId)).resolves.not.toThrow();
@@ -154,7 +154,7 @@ describe('API - Shift functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockShifts))
+                json: () => Promise.resolve(mockShifts)
             });
 
             const result = await getShiftsByMonth(yearMonth);
@@ -174,7 +174,7 @@ describe('API - Shift functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve('')
+                status: 204, json: () => Promise.resolve({})
             });
 
             await expect(saveShiftsBatch(shifts)).resolves.not.toThrow();
@@ -195,7 +195,7 @@ describe('API - Shift functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve('')
+                status: 204, json: () => Promise.resolve({})
             });
 
             await expect(updateShift(shiftId, updates)).resolves.not.toThrow();
@@ -215,7 +215,7 @@ describe('API - Shift functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve('')
+                status: 204, json: () => Promise.resolve({})
             });
 
             await expect(deleteShiftsByMonth(yearMonth)).resolves.not.toThrow();
@@ -244,7 +244,7 @@ describe('API - Preference functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockPrefs))
+                json: () => Promise.resolve(mockPrefs)
             });
 
             const result = await getPreferencesByMonth(yearMonth);
@@ -259,7 +259,7 @@ describe('API - Preference functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockResponse))
+                json: () => Promise.resolve(mockResponse)
             });
 
             const result = await savePreference(pref);
@@ -281,7 +281,7 @@ describe('API - Settings functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockClasses))
+                json: () => Promise.resolve(mockClasses)
             });
 
             const result = await getClasses();
@@ -297,7 +297,7 @@ describe('API - Settings functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockRoles))
+                json: () => Promise.resolve(mockRoles)
             });
 
             const result = await getRoles();
@@ -313,7 +313,7 @@ describe('API - Settings functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: () => Promise.resolve(JSON.stringify(mockPatterns))
+                json: () => Promise.resolve(mockPatterns)
             });
 
             const result = await getTimePatterns();

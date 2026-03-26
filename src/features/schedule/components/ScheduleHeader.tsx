@@ -2,8 +2,7 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../../types';
-import type { BusinessHours } from '../../../lib/api';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours } from '../../../types';
 import { exportToPDF } from '../../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 

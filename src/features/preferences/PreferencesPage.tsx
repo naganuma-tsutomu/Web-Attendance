@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw, X, Edit2, CheckCircle2, Clock, CalendarX, BookOpen } from 'lucide-react';
-import { getPreferencesByMonth, savePreference, getStaffList, syncHolidays } from '../../lib/api';
+import { syncHolidays } from '../../lib/api';
+import { useStaffList, usePreferencesByMonth, useSavePreference } from '../../lib/hooks';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import type { Staff } from '../../types';
 
 interface DayStatus {
     dateStr: string;
@@ -40,15 +40,9 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const PreferencesPage = () => {
-    const [staffList, setStaffList] = useState<Staff[]>([]);
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
     const [preferences, setPreferences] = useState<DayStatus[]>([]);
-    const [allPrefsForMonth, setAllPrefsForMonth] = useState<Record<string, { date: string, startTime: string | null, endTime: string | null, type?: string | null }[]>>({}); // staffId -> details
-    const [staffLoading, setStaffLoading] = useState(true);
-    const [prefLoading, setPrefLoading] = useState(false);
-    const [prefError, setPrefError] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
     const [syncingHolidays, setSyncingHolidays] = useState(false);
     const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
@@ -58,50 +52,37 @@ const PreferencesPage = () => {
 
     const yearMonth = format(targetDate, 'yyyy-MM');
 
-    // スタッフ一覧を取得
-    useEffect(() => {
-        const fetchStaff = async () => {
-            try {
-                const data = await getStaffList();
-                setStaffList(data);
-                if (data.length > 0 && !selectedStaffId) {
-                    setSelectedStaffId(data[0].id);
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setStaffLoading(false);
-            }
-        };
-        fetchStaff();
-    }, []);
+    // TanStack Query: スタッフ一覧
+    const { data: staffList = [], isLoading: staffLoading } = useStaffList();
 
-    // 月が変わったら、その月の全スタッフの希望休をまとめて取得
-    const fetchAllPrefsForMonth = useCallback(async () => {
-        setPrefLoading(true);
-        setPrefError(null);
-        try {
-            const allPrefs = await getPreferencesByMonth(yearMonth);
-            const map: Record<string, { date: string, startTime: string | null, endTime: string | null, type?: string | null }[]> = {};
-            allPrefs.forEach(p => {
-                map[p.staffId] = p.details || [];
-            });
-            setAllPrefsForMonth(map);
-        } catch (err) {
-            console.error(err);
-            setPrefError('希望休データの読み込みに失敗しました。');
-        } finally {
-            setPrefLoading(false);
-        }
-    }, [yearMonth]);
+    // TanStack Query: 月別の希望休
+    const { data: rawPrefs = [], isLoading: prefLoading, isError: prefHasError, refetch: refetchPrefs } = usePreferencesByMonth(yearMonth);
+
+    // TanStack Query: 保存ミューテーション
+    const savePreferenceMutation = useSavePreference();
+    const saving = savePreferenceMutation.isPending;
+
+    const prefError = prefHasError ? '希望休データの読み込みに失敗しました。' : null;
 
     const handleRetryPrefs = () => {
-        fetchAllPrefsForMonth();
+        refetchPrefs();
     };
 
+    // rawPrefs → staffId ごとの details マップに変換
+    const allPrefsForMonth = useMemo(() => {
+        const map: Record<string, { date: string, startTime: string | null, endTime: string | null, type?: string | null }[]> = {};
+        rawPrefs.forEach(p => {
+            map[p.staffId] = p.details || [];
+        });
+        return map;
+    }, [rawPrefs]);
+
+    // 初回読み込み時に最初のスタッフを自動選択
     useEffect(() => {
-        fetchAllPrefsForMonth();
-    }, [fetchAllPrefsForMonth]);
+        if (staffList.length > 0 && !selectedStaffId) {
+            setSelectedStaffId(staffList[0].id);
+        }
+    }, [staffList, selectedStaffId]);
 
     // 月が変更されたら localStorage に保存
     useEffect(() => {
@@ -196,23 +177,18 @@ const PreferencesPage = () => {
 
     const handleSave = async () => {
         if (!selectedStaffId) return;
-        setSaving(true);
         setMessage({ text: '', type: '' });
         try {
             const details = preferences
                 .filter(p => p.status === 'unavailable')
                 .map(p => ({ date: p.dateStr, startTime: p.startTime || null, endTime: p.endTime || null, type: p.type || null }));
 
-            await savePreference({ staffId: selectedStaffId, yearMonth, details });
-
-            // ローカルキャッシュも更新
-            setAllPrefsForMonth(prev => ({ ...prev, [selectedStaffId]: details }));
+            await savePreferenceMutation.mutateAsync({ staffId: selectedStaffId, yearMonth, details });
             setMessage({ text: '休日設定を保存しました！', type: 'success' });
         } catch (err) {
             console.error(err);
             setMessage({ text: '保存に失敗しました。', type: 'error' });
         } finally {
-            setSaving(false);
             setTimeout(() => setMessage({ text: '', type: '' }), 3000);
         }
     };

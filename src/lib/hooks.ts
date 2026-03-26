@@ -3,9 +3,9 @@ import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
     getPreferencesByMonth, getShiftRequirements, getFixedDates, saveShiftsBatch,
-    updateShift, deleteShiftsByMonth, saveFixedDates
+    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference
 } from './api';
-import type { Staff, Shift } from '../types';
+import type { Staff, Shift, ShiftPreference } from '../types';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {
@@ -172,3 +172,14 @@ export const useSaveFixedDates = () => {
         },
     });
 };
+
+export const useSavePreference = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: Omit<ShiftPreference, 'id'>) => savePreference(data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.preferences(variables.yearMonth) });
+        },
+    });
+};
+

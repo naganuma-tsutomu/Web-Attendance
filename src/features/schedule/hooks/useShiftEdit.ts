@@ -150,7 +150,7 @@ function buildInitialLocalShifts(shifts: Shift[], targetDateStr: string): Record
 interface UseShiftEditParams {
     shifts: Shift[];
     date: Date;
-    staffList: { id: string; defaultWorkingHoursStart?: string; defaultWorkingHoursEnd?: string }[];
+    staffList: { id: string; defaultWorkingHoursStart?: string | null; defaultWorkingHoursEnd?: string | null }[];
     timePatterns: ShiftTimePattern[];
     hours: BusinessHoursConfig;
     onShiftUpdate?: () => void;

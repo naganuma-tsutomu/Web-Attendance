@@ -2,7 +2,7 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours } from '../../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday } from '../../../types';
 import { exportToPDF } from '../../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
@@ -19,6 +19,8 @@ interface ScheduleHeaderProps {
     rawShifts: Shift[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    preferences: ShiftPreference[];
+    holidays: Holiday[];
     onDateChange: (date: Date) => void;
     onViewChange: (view: View) => void;
     onGenerate: () => void;
@@ -40,6 +42,8 @@ const ScheduleHeader = ({
     rawShifts,
     classes,
     timePatterns,
+    preferences,
+    holidays,
     onDateChange,
     onViewChange,
     onGenerate,
@@ -132,7 +136,7 @@ const ScheduleHeader = ({
                             <span className="hidden sm:inline text-sm font-bold whitespace-nowrap">労働時間</span>
                         </button>
                         <button
-                            onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours)}
+                            onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays)}
                             className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                         >
                             <Download className="w-5 h-5 text-green-600" />

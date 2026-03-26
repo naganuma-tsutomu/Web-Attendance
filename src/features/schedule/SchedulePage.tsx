@@ -163,6 +163,8 @@ const SchedulePage = () => {
                 rawShifts={schedule.rawShifts}
                 classes={schedule.classes}
                 timePatterns={schedule.timePatterns}
+                preferences={schedule.preferences}
+                holidays={schedule.holidays}
                 onDateChange={schedule.setCurrentDate}
                 onViewChange={schedule.setView}
                 onGenerate={schedule.handleGenerate}

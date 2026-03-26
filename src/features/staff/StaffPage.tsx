@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { handleApiError } from '../../lib/errorHandler';
-import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { calculateTotalHours } from '../../utils/timeUtils';
@@ -217,11 +217,15 @@ const StaffPage = () => {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-3 mb-6">
+                <Users className="w-8 h-8 text-indigo-500" />
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">スタッフ管理</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 sm:text-sm">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
                 </div>
+            </div>
+
+            <div className="flex justify-end">
                 <button
                     onClick={handleOpenAddModal}
                     className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold"
@@ -247,7 +251,7 @@ const StaffPage = () => {
                 </div>
             )}
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
                 <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input

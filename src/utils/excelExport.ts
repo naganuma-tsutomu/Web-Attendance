@@ -117,25 +117,15 @@ export const exportToExcelAdvanced = async (
         columns.push({ header: min === 0 ? timeStr : '', key: `t_${i}`, width: 2.5 });
     }
 
-    // --- 1行目: 年月ヘッダー ---
-    const titleRow = worksheet.addRow([`${year}年${month}月`]);
-    titleRow.height = 30; // 少し高さを出す
-    worksheet.mergeCells(1, 1, 1, 8); // 8列分結合（日〜実働）
-    const titleCell = titleRow.getCell(1);
-    titleCell.font = { size: 16, bold: true };
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.columns = columns;
 
-    // --- 2行目: カラムヘッダー ---
-    const headerRow = worksheet.addRow(columns.map(c => c.header));
-    headerRow.height = 20;
-
-    // タイムラインのヘッダー結合 (2行目)
+    // ヘッダー行の時刻セルを1時間単位で結合
     for (let h = 0; h < END_HOUR - START_HOUR; h++) {
-        const startCol = 9 + h * 4;
-        worksheet.mergeCells(2, startCol, 2, startCol + 3);
+        const startCol = 9 + h * 4; // 8+1
+        worksheet.mergeCells(1, startCol, 1, startCol + 3);
     }
 
-    let currentRow = 3;
+    let currentRow = 2;
     const dateRowRanges: { start: number, end: number }[] = [];
 
     days.forEach((day) => {
@@ -146,17 +136,19 @@ export const exportToExcelAdvanced = async (
         const dayShifts = shifts.filter(s => s.date === dateStr);
         const startRowForDay = currentRow;
 
-        // ... (中略: 出勤/休日スタッフのソートと抽出ロジックは変更なし)
+        // 出勤スタッフのソート
         const sortedDayShifts = [...dayShifts].sort((a, b) => {
             const classA = classes.find(c => c.id === a.classType);
             const classB = classes.find(c => c.id === b.classType);
             return (classA?.display_order || 0) - (classB?.display_order || 0);
         });
 
+        // 休日スタッフの抽出
         const isSaturday = dayOfWeek === 6;
         let holidayStaffs = staffs.filter(s => !dayShifts.some(shift => shift.staffId === s.id))
             .map(s => getHolidayInfo(s, day, dateStr));
 
+        // 土曜日の休日スタッフ非表示設定
         if (isSaturday && excelSettings?.excludeHolidayStaffOnSaturdays) {
             holidayStaffs = [];
         }
@@ -174,7 +166,9 @@ export const exportToExcelAdvanced = async (
                 dow: format(day, 'E', { locale: ja }),
             };
 
-            if (holiday) rowData.holiday_name = holiday.text;
+            if (holiday) {
+                rowData.holiday_name = holiday.text;
+            }
 
             if (shift) {
                 rowData.name = staff ? staff.name : '未割当';
@@ -183,12 +177,15 @@ export const exportToExcelAdvanced = async (
                 rowData.end = shift.endTime;
             }
 
-            // ハイライトルール
+            // ハイライトルールの判定
             let rowHighlightColor: string | null = null;
             if (shift && excelSettings?.highlightRules) {
                 const rule = excelSettings.highlightRules.find(r => r.staffId === shift.staffId);
-                if (rule && (shift.startTime !== rule.regularStartTime || shift.endTime !== rule.regularEndTime)) {
-                    rowHighlightColor = rule.highlightColor;
+                if (rule) {
+                    // 通常時間と異なるかチェック (08:00 vs 8:00 などの些細な差異を許容するため文字列比較前に正規化を検討するが、一旦直接比較)
+                    if (shift.startTime !== rule.regularStartTime || shift.endTime !== rule.regularEndTime) {
+                        rowHighlightColor = rule.highlightColor;
+                    }
                 }
             }
 
@@ -198,16 +195,22 @@ export const exportToExcelAdvanced = async (
             if (rowHighlightColor) {
                 for (let colIdx = 1; colIdx <= 8; colIdx++) {
                     const cell = row.getCell(colIdx);
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowHighlightColor } };
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: rowHighlightColor }
+                    };
                 }
             }
 
+            // 休日スタッフの文字色設定
             if (holiday) {
-                const cell = row.getCell(3);
+                const cell = row.getCell(3); // 休み列
                 cell.font = { color: { argb: holiday.color } };
             }
 
             if (shift) {
+                // 実働時間の数式
                 const startCell = row.getCell(6).address;
                 const endCell = row.getCell(7).address;
                 const duration = calculateDuration(shift.startTime, shift.endTime);
@@ -216,6 +219,8 @@ export const exportToExcelAdvanced = async (
                     result: duration
                 };
                 row.getCell(8).numFmt = '0.00';
+
+                // 開始・終了セルのデータ型
                 row.getCell(6).numFmt = 'hh:mm';
                 row.getCell(6).value = timeToExcelValue(shift.startTime);
                 row.getCell(7).numFmt = 'hh:mm';
@@ -236,29 +241,34 @@ export const exportToExcelAdvanced = async (
 
     // --- 条件付き書式 (土日) ---
     worksheet.addConditionalFormatting({
-        ref: `A3:H${lastRow}`,
+        ref: `A2:H${lastRow}`, // A-G to A-H
         rules: [
-            { type: 'expression', formulae: ['$B3="日"'], priority: 1, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
-            { type: 'expression', formulae: ['$B3="土"'], priority: 2, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
+            { type: 'expression', formulae: ['$B2="日"'], priority: 1, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
+            { type: 'expression', formulae: ['$B2="土"'], priority: 2, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
         ]
     });
 
-    // --- 条件付き書式 (タイムライン) ---
-    const firstTimelineCol = worksheet.getColumn(9).letter;
+    // --- 条件付き書式 (タイムラインの動的色付け) ---
+    const firstTimelineCol = worksheet.getColumn(9).letter; // 8 to 9
     const lastTimelineCol = worksheet.getColumn(8 + TOTAL_SLOTS).letter;
     const slotFormula = `(${START_HOUR * 60}+(COLUMN()-9)*15)/1440`; 
 
     classes.forEach(cls => {
-        const barColor = cls.color ? `FF${cls.color.replace('#', '').toUpperCase()}` : getClassColor(cls.id);
+        const barColor = cls.color
+            ? `FF${cls.color.replace('#', '').toUpperCase()}`
+            : getClassColor(cls.id);
         const escapedName = cls.name.replace(/"/g, '""');
         worksheet.addConditionalFormatting({
-            ref: `${firstTimelineCol}3:${lastTimelineCol}${lastRow}`,
+            ref: `${firstTimelineCol}2:${lastTimelineCol}${lastRow}`,
             rules: [
                 {
                     type: 'expression',
-                    formulae: [`AND($E3="${escapedName}",$F3<=${slotFormula},$G3>${slotFormula})`],
+                    // $E2=区分, $F2=開始, $G2=終了, COLUMN()で現在列のスロット時間を動的計算
+                    formulae: [`AND($E2="${escapedName}",$F2<=${slotFormula},$G2>${slotFormula})`],
                     priority: 1,
-                    style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } } }
+                    style: {
+                        fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } }
+                    }
                 }
             ]
         });
@@ -271,8 +281,6 @@ export const exportToExcelAdvanced = async (
 
     for (let rowNumber = 1; rowNumber <= lastRow; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
-        const isTitleRow = rowNumber === 1;
-        const isHeaderRow = rowNumber === 2;
         const isDateStart = dateStartRows.has(rowNumber);
         const isDateEnd = dateEndRows.has(rowNumber);
 
@@ -281,17 +289,14 @@ export const exportToExcelAdvanced = async (
             const isFirstCol = colNumber === 1;
             const isLastCol = colNumber === totalCols;
 
-            if (isTitleRow && colNumber > 1) continue; // タイトル行は結合されているので最初のセル以外スキップ
-
             cell.border = {
-                top: { style: (rowNumber === 1 || isDateStart) ? 'medium' : 'thin' },
-                bottom: { style: (isDateEnd || rowNumber === lastRow) ? 'medium' : 'thin' },
+                top: { style: rowNumber === 1 ? 'thin' : isDateStart ? 'medium' : 'thin' },
+                bottom: { style: isDateEnd ? 'medium' : 'thin' },
                 left: { style: isFirstCol ? 'medium' : 'thin' },
                 right: { style: isLastCol ? 'medium' : 'thin' }
             };
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            
-            if (isHeaderRow) {
+            if (rowNumber === 1) {
                 cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
             }
@@ -300,7 +305,7 @@ export const exportToExcelAdvanced = async (
 
     // 書き出し
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), `シフト表_${yearMonth}.xlsx`);
+    saveAs(new Blob([buffer]), `シフト詳細表_${yearMonth}_数式連動.xlsx`);
     toast.success('Excelファイルを出力しました', { id: toastId });
     } catch (err) {
         handleApiError(err, 'Excelファイルの出力に失敗しました');

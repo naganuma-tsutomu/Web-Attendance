@@ -1,5 +1,9 @@
 import { format, parse, isValid } from 'date-fns';
 
+export const getWeekStartsOn = (): 0 | 1 => {
+    return (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
+};
+
 const STORAGE_KEY = 'active_working_month';
 
 /**

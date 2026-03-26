@@ -16,7 +16,7 @@ import {
     QUERY_KEYS
 } from '../../../lib/hooks';
 import { generateShiftsForMonth, isStaffAvailableReason } from '../../../lib/algorithm';
-import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
+import { saveActiveMonth, loadActiveMonth, getWeekStartsOn } from '../../../utils/dateUtils';
 import type { Shift, ShiftPreference } from '../../../types';
 
 
@@ -42,10 +42,6 @@ export interface EditFormData {
     startTime: string;
     endTime: string;
 }
-
-const getWeekStartsOn = (): 0 | 1 => {
-    return (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
-};
 
 export const useScheduleData = () => {
     const [currentDate, setCurrentDate] = useState(() => loadActiveMonth());

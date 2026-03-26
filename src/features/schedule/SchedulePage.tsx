@@ -14,10 +14,7 @@ import ScheduleHeader from './components/ScheduleHeader';
 import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
 import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/useScheduleData';
-
-const getWeekStartsOn = (): 0 | 1 => {
-    return (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
-};
+import { getWeekStartsOn } from '../../utils/dateUtils';
 
 const localizer = dateFnsLocalizer({
     format,

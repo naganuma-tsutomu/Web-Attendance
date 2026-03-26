@@ -6,7 +6,7 @@ import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { calculateTotalHours } from '../../utils/timeUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder } from '../../lib/hooks';
+import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder, useBusinessHours } from '../../lib/hooks';
 import type { Staff } from '../../types';
 import {
     DndContext,
@@ -52,6 +52,7 @@ const StaffPage = () => {
     const { data: staffList = [], isLoading: isStaffLoading, isError: isStaffError, refetch: refetchStaff } = useStaffList();
     const { data: roles = [], isLoading: isRolesLoading, isError: isRolesError, refetch: refetchRoles } = useRoles();
     const { data: classes = [], isLoading: isClassesLoading, isError: isClassesError, refetch: refetchClasses } = useClasses();
+    const { data: businessHours } = useBusinessHours();
 
     const monthStr = format(currentMonth, 'yyyy-MM');
     const { data: shifts = [], isLoading: loadingShifts, isFetching: isShiftsFetching, refetch: refetchShifts } = useShiftsByMonth(monthStr);
@@ -97,6 +98,9 @@ const StaffPage = () => {
 
     const handleOpenAddModal = () => {
         const defaultRole = roles[0];
+        // 営業日（closedDays）に含まれていない曜日のみを初期値にする
+        const closedDays = businessHours?.closedDays || [];
+        const defaultAvailableDays = [1, 2, 3, 4, 5, 6].filter(day => !closedDays.includes(day));
         setEditingStaff(null);
         setFormData({
             name: '',
@@ -106,7 +110,7 @@ const StaffPage = () => {
             defaultWorkingHoursStart: '',
             defaultWorkingHoursEnd: '',
             isHelpStaff: false,
-            availableDays: [1, 2, 3, 4, 5, 6],
+            availableDays: defaultAvailableDays,
             classIds: []
         });
         setIsModalOpen(true);
@@ -379,6 +383,7 @@ const StaffPage = () => {
                 classes={classes}
                 isSubmitting={isSubmitting}
                 handleRoleChange={handleRoleChange}
+                closedDays={businessHours?.closedDays || []}
             />
 
             <ConfirmModal

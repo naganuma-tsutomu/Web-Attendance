@@ -13,6 +13,7 @@ interface StaffFormModalProps {
     classes: ShiftClass[];
     isSubmitting: boolean;
     handleRoleChange: (roleName: string) => void;
+    closedDays?: number[];
 }
 
 const StaffFormModal = ({
@@ -25,11 +26,15 @@ const StaffFormModal = ({
     roles,
     classes,
     isSubmitting,
-    handleRoleChange
+    handleRoleChange,
+    closedDays = []
 }: StaffFormModalProps) => {
     const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = React.useState(false);
 
     if (!isOpen) return null;
+
+    // 営業日（closedDays）に含まれていない曜日のみをデフォルトにする
+    const defaultAvailableDays = [1, 2, 3, 4, 5, 6].filter(day => !closedDays.includes(day));
 
     const handleBackdropMouseDown = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
@@ -201,7 +206,7 @@ const StaffFormModal = ({
                                                         checked={isHoliday}
                                                         onChange={(e) => {
                                                             const checked = e.target.checked;
-                                                            let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
+                                                            let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
                                                             if (checked) {
                                                                 newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                             } else {
@@ -232,7 +237,7 @@ const StaffFormModal = ({
                                                                 key={week}
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    let newAvailableDays = [...(formData.availableDays || [1, 2, 3, 4, 5, 6])];
+                                                                    let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
                                                                     const currentConfig = newAvailableDays.find(d => d && (typeof d === 'number' ? d : d.day) === dayNum);
                                                                     let availableWeeks = [1, 2, 3, 4, 5];
                                                                     if (typeof currentConfig === 'object') {

@@ -3,6 +3,7 @@ import { Plus, Trash2, Edit2, Clock, Loader2, GripVertical, Calendar, UserCheck,
 import { toast } from 'sonner';
 import { createTimePattern, deleteTimePattern, updateTimePattern, updateTimePatternOrder, getRoles } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
+import { useBusinessHours } from '../../../lib/hooks';
 import type { ShiftTimePattern, DynamicRole } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 import TimePatternEditModal from './TimePatternEditModal';
@@ -148,6 +149,22 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
     const [roles, setRoles] = useState<DynamicRole[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
 
+    // 営業時間設定を取得
+    const { data: businessHours } = useBusinessHours();
+    const closedDays = businessHours?.closedDays || [];
+
+    // 営業日（closedDays）に基づいて初期値を計算
+    const getDefaultDayValues = () => ({
+        sun: closedDays.includes(0) ? 0 : 1,
+        mon: closedDays.includes(1) ? 0 : 1,
+        tue: closedDays.includes(2) ? 0 : 1,
+        wed: closedDays.includes(3) ? 0 : 1,
+        thu: closedDays.includes(4) ? 0 : 1,
+        fri: closedDays.includes(5) ? 0 : 1,
+        sat: closedDays.includes(6) ? 0 : 1,
+        holiday: closedDays.includes(7) ? 0 : 1
+    });
+
     // Modal state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -156,7 +173,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
         startTime: '09:00',
         endTime: '18:00',
         roleIds: [] as string[],
-        sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
+        ...getDefaultDayValues()
     });
 
     const [formData, setFormData] = useState({
@@ -164,7 +181,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
         startTime: '09:00',
         endTime: '18:00',
         roleIds: [] as string[],
-        sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
+        ...getDefaultDayValues()
     });
 
     const sensors = useSensors(
@@ -184,7 +201,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
             toast.success('パターンを追加しました');
             setFormData({
                 name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
-                sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
+                ...getDefaultDayValues()
             });
             onUpdate();
         } catch (err) {

@@ -6,7 +6,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const { orders }: { orders: { id: string, order: number }[] } = await context.request.json();
 
         if (!orders || !Array.isArray(orders)) {
-            return createValidationError('Invalid orders data');
+            return createValidationError('不正な並び替えデータです');
         }
 
         // Use a transaction if possible, but D1 batch is more likely what we need

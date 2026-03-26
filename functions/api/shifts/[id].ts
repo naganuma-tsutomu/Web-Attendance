@@ -1,3 +1,4 @@
+import { handleServerError, createValidationError } from '../../utils/validation';
 import type { Env, D1BindParam } from '../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
@@ -37,7 +38,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
 
         if (setClauses.length === 0) {
-            return new Response('No fields to update', { status: 400 });
+            return createValidationError('更新するフィールドがありません');
         }
 
         bindings.push(id);
@@ -47,7 +48,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: 'Updated' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error updating shift');
     }
 };
 
@@ -59,6 +60,6 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         ).bind(id).run();
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error deleting shift');
     }
 };

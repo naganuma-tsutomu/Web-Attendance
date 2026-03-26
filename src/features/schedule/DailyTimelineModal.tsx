@@ -106,14 +106,14 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         {onToggleFixed && (
                             <button
                                 onClick={onToggleFixed}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border shadow-sm ${
-                                    isFixed 
-                                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' 
+                                title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                                className={`flex items-center p-2 rounded-lg transition-colors border shadow-sm ${
+                                    isFixed
+                                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
                                 }`}
                             >
-                                {isFixed ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                {isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                                {isFixed ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
                             </button>
                         )}
                         <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">

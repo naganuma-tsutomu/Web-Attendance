@@ -28,20 +28,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
 
-        // Delete all fixed dates for the given month
-        await context.env.DB.prepare(
-            "DELETE FROM fixed_dates WHERE yearMonth = ?"
-        ).bind(yearMonth).run();
+        // 入力の重複排除（同じ日付が複数送られてきた場合の Unique Constraint 対策）
+        const uniqueDates = Array.from(new Set(dates || []));
 
-        // Insert new fixed dates if any
-        if (dates && dates.length > 0) {
-            const stmt = context.env.DB.prepare(
-                `INSERT INTO fixed_dates (date, yearMonth) VALUES (?, ?)`
-            );
-            
-            const batch = dates.map(date => stmt.bind(date, yearMonth));
-            await context.env.DB.batch(batch);
+        // DELETE文とINSERT文を1つのバッチ（トランザクション）にまとめる
+        const statements = [
+            context.env.DB.prepare("DELETE FROM fixed_dates WHERE yearMonth = ?").bind(yearMonth)
+        ];
+
+        console.log(`[POST /api/fixed-dates] Input dates for ${yearMonth}:`, dates);
+
+        if (uniqueDates.length > 0) {
+            const insertStmt = context.env.DB.prepare(`INSERT OR REPLACE INTO fixed_dates (date, yearMonth) VALUES (?, ?)`);
+            statements.push(...uniqueDates.map(date => insertStmt.bind(date, yearMonth)));
         }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ success: true, message: `Successfully updated fixed dates` });
     } catch (e) {

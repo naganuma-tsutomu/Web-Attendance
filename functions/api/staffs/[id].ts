@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-import type { Env } from '../../types';
+import type { Env, D1Row, D1BindParam } from '../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
@@ -7,7 +7,14 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
-        const staffData: any = await context.request.json();
+        const staffData = await context.request.json() as Partial<{
+            name: string; role: string; hoursTarget: number | null;
+            weeklyHoursTarget: number | null; isHelpStaff: boolean;
+            defaultWorkingHoursStart: string | null; defaultWorkingHoursEnd: string | null;
+            accessKey: string | null;
+            availableDays: (number | { day: number; weeks?: number[] | null })[];
+            classIds: string[];
+        }>;
         
         // Validate name if provided
         if (staffData.name !== undefined) {
@@ -50,7 +57,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             // Re-sync available days: Delete old and insert new
             statements.push(context.env.DB.prepare("DELETE FROM staff_available_days WHERE staffId = ?").bind(id));
 
-            staffData.availableDays.forEach((d: any, idx: number) => {
+            staffData.availableDays.forEach((d, idx: number) => {
                 const day = typeof d === 'number' ? d : d.day;
                 const weeks = typeof d === 'number' ? null : (d.weeks ? JSON.stringify(d.weeks) : null);
                 statements.push(

@@ -1,13 +1,15 @@
-import type { Env } from '../../types';
+import type { Env, D1BindParam } from '../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as any;
+        const body = await context.request.json() as Partial<{
+            staffId: string; startTime: string; endTime: string;
+            classType: string; isEarlyShift: boolean; isError: boolean;
+        }>;
 
-        // 渡されたフィールドのみ動的にUPDATEする
         const setClauses: string[] = [];
-        const bindings: any[] = [];
+        const bindings: D1BindParam[] = [];
 
         if (body.staffId !== undefined) {
             setClauses.push('staffId = ?');

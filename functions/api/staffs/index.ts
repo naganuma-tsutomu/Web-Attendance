@@ -1,6 +1,6 @@
 import type { Staff } from '../../../src/types';
 import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
-import type { Env } from '../../types';
+import type { Env, D1Row } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -18,18 +18,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             "SELECT * FROM staff_classes"
         ).all();
 
-        const staffs = results.map((row: any) => {
-            const staffId = row.id;
-            const normalizedDays = allAvailableDays
-                .filter((d: any) => d.staffId === staffId)
-                .map((d: any) => ({
+        const staffs = (results as D1Row[]).map((row) => {
+            const staffId = row.id as string;
+            const normalizedDays = (allAvailableDays as D1Row[])
+                .filter((d) => d.staffId === staffId)
+                .map((d) => ({
                     day: d.dayOfWeek,
-                    weeks: safeJsonParse(d.weeks, undefined)
+                    weeks: safeJsonParse(d.weeks as string | null, undefined)
                 }));
 
-            const classIds = allStaffClasses
-                .filter((sc: any) => sc.staffId === staffId)
-                .map((sc: any) => sc.classId);
+            const classIds = (allStaffClasses as D1Row[])
+                .filter((sc) => sc.staffId === staffId)
+                .map((sc) => sc.classId as string);
 
             return {
                 ...row,

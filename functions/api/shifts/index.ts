@@ -1,5 +1,5 @@
 import { createValidationError, handleServerError, validateYearMonth, validateDate, validateTimeRange } from '../../utils/validation';
-import type { Env } from '../../types';
+import type { Env, D1Row } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -16,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             "SELECT * FROM shifts WHERE date >= ? AND date < ?"
         ).bind(startStr, nextMonth).all();
 
-        const shifts = results.map((row: any) => ({
+        const shifts = (results as D1Row[]).map((row) => ({
             ...row,
             isEarlyShift: row.isEarlyShift === 1,
             isError: row.isError === 1
@@ -30,7 +30,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const shiftsData: any[] = await context.request.json();
+        const shiftsData = await context.request.json() as Array<{
+            date: string; staffId: string; classType: string;
+            startTime: string; endTime: string; isEarlyShift?: boolean; isError?: boolean;
+        }>;
         if (!shiftsData || shiftsData.length === 0) {
             return Response.json({ success: true, message: 'No data to insert' });
         }

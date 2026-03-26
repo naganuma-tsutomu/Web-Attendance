@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { Env, D1Row } from '../../../types';
 
 // GET /api/settings/time-patterns
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -13,9 +13,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             'SELECT patternId, roleId FROM role_patterns'
         ).all();
 
-        const enriched = patterns.map((p: any) => ({
+        const enriched = (patterns as D1Row[]).map((p) => ({
             ...p,
-            roleIds: rp.filter((item: any) => item.patternId === p.id).map((item: any) => item.roleId)
+            roleIds: (rp as D1Row[]).filter((item) => item.patternId === p.id).map((item) => item.roleId as string)
         }));
 
         return Response.json(enriched);

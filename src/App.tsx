@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { useRef } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
 import AuthPage from './features/auth/AuthPage';
@@ -67,18 +68,25 @@ const AppRoutes = () => {
   );
 };
 
-const queryClient = new QueryClient({
+const queryClientConfig = {
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000,
     },
   },
-});
+};
 
 function App() {
+  // モジュールスコープではなくコンポーネント内で管理することで
+  // HMR や将来的な SSR でのリークを防ぐ
+  const queryClientRef = useRef<QueryClient | null>(null);
+  if (!queryClientRef.current) {
+    queryClientRef.current = new QueryClient(queryClientConfig);
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClientRef.current}>
       <Toaster position="top-right" richColors />
       <AuthProvider>
         <AppRoutes />

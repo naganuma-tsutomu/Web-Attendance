@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { Env, D1Row } from '../../../types';
 
 // GET /api/settings/roles — スタッフ区分+紐付けパターン一覧
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -23,12 +23,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
              ORDER BY display_order ASC`
         ).all();
 
-        const enriched = roles.map((role: any) => {
-            const roleSpecificPatterns = rp.filter((p: any) => p.roleId === role.id);
+        const enriched = (roles as D1Row[]).map((role) => {
+            const roleSpecificPatterns = (rp as D1Row[]).filter((p) => p.roleId === role.id);
             return {
                 ...role,
-                patterns: [...roleSpecificPatterns, ...commonPatterns]
-                    .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
+                patterns: [...roleSpecificPatterns, ...(commonPatterns as D1Row[])]
+                    .sort((a, b) => ((a.display_order as number) || 0) - ((b.display_order as number) || 0))
             };
         });
 

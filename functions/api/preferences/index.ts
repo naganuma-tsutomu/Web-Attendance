@@ -1,6 +1,6 @@
 import type { ShiftPreference } from '../../../src/types';
 import { createValidationError, handleServerError, validateYearMonth, safeJsonParse } from '../../utils/validation';
-import type { Env } from '../../types';
+import type { Env, D1Row } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -20,17 +20,20 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         ).bind(yearMonth).all();
 
         // Map normalized data
-        const staffIds = Array.from(new Set([...legacyResults.map((r: any) => r.staffId), ...normalizedDates.map((r: any) => r.staffId)]));
+        const staffIds = Array.from(new Set([
+            ...(legacyResults as D1Row[]).map((r) => r.staffId as string),
+            ...(normalizedDates as D1Row[]).map((r) => r.staffId as string)
+        ]));
 
         const prefs = staffIds.map(staffId => {
-            const legacyRow = legacyResults.find((r: any) => r.staffId === staffId);
-            const staffDetails = normalizedDates
-                .filter((d: any) => d.staffId === staffId)
-                .map((d: any) => ({
-                    date: d.date,
-                    startTime: d.startTime || null,
-                    endTime: d.endTime || null,
-                    type: d.type || null
+            const legacyRow = (legacyResults as D1Row[]).find((r) => r.staffId === staffId);
+            const staffDetails = (normalizedDates as D1Row[])
+                .filter((d) => d.staffId === staffId)
+                .map((d) => ({
+                    date: d.date as string,
+                    startTime: (d.startTime as string) || null,
+                    endTime: (d.endTime as string) || null,
+                    type: (d.type as string) || null
                 }));
 
             return {

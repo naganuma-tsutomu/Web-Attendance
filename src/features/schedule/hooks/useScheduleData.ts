@@ -16,6 +16,7 @@ import {
 } from '../../../lib/hooks';
 import { generateShiftsForMonth, isStaffAvailableReason } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
+import type { Shift, ShiftPreference } from '../../../types';
 
 
 // カレンダーイベントの型定義
@@ -129,18 +130,44 @@ export const useScheduleData = () => {
 
     // データの集約
     const rawShifts = useMemo(() => {
-        const all = shiftQueries.flatMap(q => q.data || []);
-        return Array.from(new Map(all.map(v => [v.id, v])).values());
+        const result: Shift[] = [];
+        const seen = new Set<string>();
+        for (const q of shiftQueries) {
+            if (!q.data) continue;
+            for (const item of q.data) {
+                if (!seen.has(item.id)) {
+                    seen.add(item.id);
+                    result.push(item);
+                }
+            }
+        }
+        return result;
     }, [shiftQueries]);
 
     const preferences = useMemo(() => {
-        const all = prefQueries.flatMap(q => q.data || []);
-        return Array.from(new Map(all.map(v => [v.id, v])).values());
+        const result: ShiftPreference[] = [];
+        const seen = new Set<string>();
+        for (const q of prefQueries) {
+            if (!q.data) continue;
+            for (const item of q.data) {
+                if (!seen.has(item.id)) {
+                    seen.add(item.id);
+                    result.push(item);
+                }
+            }
+        }
+        return result;
     }, [prefQueries]);
 
     const fixedDates = useMemo(() => {
-        const all = fixedDatesQueries.flatMap(q => q.data || []);
-        return new Set(all);
+        const result = new Set<string>();
+        for (const q of fixedDatesQueries) {
+            if (!q.data) continue;
+            for (const item of q.data) {
+                result.add(item);
+            }
+        }
+        return result;
     }, [fixedDatesQueries]);
 
     // Loading & Error States
@@ -220,9 +247,11 @@ export const useScheduleData = () => {
             }
         });
 
-        const dStart = startOfMonth(currentDate);
-        const dEnd = endOfMonth(currentDate);
+        const [year, month] = targetYearMonth.split('-').map(Number);
+        const dStart = startOfMonth(new Date(year, month - 1));
+        const dEnd = endOfMonth(dStart);
         const daysInMonth = eachDayOfInterval({ start: dStart, end: dEnd });
+        const closedDays = businessHours?.closedDays || [0];
 
         daysInMonth.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
@@ -232,14 +261,14 @@ export const useScheduleData = () => {
 
             staffList.forEach(staff => {
                 const dayOfWeek = getDay(day);
-                if (dayOfWeek === 0) return;
+                if (closedDays.includes(dayOfWeek)) return;
 
                 const pref = preferences.find(p => p.staffId === staff.id);
                 let isTraining = false;
                 let isReqOff = false;
 
                 if (pref) {
-                    const detailMatch = pref.details && pref.details.find(d => d.date === dateStr);
+                    const detailMatch = pref.details && pref.details.find((d: any) => d.date === dateStr);
                     if (detailMatch && detailMatch.type === 'training') {
                         isTraining = true;
                     } else if (detailMatch) {
@@ -340,7 +369,7 @@ export const useScheduleData = () => {
             }
         });
         return summaries;
-    }, [view, events, currentDate, staffList, preferences, classes]);
+    }, [view, targetYearMonth, events, staffList, preferences, classes, businessHours?.closedDays]);
 
     // イベントスタイル
     const eventStyleGetter = (event: CalendarEvent) => {

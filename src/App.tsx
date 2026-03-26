@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { useRef } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
+import ScrollToTop from './components/ScrollToTop';
 import AuthPage from './features/auth/AuthPage';
 import StaffPage from './features/staff/StaffPage';
 import PreferencesPage from './features/preferences/PreferencesPage';
@@ -37,6 +38,7 @@ const AppRoutes = () => {
 
   return (
     <Router>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route

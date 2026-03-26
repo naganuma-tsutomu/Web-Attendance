@@ -167,8 +167,6 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
 };
 
 const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: ClassesSettingsProps) => {
-    const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingClass, setEditingClass] = useState<ShiftClass | null>(null);
     const [editForm, setEditForm] = useState({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -180,28 +178,6 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
-
-    const handleOpenAddModal = () => {
-        setNewClass({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
-        setIsAddModalOpen(true);
-    };
-
-    const handleAddClass = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newClass.name.trim() || isSubmitting) return;
-        setIsSubmitting(true);
-        try {
-            await createClass(newClass.name, newClass.auto_allocate, newClass.color);
-            setNewClass({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
-            toast.success(`クラス「${newClass.name}」を追加しました`);
-            setIsAddModalOpen(false);
-            onUpdate();
-        } catch (err) {
-            handleApiError(err, 'クラスの追加に失敗しました');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const handleToggleClassAllocation = async (cls: ShiftClass) => {
         const newValue = cls.auto_allocate === 1 ? 0 : 1;
@@ -242,12 +218,17 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
         if (!editingClass || !editForm.name.trim() || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            await updateClass(editingClass.id, { name: editForm.name, color: editForm.color, auto_allocate: editForm.auto_allocate });
+            if (editingClass.id) {
+                await updateClass(editingClass.id, { name: editForm.name, color: editForm.color, auto_allocate: editForm.auto_allocate });
+                toast.success('クラスを更新しました');
+            } else {
+                await createClass(editForm.name, editForm.auto_allocate, editForm.color);
+                toast.success(`クラス「${editForm.name}」を追加しました`);
+            }
             setEditingClass(null);
-            toast.success('クラスを更新しました');
             onUpdate();
         } catch (err) {
-            handleApiError(err, '更新に失敗しました');
+            handleApiError(err, '保存に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -282,7 +263,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
             {/* Add Class Button */}
             <div className="flex justify-end">
                 <button
-                    onClick={handleOpenAddModal}
+                    onClick={() => handleOpenEdit({ id: '', name: '', auto_allocate: 1, color: CLASS_COLORS[0], display_order: 0 } as ShiftClass)}
                     className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold"
                 >
                     <Plus className="w-5 h-5" />
@@ -372,7 +353,9 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                             >
                                 {editForm.name.charAt(0) || editingClass.name.charAt(0)}
                             </div>
-                            <h3 className="font-bold text-slate-800 dark:text-white">クラスを編集</h3>
+                            <h3 className="font-bold text-slate-800 dark:text-white">
+                                {editingClass.id ? 'クラスを編集' : '新規クラス追加'}
+                            </h3>
                         </div>
 
                         {/* Body */}

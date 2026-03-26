@@ -1,6 +1,6 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek } from 'date-fns';
 import { timeToMinutes } from '../utils/timeUtils';
-import { UNASSIGNED_STAFF_ID, DAY_WEEKDAYS, DAY_EVERYDAY, DEFAULT_CLOSED_DAYS, CLOSED_DAY_HOLIDAY } from '../constants';
+import { UNASSIGNED_STAFF_ID, DAY_WEEKDAYS, DAY_EVERYDAY, DEFAULT_CLOSED_DAYS } from '../constants';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**

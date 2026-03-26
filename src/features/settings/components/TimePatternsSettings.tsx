@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Clock, Loader2, GripVertical, Calendar, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Clock, Loader2, GripVertical, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { createTimePattern, deleteTimePattern, updateTimePattern, updateTimePatternOrder, getRoles } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
@@ -262,16 +262,6 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
         } finally {
             setIsDeleting(false);
         }
-    };
-
-    const toggleRole = (roleId: string, isEdit: boolean = false) => {
-        const updater = isEdit ? setEditFormData : setFormData;
-        updater((prev: any) => ({
-            ...prev,
-            roleIds: prev.roleIds.includes(roleId)
-                ? prev.roleIds.filter((id: string) => id !== roleId)
-                : [...prev.roleIds, roleId]
-        }));
     };
 
     const handleDragStart = (event: DragStartEvent) => {

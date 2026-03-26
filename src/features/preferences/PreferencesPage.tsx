@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw, X, Edit2, CheckCircle2, Clock, CalendarX, BookOpen } from 'lucide-react';
 import { syncHolidays } from '../../lib/api';
-import { useStaffList, usePreferencesByMonth, useSavePreference } from '../../lib/hooks';
+import { useStaffList, usePreferencesByMonth, useSavePreference, useHolidays, useBusinessHours } from '../../lib/hooks';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
@@ -14,20 +14,26 @@ interface DayStatus {
     startTime?: string | null;
     endTime?: string | null;
     type?: string | null;
+    isNationalHoliday?: boolean;
+    holidayName?: string;
 }
 
 const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
-const generateMonthDays = (baseDate: Date): DayStatus[] => {
+const generateMonthDays = (baseDate: Date, holidays: any[]): DayStatus[] => {
     const start = startOfMonth(baseDate);
     const end = endOfMonth(baseDate);
     return eachDayOfInterval({ start, end }).map(date => {
         const dayOfWeekIndex = getDay(date);
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const h = holidays.find((hol: any) => hol.date === dateStr);
         return {
-            dateStr: format(date, 'yyyy-MM-dd'),
+            dateStr,
             dayOfWeek: dayNames[dayOfWeekIndex],
             isHoliday: dayOfWeekIndex === 0, // 日曜日は休館日
             status: 'available',
+            isNationalHoliday: !!h && !h.isWorkday && !h.is_workday, // 支持isWorkdayまたはis_workday(fallback)
+            holidayName: h?.name
         };
     });
 };
@@ -57,6 +63,13 @@ const PreferencesPage = () => {
 
     // TanStack Query: 月別の希望休
     const { data: rawPrefs = [], isLoading: prefLoading, isError: prefHasError, refetch: refetchPrefs } = usePreferencesByMonth(yearMonth);
+
+    // TanStack Query: 祝日データ
+    const { data: holidays = [] } = useHolidays(targetDate.getFullYear());
+
+    // TanStack Query: 営業時間設定
+    const { data: businessHours } = useBusinessHours();
+    const closedDays = useMemo(() => businessHours?.closedDays || [], [businessHours]);
 
     // TanStack Query: 保存ミューテーション
     const savePreferenceMutation = useSavePreference();
@@ -91,7 +104,7 @@ const PreferencesPage = () => {
 
     // 選択スタッフか月が変わったら、カレンダーを再生成
     useEffect(() => {
-        const baseDays = generateMonthDays(targetDate);
+        const baseDays = generateMonthDays(targetDate, holidays);
         if (selectedStaffId) {
             const staff = staffList.find(s => s.id === selectedStaffId);
             const unavailable = allPrefsForMonth[selectedStaffId] || [];
@@ -116,6 +129,10 @@ const PreferencesPage = () => {
                     }
                 }
 
+                if (day.isNationalHoliday && closedDays.includes(7)) {
+                    isFixedHoliday = true;
+                }
+
                 if (isFixedHoliday) return { ...day, status: 'fixed' };
 
                 const pref = unavailable.find(u => u.date === day.dateStr);
@@ -131,7 +148,7 @@ const PreferencesPage = () => {
         } else {
             setPreferences(baseDays);
         }
-    }, [selectedStaffId, targetDate, allPrefsForMonth, staffList]);
+    }, [selectedStaffId, targetDate, allPrefsForMonth, staffList, holidays, closedDays]);
 
     const handleDateClick = (index: number) => {
         const item = preferences[index];
@@ -278,8 +295,8 @@ const PreferencesPage = () => {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-6">
-                {/* スタッフ選択サイドバー */}
-                <div className="lg:w-56 flex-shrink-0">
+                {/* スタッフ選択サイドバー - デスクトップ */}
+                <div className="hidden lg:block lg:w-56 flex-shrink-0">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
                         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
                             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">スタッフ選択</p>
@@ -316,6 +333,48 @@ const PreferencesPage = () => {
                     <div className="mt-3 px-3 py-2 text-xs text-slate-500 dark:text-slate-400 space-y-1">
                         <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />提出済み</div>
                         <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700 inline-block" />未提出</div>
+                    </div>
+                </div>
+
+                {/* スタッフ選択ドロップダウン - モバイル */}
+                <div className="lg:hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+                        <label htmlFor="staff-select" className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            スタッフ選択
+                        </label>
+                        {staffLoading ? (
+                            <div className="p-4 text-center text-slate-400 dark:text-slate-500 text-sm">読み込み中...</div>
+                        ) : (
+                            <select
+                                id="staff-select"
+                                value={selectedStaffId || ''}
+                                onChange={(e) => setSelectedStaffId(e.target.value)}
+                                className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                                    backgroundPosition: 'right 0.5rem center',
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundSize: '1.5em 1.5em',
+                                    paddingRight: '2.5rem'
+                                }}
+                            >
+                                {staffList.map(staff => {
+                                    const hasSubmitted = allPrefsForMonth[staff.id] !== undefined;
+                                    return (
+                                        <option key={staff.id} value={staff.id}>
+                                            {staff.name} {hasSubmitted ? '✓' : ''}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        )}
+                        {/* モバイル用凡例 */}
+                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-emerald-500">✓</span>
+                                <span>提出済み</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -438,28 +497,42 @@ const PreferencesPage = () => {
                                                         disabled={item.status === 'fixed'}
                                                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-150 select-none
                                                             ${item.status === 'fixed'
-                                                                ? 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70 cursor-not-allowed'
+                                                                ? item.isNationalHoliday
+                                                                    ? 'bg-red-50/50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30 opacity-80 cursor-not-allowed'
+                                                                    : 'bg-slate-100 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70 cursor-not-allowed'
                                                                 : isTraining
                                                                     ? 'bg-amber-50 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800 shadow-sm'
                                                                     : item.status === 'unavailable'
                                                                         ? 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800 shadow-sm'
-                                                                        : isSaturday
-                                                                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700'
-                                                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800'
+                                                                        : item.isNationalHoliday
+                                                                            ? 'bg-white dark:bg-slate-800 border-red-200 dark:border-red-800 hover:border-red-300 dark:hover:border-red-700'
+                                                                            : isSaturday
+                                                                                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700'
+                                                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800'
                                                             }`}
                                                     >
-                                                        <span className={`text-base font-bold ${item.status === 'fixed' ? 'text-slate-400 dark:text-slate-500' : isTraining ? 'text-amber-700 dark:text-amber-400' : item.status === 'unavailable' ? 'text-red-700 dark:text-red-400' : isSaturday ? 'text-blue-800 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                        <span className={`text-base font-bold ${item.isNationalHoliday ? 'text-red-500 dark:text-red-400' : item.status === 'fixed' ? 'text-slate-400 dark:text-slate-500' : isTraining ? 'text-amber-700 dark:text-amber-400' : item.status === 'unavailable' ? 'text-red-700 dark:text-red-400' : isSaturday ? 'text-blue-800 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                             {parseInt(item.dateStr.split('-')[2])}
                                                         </span>
-                                                        <span className={`text-[10px] font-bold mt-1 px-1 py-0.5 rounded-md ${item.status === 'fixed'
-                                                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                                                            : isTraining
-                                                                ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400'
+                                                        <span className={`text-[10px] font-bold mt-1 px-1 py-0.5 rounded-md truncate max-w-[80px] text-center ${
+                                                            item.status === 'fixed'
+                                                                ? item.isNationalHoliday
+                                                                    ? 'bg-red-100/70 dark:bg-red-900/50 text-red-600 dark:text-red-300'
+                                                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                                                                : isTraining
+                                                                    ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400'
                                                                 : item.status === 'unavailable'
                                                                     ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
-                                                                    : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                                                                : item.isNationalHoliday
+                                                                    ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'
+                                                                : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
                                                             }`}>
-                                                            {item.status === 'fixed' ? '固定休' : isTraining ? '研修' : item.status === 'unavailable' ? (item.startTime ? `${item.startTime}~不可` : '不可') : '○'}
+                                                            {item.status === 'fixed'
+                                                                ? (item.isNationalHoliday ? (item.holidayName || '祝日') : '固定休')
+                                                                : item.status === 'unavailable'
+                                                                    ? (isTraining ? '研修' : (item.startTime ? `${item.startTime}~不可` : '不可'))
+                                                                    : (item.isNationalHoliday ? (item.holidayName || '祝日') : '○')
+                                                            }
                                                         </span>
                                                     </button>
                                                 );

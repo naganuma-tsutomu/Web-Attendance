@@ -83,7 +83,7 @@ INSERT INTO "staff_available_days" ("id","staffId","dayOfWeek","weeks") VALUES('
 INSERT INTO "staff_available_days" ("id","staffId","dayOfWeek","weeks") VALUES('staff_1772969343268_available_1772985755379_3','staff_1772969343268',4,NULL);
 INSERT INTO "staff_available_days" ("id","staffId","dayOfWeek","weeks") VALUES('staff_1772969343268_available_1772985755379_4','staff_1772969343268',5,NULL);
 INSERT INTO "staff_available_days" ("id","staffId","dayOfWeek","weeks") VALUES('staff_1772969343268_available_1772985755379_5','staff_1772969343268',6,NULL);
-INSERT INTO "shift_preferences" ("id","staffId","yearMonth","unavailableDates") VALUES('pref_1772945719798','staff_1772904338091','2026-04','["2026-04-03","2026-04-10","2026-04-17","2026-04-24"]');
+INSERT INTO "shift_preferences" ("id","staffId","yearMonth") VALUES('pref_1772945719798','staff_1772904338091','2026-04');
 INSERT INTO "shift_preference_dates" ("id","staffId","yearMonth","date") VALUES('prefd_staff_1772904338091_2026-04-03_0','staff_1772904338091','2026-04','2026-04-03');
 INSERT INTO "shift_preference_dates" ("id","staffId","yearMonth","date") VALUES('prefd_staff_1772904338091_2026-04-10_1','staff_1772904338091','2026-04','2026-04-10');
 INSERT INTO "shift_preference_dates" ("id","staffId","yearMonth","date") VALUES('prefd_staff_1772904338091_2026-04-17_2','staff_1772904338091','2026-04','2026-04-17');

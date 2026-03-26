@@ -17,7 +17,6 @@ CREATE TABLE shift_preferences_new (
     id TEXT PRIMARY KEY,
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL,
-    unavailableDates TEXT NOT NULL,
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 INSERT INTO shift_preferences_new SELECT * FROM shift_preferences;

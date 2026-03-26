@@ -186,33 +186,6 @@ const AppearanceSettings = () => {
                                 </div>
                             </div>
 
-                            {/* プレビュー */}
-                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">プレビュー</p>
-                                <div className="relative h-8 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                    <div
-                                        className="absolute top-0 bottom-0 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full transition-all duration-300"
-                                        style={{
-                                            left: `${(startHour / 24) * 100}%`,
-                                            width: `${((endHour - startHour) / 24) * 100}%`,
-                                        }}
-                                    />
-                                    {/* 時間マーカー */}
-                                    {[0, 6, 12, 18, 24].map(h => (
-                                        <div
-                                            key={h}
-                                            className="absolute top-full mt-1 -translate-x-1/2 text-[10px] text-slate-400"
-                                            style={{ left: `${(h / 24) * 100}%` }}
-                                        >
-                                            {h}時
-                                        </div>
-                                    ))}
-                                </div>
-                                <p className="text-center text-sm font-medium text-indigo-600 dark:text-indigo-400 mt-5">
-                                    {String(startHour).padStart(2, '0')}:00 〜 {String(endHour).padStart(2, '0')}:00
-                                    <span className="ml-2 text-slate-400 text-xs">({endHour - startHour}時間)</span>
-                                </p>
-                            </div>
 
                             {/* バリデーションエラー */}
                             {startHour >= endHour && (

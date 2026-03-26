@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin, X } from 'lucide-react';
-import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses, getTimePatterns, getRoles } from '../lib/api';
+import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses, getTimePatterns, getRoles, getHolidays, getBusinessHours } from '../lib/api';
 import { handleApiError } from '../lib/errorHandler';
-import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole } from '../types';
+import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole, Holiday } from '../types';
 import DailyTimelineView from '../features/schedule/DailyTimelineView';
 import { getStaffSession, clearStaffSession } from '../utils/dateUtils';
 
@@ -22,6 +22,8 @@ const StaffPreferencePage = () => {
     const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [timePatterns, setTimePatterns] = useState<ShiftTimePattern[]>([]);
     const [roles, setRoles] = useState<DynamicRole[]>([]);
+    const [holidays, setHolidays] = useState<Holiday[]>([]);
+    const [closedDays, setClosedDays] = useState<number[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [savedPreferences, setSavedPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,13 +50,15 @@ const StaffPreferencePage = () => {
             setLoading(true);
             try {
                 const monthStr = format(currentMonth, 'yyyy-MM');
-                const [shiftsData, prefsData, staffData, classesData, patternsData, rolesData] = await Promise.all([
+                const [shiftsData, prefsData, staffData, classesData, patternsData, rolesData, holidaysData, businessData] = await Promise.all([
                     getShiftsByMonth(monthStr),
                     getPreferencesByMonth(monthStr),
                     getStaffList(),
                     getClasses(),
                     getTimePatterns(),
-                    getRoles()
+                    getRoles(),
+                    getHolidays(currentMonth.getFullYear()),
+                    getBusinessHours()
                 ]);
 
                 setAllShifts(shiftsData);
@@ -62,6 +66,8 @@ const StaffPreferencePage = () => {
                 setClasses(classesData);
                 setTimePatterns(patternsData);
                 setRoles(rolesData);
+                setHolidays(holidaysData);
+                setClosedDays(businessData.closedDays || []);
                 const myData = staffData.find(s => s.id === staff.id);
                 setMyAvailableDays(myData?.availableDays);
                 
@@ -142,6 +148,10 @@ const StaffPreferencePage = () => {
     );
 
     const isFixedHoliday = (date: Date): boolean => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const holiday = holidays.find(h => h.date === dateStr);
+        if (holiday && !holiday.isWorkday && closedDays.includes(7)) return true;
+
         if (!myAvailableDays || myAvailableDays.length === 0) return false;
         const dow = getDay(date);
         const nthWeek = Math.ceil(date.getDate() / 7);
@@ -264,6 +274,8 @@ const StaffPreferencePage = () => {
                                         const hasShift = myShifts.some(s => s.date === dateStr);
                                         const isSunday = getDay(day) === 0;
                                         const fixedHoliday = isSunday || isFixedHoliday(day);
+                                        const holidayData = holidays.find(h => h.date === dateStr);
+                                        const isNationalHoliday = !!holidayData && !holidayData.isWorkday;
 
                                         return (
                                             <button
@@ -272,19 +284,26 @@ const StaffPreferencePage = () => {
                                                 disabled={fixedHoliday}
                                                 className={`aspect-square rounded-2xl flex flex-col items-center justify-center p-1 transition-all relative border-2 ${
                                                     fixedHoliday
-                                                        ? isSunday
-                                                            ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-300 dark:text-red-700 cursor-not-allowed'
-                                                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                                                        ? isNationalHoliday
+                                                            ? 'bg-red-50/50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 cursor-not-allowed'
+                                                            : isSunday
+                                                                ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-300 dark:text-red-700 cursor-not-allowed'
+                                                                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                                                         : isTraining
                                                             ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400'
                                                             : isSelected
                                                                 ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400'
-                                                                : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                                : isNationalHoliday
+                                                                    ? 'bg-white dark:bg-slate-900 border-red-200 hover:border-red-300 dark:border-red-800 text-red-600 dark:text-red-400'
+                                                                    : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                                                 }`}
                                             >
                                                 <span className="text-sm font-black">{format(day, 'd')}</span>
                                                 {fixedHoliday && (
-                                                    <span className="text-[8px] font-bold mt-0.5">{isSunday ? '休日' : '固定休'}</span>
+                                                    <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{isNationalHoliday ? (holidayData?.name || '祝日') : isSunday ? '休日' : '固定休'}</span>
+                                                )}
+                                                {!fixedHoliday && isNationalHoliday && !isSelected && (
+                                                    <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{holidayData?.name || '祝日'}</span>
                                                 )}
                                                 {!fixedHoliday && hasShift && !isSelected && (
                                                     <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-0.5" />

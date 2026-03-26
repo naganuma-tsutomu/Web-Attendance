@@ -523,15 +523,13 @@ const PreferencesPage = () => {
                                                                     ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400'
                                                                 : item.status === 'unavailable'
                                                                     ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
-                                                                : item.isNationalHoliday
-                                                                    ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400'
                                                                 : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
                                                             }`}>
                                                             {item.status === 'fixed'
-                                                                ? (item.isNationalHoliday ? (item.holidayName || '祝日') : '固定休')
+                                                                ? (item.isNationalHoliday ? '祝日' : '固定休')
                                                                 : item.status === 'unavailable'
                                                                     ? (isTraining ? '研修' : (item.startTime ? `${item.startTime}~不可` : '不可'))
-                                                                    : (item.isNationalHoliday ? (item.holidayName || '祝日') : '○')
+                                                                    : '○'
                                                             }
                                                         </span>
                                                     </button>

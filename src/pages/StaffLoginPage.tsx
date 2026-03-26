@@ -71,7 +71,7 @@ const StaffLoginPage = () => {
                         <Lock className="w-8 h-8" />
                     </div>
                     <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">従業員ログイン</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">名前と4桁のアクセスキーを入力してください</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">名前と6桁のアクセスキーを入力してください</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
@@ -107,12 +107,12 @@ const StaffLoginPage = () => {
                                 <input
                                     type="password"
                                     required
-                                    maxLength={4}
-                                    pattern="\d{4}"
+                                    maxLength={6}
+                                    pattern="\d{6}"
                                     value={accessKey}
                                     onChange={e => setAccessKey(e.target.value.replace(/\D/g, ''))}
                                     className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono font-bold tracking-[0.5em] text-slate-700 dark:text-white transition-all"
-                                    placeholder="••••"
+                                    placeholder="••••••"
                                 />
                             </div>
                         </div>

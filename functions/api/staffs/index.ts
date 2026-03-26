@@ -66,7 +66,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         
         const id = staffData.id || `staff_${Date.now()}`;
 
-        const accessKey = staffData.accessKey || Math.floor(1000 + Math.random() * 9000).toString();
+        const accessKey = staffData.accessKey || (() => {
+            const buf = new Uint32Array(1);
+            crypto.getRandomValues(buf);
+            return (100000 + (buf[0] % 900000)).toString();
+        })();
 
         const statements = [
             context.env.DB.prepare(

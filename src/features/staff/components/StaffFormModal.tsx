@@ -85,10 +85,14 @@ const StaffFormModal = ({
                         </div>
                         <div className="space-y-1.5 pl-1">
                             <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">アクセスキー (4桁の数字)</label>
+                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">アクセスキー (6桁の数字)</label>
                                 <button
                                     type="button"
-                                    onClick={() => setFormData({ ...formData, accessKey: Math.floor(1000 + Math.random() * 9000).toString() })}
+                                    onClick={() => {
+                                        const buf = new Uint32Array(1);
+                                        crypto.getRandomValues(buf);
+                                        setFormData({ ...formData, accessKey: (100000 + (buf[0] % 900000)).toString() });
+                                    }}
                                     className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                                 >
                                     自動生成
@@ -97,12 +101,12 @@ const StaffFormModal = ({
                             <input
                                 type="text"
                                 required
-                                maxLength={4}
-                                pattern="\d{4}"
+                                maxLength={6}
+                                pattern="\d{6}"
                                 value={formData.accessKey || ''}
-                                onChange={e => setFormData({ ...formData, accessKey: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                                onChange={e => setFormData({ ...formData, accessKey: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                                 className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-mono font-bold tracking-widest text-slate-700 dark:text-white"
-                                placeholder="1234"
+                                placeholder="123456"
                             />
                         </div>
                         <div className="space-y-3 pl-1">

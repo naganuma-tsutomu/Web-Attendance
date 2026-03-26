@@ -392,12 +392,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (conflictType === 'training') return 'bg-amber-300 border-amber-400 dark:bg-amber-500/60 dark:border-amber-500';
         if (conflictType === 'preference') return 'bg-orange-300 border-orange-400 dark:bg-orange-500/60 dark:border-orange-500';
 
-        // IDまたは名称で判定
-        if (classType === '虹組' || classType === 'class_niji') return 'bg-yellow-300 border-yellow-400';
-        if (classType === 'スマイル組' || classType === 'class_smile') return 'bg-blue-300 border-blue-400';
-        if (classType === '特殊' || classType === 'class_special') return 'bg-emerald-300 border-emerald-400';
+        // classColorMap に hex 色がある場合はインラインスタイルで適用されるため、
+        // ここでは Tailwind クラスのフォールバックのみ返す
+        if (classColorMap[classType]) return '';
 
-        return 'bg-purple-300 border-purple-400';
+        return 'bg-purple-300 border-purple-400 dark:bg-purple-400/60 dark:border-purple-400';
     };
 
     // Hex color → rgba
@@ -739,28 +738,25 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
                         const groupTitle = cls.name === '特殊' ? 'ヘルプ' : cls.name;
 
-                        // 常にクラス ID に基づいて色を決定するように変更（またはクラス名）
-                        const getDynamicColor = (classId: string, className: string) => {
-                            const colorMap: Record<string, string> = {
-                                'class_smile': 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800',
-                                'class_niji': 'text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-100 dark:border-yellow-800',
-                                'class_special': 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800',
-                                'unassigned': 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
-                            };
-                            // 名前でのマッチングもフォールバックとして残しておく
-                            if (colorMap[classId]) return colorMap[classId];
-                            if (className === 'スマイル組') return colorMap['class_smile'];
-                            if (className === '虹組') return colorMap['class_niji'];
-                            if (className === '特殊' || className === 'ヘルプ') return colorMap['class_special'];
-                            if (classId === 'unassigned') return colorMap['unassigned'];
-
+                        // classes テーブルの color フィールドから動的に色を解決
+                        const getDynamicColor = (classId: string) => {
+                            if (classId === 'unassigned') {
+                                return 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700';
+                            }
+                            // color フィールドがある場合はインラインスタイルで適用するため、
+                            // Tailwind クラスは最小限のテキスト色のみ返す
+                            if (classColorMap[classId]) {
+                                return 'text-slate-700 dark:text-slate-200';
+                            }
+                            // color フィールドがないクラスの汎用フォールバック
                             return 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800';
                         };
 
-                        const titleColor = getDynamicColor(cls.id, cls.name);
-                        const titleCustomStyle = cls.color && hoveredGroup !== cls.id ? {
-                            backgroundColor: hexToRgba(cls.color, 0.12),
-                            borderColor: hexToRgba(cls.color, 0.25),
+                        const titleColor = getDynamicColor(cls.id);
+                        const hexColor = classColorMap[cls.id];
+                        const titleCustomStyle = hexColor && hoveredGroup !== cls.id ? {
+                            backgroundColor: hexToRgba(hexColor, 0.12),
+                            borderColor: hexToRgba(hexColor, 0.25),
                         } : {};
 
                         return (

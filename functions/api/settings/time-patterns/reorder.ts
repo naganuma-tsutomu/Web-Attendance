@@ -1,6 +1,5 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 // PUT /api/settings/time-patterns/reorder
 export const onRequestPut: PagesFunction<Env> = async (context) => {

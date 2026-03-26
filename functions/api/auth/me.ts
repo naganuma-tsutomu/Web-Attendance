@@ -1,8 +1,5 @@
 import { verifyCookie } from '../../utils';
-
-export interface Env {
-    ADMIN_PASSWORD?: string;
-}
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     const cookieHeader = context.request.headers.get('Cookie');

@@ -1,10 +1,6 @@
 import { handleServerError, createValidationError } from '../../utils/validation';
 import { signStaffCookie } from '../../utils';
-
-export interface Env {
-    DB: D1Database;
-    ADMIN_PASSWORD?: string;
-}
+import type { Env } from '../../types';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {

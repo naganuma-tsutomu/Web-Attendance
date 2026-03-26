@@ -1,8 +1,5 @@
 import { signCookie } from '../../utils';
-
-export interface Env {
-    ADMIN_PASSWORD?: string;
-}
+import type { Env } from '../../types';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {

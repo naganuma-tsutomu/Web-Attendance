@@ -1,6 +1,5 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 // DELETE /api/settings/roles/:id
 export const onRequestDelete: PagesFunction<Env> = async (context) => {

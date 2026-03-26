@@ -1,8 +1,5 @@
 import { handleServerError } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {

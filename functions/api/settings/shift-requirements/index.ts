@@ -8,9 +8,7 @@ import {
     validateMaxStaffCount
 } from '../../../utils/validation';
 
-export interface Env {
-    DB: D1Database;
-}
+import type { Env } from '../../../types';
 
 // GET /api/settings/shift-requirements
 // Query params: classId, dayOfWeek (optional)

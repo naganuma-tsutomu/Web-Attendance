@@ -1,8 +1,5 @@
 import { verifyCookie, verifyStaffCookie } from '../utils';
-
-export interface Env {
-    ADMIN_PASSWORD?: string;
-}
+import type { Env } from '../types';
 
 export const onRequest: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);

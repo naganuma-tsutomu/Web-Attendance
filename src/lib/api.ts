@@ -23,7 +23,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?:
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
+        throw new Error(errorData.error || errorData.message || `API Error: ${response.status} ${response.statusText}`);
     }
 
     if (response.status === 204) return {} as T;

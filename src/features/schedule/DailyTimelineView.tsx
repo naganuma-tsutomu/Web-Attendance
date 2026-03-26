@@ -285,7 +285,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className={`select-none ${readOnly ? 'touch-pan-y' : 'touch-none'} flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
+            className={`select-none ${activeDragId ? 'touch-none' : 'touch-pan-y'} flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 overflow-auto min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}

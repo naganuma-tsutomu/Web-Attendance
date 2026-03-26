@@ -11,8 +11,9 @@ export function createValidationError(message: string): Response {
 }
 
 // Helper to create consistent server error responses
-export function createServerError(): Response {
-    return new Response(JSON.stringify({ error: '保存に失敗しました。時間をおいて再度お試しください' }), {
+export function createServerError(e?: unknown): Response {
+    const errorMsg = e instanceof Error ? e.message : '保存に失敗しました。時間をおいて再度お試しください';
+    return new Response(JSON.stringify({ error: errorMsg }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
     });
@@ -21,7 +22,7 @@ export function createServerError(): Response {
 // Log error for debugging but return user-friendly message
 export function handleServerError(e: unknown, context: string): Response {
     console.error(`${context}:`, e);
-    return createServerError();
+    return createServerError(e);
 }
 
 // Validate name field (min 1, max 50 chars for most entities)

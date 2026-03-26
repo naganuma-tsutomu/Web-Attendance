@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, UserCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
+import { handleApiError } from '../../../lib/errorHandler';
 import type { ShiftClass, Staff } from '../../../types';
 import {
     DndContext,

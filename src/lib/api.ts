@@ -1,5 +1,10 @@
 import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday } from '../types';
 
+export interface BusinessHours {
+    startHour: number;
+    endHour: number;
+}
+
 const API_BASE = '/api';
 
 /**
@@ -321,5 +326,20 @@ export const saveFixedDates = async (yearMonth: string, dates: string[]): Promis
     await apiFetch('/fixed-dates', {
         method: 'POST',
         body: JSON.stringify({ yearMonth, dates })
+    });
+};
+
+// ==========================================
+// Business Hours API (営業時間設定)
+// ==========================================
+
+export const getBusinessHours = async (): Promise<BusinessHours> => {
+    return apiFetch<BusinessHours>('/settings/business-hours');
+};
+
+export const updateBusinessHours = async (data: BusinessHours): Promise<void> => {
+    await apiFetch('/settings/business-hours', {
+        method: 'PUT',
+        body: JSON.stringify(data)
     });
 };

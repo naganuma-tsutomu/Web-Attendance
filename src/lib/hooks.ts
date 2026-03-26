@@ -3,9 +3,11 @@ import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
     getPreferencesByMonth, getShiftRequirements, getFixedDates, saveShiftsBatch,
-    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference
+    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
+    getBusinessHours, updateBusinessHours
 } from './api';
 import type { Staff, Shift, ShiftPreference } from '../types';
+import type { BusinessHours } from './api';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {
@@ -18,6 +20,7 @@ export const QUERY_KEYS = {
     preferences: (monthStr: string) => ['preferences', monthStr],
     shiftRequirements: ['shiftRequirements'],
     fixedDates: (monthStr: string) => ['fixedDates', monthStr],
+    businessHours: ['businessHours'],
 };
 
 // ==============================
@@ -183,3 +186,24 @@ export const useSavePreference = () => {
     });
 };
 
+// ==============================
+// Business Hours (営業時間設定)
+// ==============================
+
+export const useBusinessHours = () => {
+    return useQuery({
+        queryKey: QUERY_KEYS.businessHours,
+        queryFn: getBusinessHours,
+        staleTime: 30 * 60 * 1000, // 30分間キャッシュ
+    });
+};
+
+export const useUpdateBusinessHours = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: BusinessHours) => updateBusinessHours(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessHours });
+        },
+    });
+};

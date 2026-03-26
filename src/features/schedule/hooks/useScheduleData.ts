@@ -11,6 +11,7 @@ import {
 import { 
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays, 
     useSaveShiftsBatch, useUpdateShift, useDeleteShiftsByMonth, useSaveFixedDates,
+    useBusinessHours,
     QUERY_KEYS
 } from '../../../lib/hooks';
 import { generateShiftsForMonth, isStaffAvailableReason } from '../../../lib/algorithm';
@@ -67,6 +68,7 @@ export const useScheduleData = () => {
     const { data: timePatterns = [], isLoading: isLoadingPatterns } = useTimePatterns();
     const { data: roles = [], isLoading: isLoadingRoles } = useRoles();
     const { data: holidays = [], isLoading: isLoadingHolidays } = useHolidays(currentDate.getFullYear());
+    const { data: businessHours } = useBusinessHours();
 
     // 祝日マップ
     const holidayMap = useMemo(() => new Map(holidays.map(h => [h.date, h])), [holidays]);
@@ -519,6 +521,7 @@ export const useScheduleData = () => {
         fixedDates,
         holidays,
         summaryEvents,
+        businessHours,
 
         // UI状態
         loading,

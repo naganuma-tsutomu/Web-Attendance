@@ -159,6 +159,15 @@ CREATE TABLE IF NOT EXISTS holidays (
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- ======================================================
+-- アプリケーション設定テーブル (key-value)
+-- ======================================================
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 -- 日付検索用インデックス
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);

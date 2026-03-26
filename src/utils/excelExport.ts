@@ -5,15 +5,15 @@ import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { calculateDuration } from './timeUtils';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern } from '../types';
+import type { BusinessHours } from '../lib/api';
 
 /**
- * 営業時間は 8:00 - 19:00
+ * デフォルト営業時間
  * 15分刻み
  */
-const START_HOUR = 8;
-const END_HOUR = 19;
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 19;
 const SLOTS_PER_HOUR = 4;
-const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR;
 
 /**
  * HH:MM 形式を Excel 用の数値（1日=1.0）に変換
@@ -41,8 +41,12 @@ export const exportToExcelAdvanced = async (
     staffs: Staff[],
     shifts: Shift[],
     classes: ShiftClass[],
-    _timePatterns: ShiftTimePattern[]
+    _timePatterns: ShiftTimePattern[],
+    businessHours?: BusinessHours
 ) => {
+    const START_HOUR = businessHours?.startHour ?? DEFAULT_START_HOUR;
+    const END_HOUR = businessHours?.endHour ?? DEFAULT_END_HOUR;
+    const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR;
     if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
         toast.error('年月の形式が正しくありません（例: 2025-01）');
         return;

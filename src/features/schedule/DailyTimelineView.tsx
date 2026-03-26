@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo, useReducer } 
 import { format } from 'date-fns';
 import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
+import { useBusinessHours } from '../../lib/hooks';
 import { isStaffAvailableReason } from '../../lib/algorithm';
 import { calculateDuration as calculateDurationHours, formatHours, timeToMinutes } from '../../utils/timeUtils';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
@@ -35,11 +36,8 @@ const toTimeStr = (mins: number): string => {
 // 15分単位にスナップ
 const snapTo15 = (mins: number): number => Math.round(mins / 15) * 15;
 
-const START_HOUR = 8;
-const END_HOUR = 19;
-const DISPLAY_START_MINS = 7 * 60 + 45; // 7:45
-const DISPLAY_END_MINS = 19 * 60 + 15; // 19:15
-const DISPLAY_TOTAL_MINS = DISPLAY_END_MINS - DISPLAY_START_MINS;
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 19;
 
 type DragType = 'move' | 'resize-left' | 'resize-right';
 
@@ -161,6 +159,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     highlightStaffId
 }) => {
     const targetDateStr = format(date, 'yyyy-MM-dd');
+
+    // 営業時間設定を取得
+    const { data: businessHours } = useBusinessHours();
+    const START_HOUR = businessHours?.startHour ?? DEFAULT_START_HOUR;
+    const END_HOUR = businessHours?.endHour ?? DEFAULT_END_HOUR;
+    const DISPLAY_START_MINS = START_HOUR * 60 - 15; // 営業開始15分前
+    const DISPLAY_END_MINS = END_HOUR * 60 + 15;     // 営業終了15分後
+    const DISPLAY_TOTAL_MINS = DISPLAY_END_MINS - DISPLAY_START_MINS;
 
     const [editState, dispatch] = useReducer(shiftEditReducer, { shifts, targetDateStr }, () => {
         const init = buildInitialLocalShifts(shifts, targetDateStr);

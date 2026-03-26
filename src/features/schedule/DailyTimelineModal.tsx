@@ -145,7 +145,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         {isModified && (
                             <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-4">
                                 <Save className="w-4 h-4" />
-                                <span className="font-medium">変更後は「保存する」ボタンで確定してください</span>
+                                <span className="font-medium">変更後は「保存」ボタンで確定してください</span>
                             </div>
                         )}
                         <button
@@ -168,7 +168,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                             ) : (
                                 <>
                                     <Save className="w-3.5 h-3.5" />
-                                    保存する
+                                    保存
                                 </>
                             )}
                         </button>

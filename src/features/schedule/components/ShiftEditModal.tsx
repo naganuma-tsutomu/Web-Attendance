@@ -94,7 +94,7 @@ const ShiftEditModal = ({
                         className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors text-sm font-medium flex items-center justify-center space-x-2"
                     >
                         <Save className="w-4 h-4" />
-                        <span>保存する</span>
+                        <span>保存</span>
                     </button>
                 </div>
             </form>

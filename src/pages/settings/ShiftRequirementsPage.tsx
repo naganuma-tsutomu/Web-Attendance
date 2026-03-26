@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, Loader2, AlertCircle, CheckCircle, GripVertical } from 'lucide-react';
+import { Users, Plus, Trash2, Loader2, AlertCircle, GripVertical } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -222,7 +222,6 @@ const ShiftRequirementsPage = () => {
     const [loading, setLoading] = useState(true);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [selectedClass, setSelectedClass] = useState<string>('');
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -285,12 +284,6 @@ const ShiftRequirementsPage = () => {
             }
         };
         fetchData();
-    };
-
-    // メッセージ表示（自動非表示）
-    const showMessage = (msg: string) => {
-        setMessage(msg);
-        setTimeout(() => setMessage(''), 3000);
     };
 
     // エラー表示（自動非表示）
@@ -456,13 +449,6 @@ const ShiftRequirementsPage = () => {
                 </div>
 
                 {/* Toast Messages */}
-                {message && (
-                    <div className="fixed top-20 right-4 z-50 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="text-sm font-medium">{message}</span>
-                    </div>
-                )}
-
                 {error && (
                     <div className="fixed top-20 right-4 z-50 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
                         <AlertCircle className="w-5 h-5" />

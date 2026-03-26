@@ -225,7 +225,7 @@ const RoleEditModal = ({
                                     <span>更新中...</span>
                                 </>
                             ) : (
-                                <span>設定を保存する</span>
+                                <span>保存</span>
                             )}
                         </button>
                     </div>

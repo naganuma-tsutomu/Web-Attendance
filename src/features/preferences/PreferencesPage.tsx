@@ -626,7 +626,7 @@ const PreferencesPage = () => {
                                     className={`flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white px-5 py-2.5 rounded-xl shadow-sm transition-colors font-medium text-sm ${(saving || prefLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
                                 >
                                     <Save className="w-4 h-4" />
-                                    {saving ? '保存中...' : '保存する'}
+                                    {saving ? '保存中...' : '保存'}
                                 </button>
                             </div>
                         </div>

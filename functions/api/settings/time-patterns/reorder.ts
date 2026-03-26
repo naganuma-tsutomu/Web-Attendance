@@ -1,4 +1,4 @@
-import { handleServerError } from '../../../utils/validation';
+import { createValidationError, handleServerError } from '../../../utils/validation';
 import type { Env } from '../../../types';
 
 // PUT /api/settings/time-patterns/reorder
@@ -7,7 +7,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const { orders } = await context.request.json() as { orders: { id: string, order: number }[] };
 
         if (!orders || !Array.isArray(orders)) {
-            return new Response(JSON.stringify({ message: 'Invalid orders' }), { status: 400 });
+            return createValidationError('Invalid orders data');
         }
 
         const statements = orders.map(item =>

@@ -1,3 +1,4 @@
+import { createValidationError, handleServerError } from '../../utils/validation';
 import type { Env } from '../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
@@ -5,7 +6,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const { orders }: { orders: { id: string, order: number }[] } = await context.request.json();
 
         if (!orders || !Array.isArray(orders)) {
-            return new Response('Invalid orders data', { status: 400 });
+            return createValidationError('Invalid orders data');
         }
 
         // Use a transaction if possible, but D1 batch is more likely what we need
@@ -18,6 +19,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: 'Reordered' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error reordering staffs');
     }
 };

@@ -12,7 +12,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
         if (!ADMIN_PASSWORD) {
-            return new Response('Server Configuration Error', { status: 500 });
+            return handleServerError(new Error('Server Configuration Error'), 'Missing ADMIN_PASSWORD');
         }
 
         const staff = await context.env.DB.prepare(
@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ).bind(name.trim(), accessKey.trim()).first() as { id: string, name: string } | null;
 
         if (!staff) {
-            return new Response('名前またはアクセスキーが正しくありません', { status: 401 });
+            return Response.json({ error: '名前またはアクセスキーが正しくありません' }, { status: 401 });
         }
 
         const token = await signStaffCookie(staff.id, ADMIN_PASSWORD);

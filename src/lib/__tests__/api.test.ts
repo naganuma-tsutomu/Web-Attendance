@@ -149,7 +149,7 @@ describe('API - Shift functions', () => {
         it('月別のシフトを取得できる', async () => {
             const yearMonth = '2025-06';
             const mockShifts = [
-                { id: 'shift1', date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00' }
+                { id: 'shift1', date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isEarlyShift: false, isError: false }
             ];
             
             mockFetch.mockResolvedValueOnce({
@@ -239,7 +239,7 @@ describe('API - Preference functions', () => {
         it('月別の希望休を取得できる', async () => {
             const yearMonth = '2025-06';
             const mockPrefs = [
-                { id: 'p1', staffId: 's1', yearMonth: '2025-06', unavailableDates: ['2025-06-01', '2025-06-02'] }
+                { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-01', startTime: null, endTime: null }] }
             ];
             
             mockFetch.mockResolvedValueOnce({
@@ -308,7 +308,7 @@ describe('API - Settings functions', () => {
     describe('getTimePatterns', () => {
         it('勤務時間パターンを取得できる', async () => {
             const mockPatterns = [
-                { id: 'p1', name: '日勤', startTime: '09:00', endTime: '18:00' }
+                { id: 'p1', name: '日勤', startTime: '09:00', endTime: '18:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
             ];
             
             mockFetch.mockResolvedValueOnce({

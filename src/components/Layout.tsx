@@ -109,7 +109,7 @@ const Layout = () => {
             </nav>
 
             {/* Main Content Area */}
-            <main className="flex-1 h-screen overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 min-w-0 flex flex-col">
+            <main className="flex-1 md:h-screen overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 min-w-0 flex flex-col">
                 <div className="flex-1 w-full overflow-y-auto focus:outline-none">
                     <Outlet />
                 </div>

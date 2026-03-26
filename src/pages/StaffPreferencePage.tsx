@@ -7,6 +7,7 @@ import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffLis
 import { handleApiError } from '../lib/errorHandler';
 import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole } from '../types';
 import DailyTimelineView from '../features/schedule/DailyTimelineView';
+import { getStaffSession, clearStaffSession } from '../utils/dateUtils';
 
 type TabType = 'preference' | 'shifts' | 'settings';
 
@@ -32,17 +33,12 @@ const StaffPreferencePage = () => {
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     useEffect(() => {
-        const session = localStorage.getItem('staff_session');
+        const session = getStaffSession<{ id: string; name: string }>();
         if (!session) {
             navigate('/staff/login');
             return;
         }
-        try {
-            setStaff(JSON.parse(session));
-        } catch {
-            localStorage.removeItem('staff_session');
-            navigate('/staff/login');
-        }
+        setStaff(session);
     }, [navigate]);
 
     useEffect(() => {
@@ -84,7 +80,7 @@ const StaffPreferencePage = () => {
     }, [staff, currentMonth]);
 
     const handleLogout = async () => {
-        localStorage.removeItem('staff_session');
+        clearStaffSession();
         await fetch('/api/auth/staff-logout', { method: 'POST' }).catch(() => {});
         navigate('/staff/login');
     };

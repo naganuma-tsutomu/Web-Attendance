@@ -4,13 +4,18 @@ import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema, 
     DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema 
 } from '../types/schemas';
+import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
 
 const API_BASE = '/api';
+
+type ParseableSchema<T> = {
+    safeParse(data: unknown): { success: true; data: T } | { success: false; error: { format(): unknown } };
+};
 
 /**
  * 共通のAPIリクエスト関数
  */
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?: z.ZodType<T>): Promise<T> {
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?: ParseableSchema<T>): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
     const response = await fetch(url, {
@@ -56,7 +61,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}, schema?:
 // ==========================================
 
 export const getStaffList = async (): Promise<Staff[]> => {
-    return apiFetch<Staff[]>('/staffs', {}, z.array(StaffSchema) as any);
+    return apiFetch<Staff[]>('/staffs', {}, z.array(StaffSchema));
 };
 
 export const getStaffNameList = async (): Promise<{ id: string, name: string }[]> => {
@@ -96,7 +101,7 @@ export const updateStaffOrder = async (orders: { id: string, order: number }[]):
 // ==========================================
 
 export const getPreferencesByMonth = async (yearMonth: string): Promise<ShiftPreference[]> => {
-    return apiFetch<ShiftPreference[]>(`/preferences?yearMonth=${yearMonth}`, {}, z.array(ShiftPreferenceSchema) as any);
+    return apiFetch<ShiftPreference[]>(`/preferences?yearMonth=${yearMonth}`, {}, z.array(ShiftPreferenceSchema));
 };
 
 export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): Promise<string> => {
@@ -119,7 +124,7 @@ export const updatePreferences = async (data: Omit<ShiftPreference, 'id'>): Prom
 // ==========================================
 
 export const getShiftsByMonth = async (yearMonth: string): Promise<Shift[]> => {
-    return apiFetch<Shift[]>(`/shifts?yearMonth=${yearMonth}`, {}, z.array(ShiftSchema) as any);
+    return apiFetch<Shift[]>(`/shifts?yearMonth=${yearMonth}`, {}, z.array(ShiftSchema));
 };
 
 export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void> => {
@@ -154,7 +159,7 @@ export const deleteShift = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getTimePatterns = async (): Promise<ShiftTimePattern[]> => {
-    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', {}, z.array(ShiftTimePatternSchema) as any);
+    return apiFetch<ShiftTimePattern[]>('/settings/time-patterns', {}, z.array(ShiftTimePatternSchema));
 };
 
 export const createTimePattern = async (pattern: Omit<ShiftTimePattern, 'id'>): Promise<string> => {
@@ -190,7 +195,7 @@ export const updateTimePatternOrder = async (orders: { id: string, order: number
 // ==========================================
 
 export const getRoles = async (): Promise<DynamicRole[]> => {
-    return apiFetch<DynamicRole[]>('/settings/roles', {}, z.array(DynamicRoleSchema) as any);
+    return apiFetch<DynamicRole[]>('/settings/roles', {}, z.array(DynamicRoleSchema));
 };
 
 export const createRole = async (name: string, targetHours: number | null = null, patternIds: string[] = [], weeklyHoursTarget: number | null = null): Promise<string> => {
@@ -230,7 +235,7 @@ export const updateRoleOrder = async (orders: { id: string, order: number }[]): 
 // ==========================================
 
 export const getClasses = async (): Promise<ShiftClass[]> => {
-    return apiFetch<ShiftClass[]>('/settings/classes', {}, z.array(ShiftClassSchema) as any);
+    return apiFetch<ShiftClass[]>('/settings/classes', {}, z.array(ShiftClassSchema));
 };
 
 export const createClass = async (name: string, autoAllocate: number = 1, color?: string): Promise<{ id: string }> => {
@@ -265,7 +270,7 @@ export const deleteClass = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getShiftRequirements = async (): Promise<ShiftRequirement[]> => {
-    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', {}, z.array(ShiftRequirementSchema) as any);
+    return apiFetch<ShiftRequirement[]>('/settings/shift-requirements', {}, z.array(ShiftRequirementSchema));
 };
 
 export const saveShiftRequirements = async (requirements: ShiftRequirement[]): Promise<void> => {
@@ -289,7 +294,7 @@ export const getHolidays = async (year?: number): Promise<Holiday[]> => {
     const url = year
         ? `/settings/holidays?year=${year}`
         : '/settings/holidays';
-    return apiFetch<Holiday[]>(url, {}, z.array(HolidaySchema) as any);
+    return apiFetch<Holiday[]>(url, {}, z.array(HolidaySchema));
 };
 
 export const createHoliday = async (holiday: Omit<Holiday, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
@@ -322,14 +327,14 @@ export const syncHolidays = async (year?: number): Promise<{ success: boolean; m
 
 export const syncHolidaysIfNeeded = async (): Promise<void> => {
     try {
-        const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const lastSyncStr = localStorage.getItem('lastHolidaySyncDate');
+        const todayStr = new Date().toISOString().split('T')[0];
+        const lastSyncStr = getLastHolidaySyncDate();
         if (lastSyncStr === todayStr) {
-            return; // 既に今日同期済みなのでスキップ
+            return;
         }
         
         await syncHolidays();
-        localStorage.setItem('lastHolidaySyncDate', todayStr);
+        setLastHolidaySyncDate(todayStr);
     } catch (err) {
         console.error('Failed to sync holidays during daily background check', err);
     }
@@ -355,7 +360,7 @@ export const saveFixedDates = async (yearMonth: string, dates: string[]): Promis
 // ==========================================
 
 export const getBusinessHours = async (): Promise<BusinessHours> => {
-    return apiFetch<BusinessHours>('/settings/business-hours', {}, BusinessHoursSchema as any);
+    return apiFetch<BusinessHours>('/settings/business-hours', {}, BusinessHoursSchema);
 };
 
 export const updateBusinessHours = async (data: BusinessHours): Promise<void> => {

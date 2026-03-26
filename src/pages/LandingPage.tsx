@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useEffect } from 'react';
 import { ShieldCheck, UserCircle2, ArrowRight } from 'lucide-react';
+import { getStaffSession } from '../utils/dateUtils';
 
 const Logo = () => (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -24,7 +25,7 @@ const LandingPage = () => {
             return;
         }
         // admin セッションがない場合のみ staff セッションをチェック
-        if (localStorage.getItem('staff_session')) {
+        if (getStaffSession()) {
             navigate('/staff/preference');
         }
     }, [currentUser, loading, navigate]);

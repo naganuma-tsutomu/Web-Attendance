@@ -2,14 +2,13 @@ import { Moon, Sun, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useBusinessHours, useUpdateBusinessHours } from '../../../lib/hooks';
+import { getWeekStartsOn, setWeekStartsOn as saveWeekStartsOn, STORAGE_KEYS } from '../../../utils/dateUtils';
 
 const AppearanceSettings = () => {
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-        return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+        return (localStorage.getItem(STORAGE_KEYS.THEME) as 'light' | 'dark') || 'light';
     });
-    const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(() => {
-        return (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
-    });
+    const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(() => getWeekStartsOn());
 
     // 営業時間設定
     const { data: businessHours, isLoading: isLoadingHours } = useBusinessHours();
@@ -34,11 +33,11 @@ const AppearanceSettings = () => {
         } else {
             document.documentElement.classList.remove('dark');
         }
-        localStorage.setItem('theme', theme);
+        localStorage.setItem(STORAGE_KEYS.THEME, theme);
     }, [theme]);
 
     useEffect(() => {
-        localStorage.setItem('weekStartsOn', weekStartsOn.toString());
+        saveWeekStartsOn(weekStartsOn);
     }, [weekStartsOn]);
 
     const handleStartHourChange = (value: number) => {

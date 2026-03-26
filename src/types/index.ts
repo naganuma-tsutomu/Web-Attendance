@@ -104,3 +104,4 @@ export interface Holiday {
     created_at?: string;
     updated_at?: string;
 }
+export interface BusinessHours { startHour: number; endHour: number; closedDays: number[]; }

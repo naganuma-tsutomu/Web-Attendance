@@ -6,8 +6,7 @@ import {
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
     getBusinessHours, updateBusinessHours
 } from './api';
-import type { Staff, Shift, ShiftPreference } from '../types';
-import type { BusinessHours } from './api';
+import type { Staff, Shift, ShiftPreference, BusinessHours } from '../types';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {

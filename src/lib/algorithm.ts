@@ -281,7 +281,8 @@ export const generateShiftsForMonth = (
     holidays: string[] = [], // YYYY-MM-DD format
     requirements: ShiftRequirement[] = [], // New: shift requirements
     existingShifts: Shift[] = [], // New: shifts from adjacent months for weekly hours context
-    fixedDates: string[] = [] // New: locked dates to avoid rewriting
+    fixedDates: string[] = [], // New: locked dates to avoid rewriting
+    closedDays: number[] = [0] // New: 施設が休館の曜日リスト (0=日, 1=月...6=土)
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
@@ -325,8 +326,8 @@ export const generateShiftsForMonth = (
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
 
-        if (dayOfWeek === 0 || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
-            return;
+        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
+            return; // 休館日・祝日・固定日はスキップ
         }
 
         const availableStaff = staffList.filter(staff =>

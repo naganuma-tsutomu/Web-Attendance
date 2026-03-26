@@ -16,12 +16,14 @@ const AppearanceSettings = () => {
     const updateBusinessHoursMutation = useUpdateBusinessHours();
     const [startHour, setStartHour] = useState(8);
     const [endHour, setEndHour] = useState(19);
+    const [closedDays, setClosedDays] = useState<number[]>([]);
     const [hoursModified, setHoursModified] = useState(false);
 
     useEffect(() => {
         if (businessHours) {
             setStartHour(businessHours.startHour);
             setEndHour(businessHours.endHour);
+            setClosedDays(businessHours.closedDays || []);
             setHoursModified(false);
         }
     }, [businessHours]);
@@ -49,6 +51,13 @@ const AppearanceSettings = () => {
         setHoursModified(true);
     };
 
+    const toggleClosedDay = (day: number) => {
+        setClosedDays(prev => 
+            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+        );
+        setHoursModified(true);
+    };
+
     const handleSaveBusinessHours = async () => {
         if (startHour >= endHour) {
             toast.error('開始時間は終了時間より前に設定してください');
@@ -59,15 +68,16 @@ const AppearanceSettings = () => {
             return;
         }
         try {
-            await updateBusinessHoursMutation.mutateAsync({ startHour, endHour });
-            toast.success('営業時間を保存しました');
+            await updateBusinessHoursMutation.mutateAsync({ startHour, endHour, closedDays });
+            toast.success('営業時間・休館日を保存しました');
             setHoursModified(false);
         } catch {
-            toast.error('営業時間の保存に失敗しました');
+            toast.error('保存に失敗しました');
         }
     };
 
     const hourOptions = Array.from({ length: 25 }, (_, i) => i); // 0-24
+    const DAYS_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -217,9 +227,37 @@ const AppearanceSettings = () => {
                                 </p>
                             )}
 
+                            {/* 休館日設定 */}
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-3">
+                                    休館日（定休日）
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {DAYS_OF_WEEK.map((dayName, idx) => {
+                                        const isClosed = closedDays.includes(idx);
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => toggleClosedDay(idx)}
+                                                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+                                                    isClosed 
+                                                        ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/40 dark:border-red-800 dark:text-red-400' 
+                                                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
+                                                }`}
+                                            >
+                                                {dayName}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                    選択した曜日は自動でスケジュールから除外されます。
+                                </p>
+                            </div>
+
                             {/* 保存ボタン */}
                             {hoursModified && (
-                                <div className="flex justify-end animate-in slide-in-from-bottom-2">
+                                <div className="flex justify-end animate-in slide-in-from-bottom-2 pt-2">
                                     <button
                                         onClick={handleSaveBusinessHours}
                                         disabled={updateBusinessHoursMutation.isPending || startHour >= endHour || endHour - startHour < 2}
@@ -228,7 +266,7 @@ const AppearanceSettings = () => {
                                         {updateBusinessHoursMutation.isPending ? (
                                             <span className="animate-pulse">保存中...</span>
                                         ) : (
-                                            '営業時間を保存'
+                                            '営業時間設定を保存'
                                         )}
                                     </button>
                                 </div>

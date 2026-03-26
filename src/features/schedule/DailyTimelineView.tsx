@@ -1,10 +1,15 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo, useReducer } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
-import { GripVertical, Plus, Trash2, CalendarX, Lock, Unlock, RefreshCw } from 'lucide-react';
-import { updateShift, saveShiftsBatch, deleteShift } from '../../lib/api';
+import { Lock, Unlock } from 'lucide-react';
 import { useBusinessHours } from '../../lib/hooks';
 import { isStaffAvailableReason } from '../../lib/algorithm';
-import { calculateDuration as calculateDurationHours, formatHours, timeToMinutes } from '../../utils/timeUtils';
+import { calculateDuration as calculateDurationHours, timeToMinutes } from '../../utils/timeUtils';
+import { useShiftEdit, toTimeStr, snapTo15, resolveBusinessHours } from './hooks/useShiftEdit';
+import type { DragState, DragType, LocalShiftData } from './hooks/useShiftEdit';
+import TimelineBar, { hexToRgba } from './components/TimelineBar';
+import { AddStaffMenu, SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions } from './components/ShiftActionMenus';
+import type { OffDutyStaffInfo } from './components/ShiftActionMenus';
+import OffDutySection from './components/OffDutySection';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
@@ -17,7 +22,6 @@ interface DailyTimelineViewProps {
     preferences?: ShiftPreference[];
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
-    // 外部から保存アクションを実行するためのリファレンス用
     saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
     readOnly?: boolean;
     isFixed?: boolean;
@@ -26,266 +30,36 @@ interface DailyTimelineViewProps {
     highlightStaffId?: string;
 }
 
-// 時間をHH:MM文字列に変換
-const toTimeStr = (mins: number): string => {
-    const h = Math.floor(mins / 60) % 24;
-    const m = mins % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-// 15分単位にスナップ
-const snapTo15 = (mins: number): number => Math.round(mins / 15) * 15;
-
-const DEFAULT_START_HOUR = 8;
-const DEFAULT_END_HOUR = 19;
-
-type DragType = 'move' | 'resize-left' | 'resize-right';
-
-interface DragState {
-    shiftId: string;
-    type: DragType;
-    startX: number;
-    startY: number;
-    origStartMins: number;
-    origEndMins: number;
-    origClassType: ClassType;
-    origIsError: boolean;
-    trackWidth: number;
-}
-
-// --- Shift editing state managed by useReducer ---
-type LocalShiftData = { start: number; end: number; classType: ClassType; isError: boolean };
-
-interface ShiftEditState {
-    localShifts: Record<string, LocalShiftData>;
-    addedShifts: Shift[];
-    deletedIds: Set<string>;
-    initialShifts: Record<string, LocalShiftData>;
-}
-
-type ShiftEditAction =
-    | { type: 'INIT'; payload: Record<string, LocalShiftData> }
-    | { type: 'UPDATE_LOCAL'; id: string; data: Partial<LocalShiftData> }
-    | { type: 'UPDATE_LOCAL_FN'; updater: (prev: Record<string, LocalShiftData>) => Record<string, LocalShiftData> }
-    | { type: 'ADD_SHIFT'; shift: Shift; localData: LocalShiftData }
-    | { type: 'REMOVE_SHIFT'; id: string }
-    | { type: 'SWAP_STAFF'; oldId: string; newShift: Shift; localData: LocalShiftData };
-
-function shiftEditReducer(state: ShiftEditState, action: ShiftEditAction): ShiftEditState {
-    switch (action.type) {
-        case 'INIT':
-            return {
-                localShifts: action.payload,
-                initialShifts: action.payload,
-                addedShifts: [],
-                deletedIds: new Set(),
-            };
-        case 'UPDATE_LOCAL':
-            return {
-                ...state,
-                localShifts: {
-                    ...state.localShifts,
-                    [action.id]: { ...state.localShifts[action.id], ...action.data },
-                },
-            };
-        case 'UPDATE_LOCAL_FN':
-            return {
-                ...state,
-                localShifts: action.updater(state.localShifts),
-            };
-        case 'ADD_SHIFT':
-            return {
-                ...state,
-                addedShifts: [...state.addedShifts, action.shift],
-                localShifts: { ...state.localShifts, [action.shift.id]: action.localData },
-            };
-        case 'REMOVE_SHIFT': {
-            if (action.id.startsWith('temp-')) {
-                const next = { ...state.localShifts };
-                delete next[action.id];
-                return {
-                    ...state,
-                    addedShifts: state.addedShifts.filter(s => s.id !== action.id),
-                    localShifts: next,
-                };
-            }
-            const nextDeleted = new Set(state.deletedIds);
-            nextDeleted.add(action.id);
-            return { ...state, deletedIds: nextDeleted };
-        }
-        case 'SWAP_STAFF': {
-            const { oldId, newShift, localData } = action;
-            const nextLocal = { ...state.localShifts, [newShift.id]: localData };
-            let nextAdded = [...state.addedShifts, newShift];
-            let nextDeleted = state.deletedIds;
-
-            if (oldId.startsWith('temp-')) {
-                nextAdded = nextAdded.filter(s => s.id !== oldId);
-                delete nextLocal[oldId];
-            } else {
-                nextDeleted = new Set(nextDeleted);
-                nextDeleted.add(oldId);
-            }
-            return { ...state, localShifts: nextLocal, addedShifts: nextAdded, deletedIds: nextDeleted };
-        }
-        default:
-            return state;
-    }
-}
-
-function buildInitialLocalShifts(shifts: Shift[], targetDateStr: string): Record<string, LocalShiftData> {
-    const init: Record<string, LocalShiftData> = {};
-    shifts.filter(s => s.date === targetDateStr).forEach(s => {
-        init[s.id] = { start: timeToMinutes(s.startTime), end: timeToMinutes(s.endTime), classType: s.classType, isError: s.isError ?? false };
-    });
-    return init;
-}
-
 const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
-    date,
-    shifts,
-    staffList,
-    classes,
-    timePatterns,
-    roles,
-    preferences = [],
-    onShiftUpdate,
-    onModifiedChange,
-    saveRef,
-    readOnly = false,
-    isFixed = false,
-    onToggleFixed,
-    hideHeaderToggle,
-    highlightStaffId
+    date, shifts, staffList, classes, timePatterns, roles,
+    preferences = [], onShiftUpdate, onModifiedChange, saveRef,
+    readOnly = false, isFixed = false, onToggleFixed, hideHeaderToggle, highlightStaffId
 }) => {
-    const targetDateStr = format(date, 'yyyy-MM-dd');
+    // ── Business hours ──
+    const { data: businessHoursData } = useBusinessHours();
+    const hours = useMemo(() => resolveBusinessHours(businessHoursData), [businessHoursData]);
 
-    // 営業時間設定を取得
-    const { data: businessHours } = useBusinessHours();
-    const START_HOUR = businessHours?.startHour ?? DEFAULT_START_HOUR;
-    const END_HOUR = businessHours?.endHour ?? DEFAULT_END_HOUR;
-    const DISPLAY_START_MINS = START_HOUR * 60 - 15; // 営業開始15分前
-    const DISPLAY_END_MINS = END_HOUR * 60 + 15;     // 営業終了15分後
-    const DISPLAY_TOTAL_MINS = DISPLAY_END_MINS - DISPLAY_START_MINS;
-
-    const [editState, dispatch] = useReducer(shiftEditReducer, { shifts, targetDateStr }, () => {
-        const init = buildInitialLocalShifts(shifts, targetDateStr);
-        return { localShifts: init, initialShifts: init, addedShifts: [], deletedIds: new Set<string>() };
+    const edit = useShiftEdit({
+        shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef
     });
+    const { localShifts, addedShifts, deletedIds, targetDateStr } = edit;
 
-    const { localShifts, addedShifts, deletedIds, initialShifts } = editState;
-
+    // ── Menu state ──
     const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
     const [showSwapMenu, setShowSwapMenu] = useState<string | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+    // ── Drag state ──
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [dragDeltaY, setDragDeltaY] = useState(0);
     const [hoveredGroup, setHoveredGroup] = useState<ClassType | 'unassigned' | null>(null);
-
     const dragRef = useRef<DragState | null>(null);
     const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-    // シフト時間に合わせてラベル（パターン名）を決定するヘルパー
-    const getShiftLabel = useCallback((startMins: number, endMins: number) => {
-        const startTime = toTimeStr(startMins);
-        const endTime = toTimeStr(endMins);
-        const pattern = timePatterns.find(p => p.startTime === startTime && p.endTime === endTime);
-        return pattern ? pattern.name : 'カスタム';
-    }, [timePatterns]);
-
-    // dateが変わったら再初期化
-    useEffect(() => {
-        dispatch({ type: 'INIT', payload: buildInitialLocalShifts(shifts, targetDateStr) });
-    }, [targetDateStr, shifts]);
-
-    const isModified = addedShifts.length > 0 || deletedIds.size > 0 || Object.keys(localShifts).some(id => {
-        const current = localShifts[id];
-        const initial = initialShifts[id];
-        return initial && (
-            current.start !== initial.start ||
-            current.end !== initial.end ||
-            current.classType !== initial.classType ||
-            current.isError !== initial.isError
-        );
-    });
-
-    useEffect(() => {
-        onModifiedChange?.(isModified);
-    }, [isModified, onModifiedChange]);
-
-    const handleSave = useCallback(async () => {
-        try {
-            const hasInvalidUnassigned = Object.keys(localShifts).some(id => {
-                if (deletedIds.has(id)) return false;
-                const originalShift = [...shifts, ...addedShifts].find(shift => shift.id === id);
-                if (!originalShift) return false;
-                
-                // 未設定の従業員（UNASSIGNED）が、クラスに配置されたまま（isError=false）保存されようとしているかをチェック
-                return originalShift.staffId === 'UNASSIGNED' && localShifts[id].classType !== 'unassigned' && localShifts[id].isError === false;
-            });
-
-            if (hasInvalidUnassigned) {
-                throw new Error('未設定の従業員がクラスに配置されています。保存する前に従業員を割り当ててください。');
-            }
-
-            if (deletedIds.size > 0) {
-                await Promise.all(Array.from(deletedIds).map(id => deleteShift(id)));
-            }
-
-            if (addedShifts.length > 0) {
-                const newShiftsToSave = addedShifts.map(s => {
-                    const local = localShifts[s.id];
-                    return {
-                        date: s.date,
-                        staffId: s.staffId,
-                        startTime: local ? toTimeStr(local.start) : s.startTime,
-                        endTime: local ? toTimeStr(local.end) : s.endTime,
-                        classType: local ? local.classType : s.classType,
-                        isEarlyShift: s.isEarlyShift
-                    };
-                });
-                await saveShiftsBatch(newShiftsToSave);
-            }
-
-            const modifiedIds = Object.keys(localShifts).filter(id => {
-                if (id.startsWith('temp-')) return false;
-                const current = localShifts[id];
-                const initial = initialShifts[id];
-                return initial && (
-                    current.start !== initial.start ||
-                    current.end !== initial.end ||
-                    current.classType !== initial.classType ||
-                    current.isError !== initial.isError
-                );
-            });
-
-            if (modifiedIds.length > 0) {
-                await Promise.all(modifiedIds.map(id => {
-                    const s = localShifts[id];
-                    return updateShift(id, {
-                        startTime: toTimeStr(s.start),
-                        endTime: toTimeStr(s.end),
-                        classType: s.classType,
-                        isError: s.isError,
-                    });
-                }));
-            }
-
-            onShiftUpdate?.();
-        } catch (error) {
-            console.error('Save failed:', error);
-            throw error;
-        }
-    }, [addedShifts, deletedIds, localShifts, initialShifts, onShiftUpdate]);
-
-    useEffect(() => {
-        if (saveRef) {
-            saveRef.current = handleSave;
-        }
-    }, [saveRef, handleSave]);
-
-    const hourLabels = Array.from({ length: (END_HOUR - START_HOUR) + 1 }, (_, i) => START_HOUR + i);
+    // ── Derived data ──
+    const hourLabels = useMemo(() =>
+        Array.from({ length: (hours.endHour - hours.startHour) + 1 }, (_, i) => hours.startHour + i),
+    [hours]);
 
     const dayShifts = useMemo<Shift[]>(() => {
         return [...shifts.filter(s => s.date === targetDateStr), ...addedShifts]
@@ -296,11 +70,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 const indexB = staffList.findIndex(s => s.id === b.staffId);
                 if (indexA !== -1 && indexB !== -1) {
                     if (indexA !== indexB) return indexA - indexB;
-                } else if (indexA !== -1) {
-                    return -1;
-                } else if (indexB !== -1) {
-                    return 1;
-                }
+                } else if (indexA !== -1) return -1;
+                else if (indexB !== -1) return 1;
                 return a.startTime.localeCompare(b.startTime);
             });
     }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
@@ -308,59 +79,44 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     const targetYearMonth = format(date, 'yyyy-MM');
 
     const staffMonthlyHours = useMemo(() => {
-        const hours: Record<string, number> = {};
-        
-        // 既存のシフトから削除予定のものを除外
-        const baseMonthShifts = shifts.filter(s => 
-            s.date.startsWith(targetYearMonth) && 
-            !deletedIds.has(s.id) && 
-            s.staffId !== 'UNASSIGNED'
+        const hrs: Record<string, number> = {};
+        const base = shifts.filter(s =>
+            s.date.startsWith(targetYearMonth) && !deletedIds.has(s.id) && s.staffId !== 'UNASSIGNED'
         );
-        
-        // ローカルで追加されたシフトを含める
-        const addedMonthShifts = addedShifts.filter(s => 
-            s.date.startsWith(targetYearMonth) && 
-            s.staffId !== 'UNASSIGNED'
+        const added = addedShifts.filter(s =>
+            s.date.startsWith(targetYearMonth) && s.staffId !== 'UNASSIGNED'
         );
-
-        [...baseMonthShifts, ...addedMonthShifts].forEach(s => {
+        [...base, ...added].forEach(s => {
             const duration = calculateDurationHours(s.startTime, s.endTime);
-            hours[s.staffId] = (hours[s.staffId] || 0) + duration;
+            hrs[s.staffId] = (hrs[s.staffId] || 0) + duration;
         });
-        return hours;
+        return hrs;
     }, [shifts, addedShifts, deletedIds, targetYearMonth]);
 
-    const offDutyStaff = useMemo(() => {
-        // 希望休があるスタッフはシフトに入っていても表示するため、全スタッフを対象にして
-        // 「シフトなし」または「希望休がある」スタッフをリストアップする
+    const offDutyStaff = useMemo<OffDutyStaffInfo[]>(() => {
         return staffList
             .map(staff => {
                 const isOnShift = dayShifts.some(s => s.staffId === staff.id);
                 const reason = isStaffAvailableReason(staff, date, targetDateStr, preferences);
-                
+
                 let isFullDayPref = false;
                 let isPartialPref = false;
-                let timeStr = null;
+                let timeStr: string | null = null;
                 let isTraining = false;
 
                 const pref = preferences.find(p => p.staffId === staff.id);
-                if (pref) {
-                    if (pref.details && pref.details.length > 0) {
-                        const detail = pref.details.find(d => d.date === targetDateStr);
-                        if (detail) {
-                            if (detail.type === 'training') {
-                                isTraining = true;
-                            } else if (!detail.startTime && !detail.endTime) {
-                                isFullDayPref = true;
-                            } else if (detail.startTime && detail.endTime) {
-                                isPartialPref = true;
-                                timeStr = `${detail.startTime}-${detail.endTime}`;
-                            }
+                if (pref?.details?.length) {
+                    const detail = pref.details.find(d => d.date === targetDateStr);
+                    if (detail) {
+                        if (detail.type === 'training') isTraining = true;
+                        else if (!detail.startTime && !detail.endTime) isFullDayPref = true;
+                        else if (detail.startTime && detail.endTime) {
+                            isPartialPref = true;
+                            timeStr = `${detail.startTime}-${detail.endTime}`;
                         }
                     }
                 }
 
-                // 希望休があるか、シフトに入っていないスタッフのみ表示
                 const hasPreference = isFullDayPref || isPartialPref || isTraining || reason === 'preference';
                 if (!isOnShift || hasPreference) {
                     return { staff, reason, isFullDayPref, isPartialPref, isTraining, timeStr, isOnShift };
@@ -376,60 +132,18 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         return map;
     }, [classes]);
 
-    const getBarStyle = (shift: Shift) => {
-        const s = localShifts[shift.id] || {
-            start: timeToMinutes(shift.startTime),
-            end: timeToMinutes(shift.endTime),
-            classType: shift.classType
-        };
-        const clampedStart = Math.max(START_HOUR * 60, s.start);
-        const clampedEnd = Math.min(END_HOUR * 60, s.end);
-        const left = ((clampedStart - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
-        const width = ((clampedEnd - clampedStart) / DISPLAY_TOTAL_MINS) * 100;
-        return {
-            left: `${left}%`,
-            width: `${Math.max(0.5, width)}%`,
-        };
-    };
-
-    const getBarColor = (classType: ClassType | 'unassigned', isError?: boolean, conflictType?: 'training' | 'preference' | 'none') => {
-        if (isError || classType === 'unassigned') return 'bg-slate-300 border-slate-400 dark:bg-slate-600 dark:border-slate-500';
-        
-        if (conflictType === 'training') return 'bg-amber-300 border-amber-400 dark:bg-amber-500/60 dark:border-amber-500';
-        if (conflictType === 'preference') return 'bg-orange-300 border-orange-400 dark:bg-orange-500/60 dark:border-orange-500';
-
-        // classColorMap に hex 色がある場合はインラインスタイルで適用されるため、
-        // ここでは Tailwind クラスのフォールバックのみ返す
-        if (classColorMap[classType]) return '';
-
-        return 'bg-purple-300 border-purple-400 dark:bg-purple-400/60 dark:border-purple-400';
-    };
-
-    // Hex color → rgba
-    const hexToRgba = (hex: string, alpha: number): string => {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    };
-
-    // スタッフの希望休や研修とシフト時間が衝突しているか判定するヘルパー
+    // ── Conflict helper ──
     const getShiftConflictType = (staffId: string, shiftStartMins: number, shiftEndMins: number): 'training' | 'preference' | 'none' => {
         const pref = preferences.find(p => p.staffId === staffId);
-        if (!pref) return 'none';
-
-        if (pref.details && pref.details.length > 0) {
-            const detail = pref.details.find(d => d.date === targetDateStr);
-            if (!detail) return 'none';
-            if (detail.type === 'training') return 'training';
-            // 終日希望休
-            if (!detail.startTime && !detail.endTime) return 'preference';
-            // 時間帯希望休：シフトとの重複チェック
-            if (detail.startTime && detail.endTime) {
-                const prefStart = timeToMinutes(detail.startTime);
-                const prefEnd = timeToMinutes(detail.endTime);
-                if (shiftStartMins < prefEnd && shiftEndMins > prefStart) return 'preference';
-            }
+        if (!pref?.details?.length) return 'none';
+        const detail = pref.details.find(d => d.date === targetDateStr);
+        if (!detail) return 'none';
+        if (detail.type === 'training') return 'training';
+        if (!detail.startTime && !detail.endTime) return 'preference';
+        if (detail.startTime && detail.endTime) {
+            const prefStart = timeToMinutes(detail.startTime);
+            const prefEnd = timeToMinutes(detail.endTime);
+            if (shiftStartMins < prefEnd && shiftEndMins > prefStart) return 'preference';
         }
         return 'none';
     };
@@ -440,32 +154,22 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         return `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`;
     };
 
+    // ── Drag handlers ──
     const handlePointerDown = useCallback((
-        e: React.PointerEvent,
-        shiftId: string,
-        type: DragType,
-        trackEl: HTMLElement
+        e: React.PointerEvent, shiftId: string, type: DragType, trackEl: HTMLElement
     ) => {
-        // e.preventDefault(); // PointerDown で preventDefault するとフォーカスが当たらなくなる場合があるため注意
         if (readOnly) return;
         const rect = trackEl.getBoundingClientRect();
         const s = localShifts[shiftId];
         dragRef.current = {
-            shiftId,
-            type,
-            startX: e.clientX,
-            startY: e.clientY,
-            origStartMins: s.start,
-            origEndMins: s.end,
-            origClassType: s.classType,
-            origIsError: s.isError,
+            shiftId, type, startX: e.clientX, startY: e.clientY,
+            origStartMins: s.start, origEndMins: s.end,
+            origClassType: s.classType, origIsError: s.isError,
             trackWidth: rect.width,
         };
         setActiveDragId(shiftId);
         setDragDeltaY(0);
         setHoveredGroup(s.isError ? 'unassigned' : s.classType);
-
-        // ポインターキャプチャを設定して、要素外に出てもイベントを追跡できるようにする
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
     }, [localShifts, readOnly]);
 
@@ -474,15 +178,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         if (!drag) return;
 
         const dx = e.clientX - drag.startX;
-        const minsPerPx = DISPLAY_TOTAL_MINS / drag.trackWidth;
+        const minsPerPx = hours.displayTotalMins / drag.trackWidth;
         const deltaMins = snapTo15(dx * minsPerPx);
 
         let newClassType: ClassType | 'unassigned' = drag.origIsError ? 'unassigned' : drag.origClassType;
         if (drag.type === 'move') {
-            const dy = e.clientY - drag.startY;
-            setDragDeltaY(dy);
-            const classNames = classes.map(c => c.id);
-            const groups: (string | 'unassigned')[] = [...classNames, 'unassigned'];
+            setDragDeltaY(e.clientY - drag.startY);
+            const groups: (string | 'unassigned')[] = [...classes.map(c => c.id), 'unassigned'];
             for (const cls of groups) {
                 const el = groupRefs.current[cls];
                 if (el) {
@@ -496,140 +198,53 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             setHoveredGroup(newClassType);
         }
 
-        dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
+        edit.dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
             const orig = { start: drag.origStartMins, end: drag.origEndMins };
             let newStart = orig.start;
             let newEnd = orig.end;
             const MIN_DURATION = 15;
-
-            // クラス間移動（垂直ドラッグ）が発生している場合、時間は固定する
             const isChangingClass = drag.type === 'move' && newClassType !== (drag.origIsError ? 'unassigned' : drag.origClassType);
 
             if (!isChangingClass) {
                 if (drag.type === 'move') {
-                    newStart = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - (orig.end - orig.start), orig.start + deltaMins));
+                    newStart = Math.max(hours.startHour * 60, Math.min(hours.endHour * 60 - (orig.end - orig.start), orig.start + deltaMins));
                     newEnd = newStart + (orig.end - orig.start);
                 } else if (drag.type === 'resize-left') {
-                    newStart = Math.max(START_HOUR * 60, Math.min(orig.end - MIN_DURATION, orig.start + deltaMins));
+                    newStart = Math.max(hours.startHour * 60, Math.min(orig.end - MIN_DURATION, orig.start + deltaMins));
                 } else if (drag.type === 'resize-right') {
-                    newEnd = Math.min(END_HOUR * 60, Math.max(orig.start + MIN_DURATION, orig.end + deltaMins));
+                    newEnd = Math.min(hours.endHour * 60, Math.max(orig.start + MIN_DURATION, orig.end + deltaMins));
                 }
-            } else {
-                // クラスが変更されている間は、開始時の時間を維持する
-                newStart = orig.start;
-                newEnd = orig.end;
             }
 
             return { ...prev, [drag.shiftId]: { ...prev[drag.shiftId], start: newStart, end: newEnd } };
         }});
-    }, [classes]);
+    }, [classes, edit, hours]);
 
     const handlePointerUp = useCallback((e: React.PointerEvent) => {
         const drag = dragRef.current;
         if (!drag) return;
-
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-
         dragRef.current = null;
         const finalClassType = hoveredGroup;
         setActiveDragId(null);
         setDragDeltaY(0);
         setHoveredGroup(null);
 
-        const s = localShifts[drag.shiftId];
-        if (!s) return;
-        dispatch({ type: 'UPDATE_LOCAL', id: drag.shiftId, data: {
+        edit.dispatch({ type: 'UPDATE_LOCAL', id: drag.shiftId, data: {
             classType: (finalClassType && finalClassType !== 'unassigned') ? finalClassType : drag.origClassType,
             isError: finalClassType === 'unassigned'
         }});
-    }, [localShifts, hoveredGroup]);
+    }, [hoveredGroup, edit]);
 
-    const handlePatternChange = (shiftId: string, patternId: string) => {
-        const pattern = timePatterns.find(p => p.id === patternId);
-        if (!pattern) return;
-
-        dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: {
-            start: timeToMinutes(pattern.startTime),
-            end: timeToMinutes(pattern.endTime)
-        }});
-    };
-
-    const handleTimeInputChange = (shiftId: string, field: 'start' | 'end', value: string) => {
-        const mins = timeToMinutes(value);
-        const snapped = snapTo15(mins);
-        dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
-            const curr = prev[shiftId];
-            const MIN_DURATION = 15;
-            if (field === 'start') {
-                const newStart = Math.max(START_HOUR * 60, Math.min(curr.end - MIN_DURATION, snapped));
-                return { ...prev, [shiftId]: { ...curr, start: newStart } };
-            } else {
-                const newEnd = Math.min(END_HOUR * 60, Math.max(curr.start + MIN_DURATION, snapped));
-                return { ...prev, [shiftId]: { ...curr, end: newEnd } };
-            }
-        }});
-    };
-
-    const handleAddStaff = (staffId: string, classType: ClassType) => {
-        const staff = staffList.find(s => s.id === staffId);
-        if (!staff) return;
-        const startTime = staff.defaultWorkingHoursStart || "10:00";
-        const endTime = staff.defaultWorkingHoursEnd || "15:00";
-        const tempId = `temp-${crypto.randomUUID()}-${staffId}`;
-        const newShift: Shift = {
-            id: tempId,
-            date: targetDateStr,
-            staffId: staffId,
-            startTime: startTime,
-            endTime: endTime,
-            classType: classType,
-            isEarlyShift: false,
-            isError: false,
-        };
-        dispatch({ type: 'ADD_SHIFT', shift: newShift, localData: {
-            start: timeToMinutes(startTime),
-            end: timeToMinutes(endTime),
-            classType: classType,
-            isError: false
-        }});
-        setShowAddMenu(null);
-    };
-
-    const handleRemoveShift = (shiftId: string) => {
-        dispatch({ type: 'REMOVE_SHIFT', id: shiftId });
-    };
-
-    const handleSwapStaff = (oldShiftId: string, newStaffId: string) => {
-        const oldShift = [...shifts.filter(s => s.date === targetDateStr), ...addedShifts].find(s => s.id === oldShiftId);
-        if (!oldShift) return;
-
-        const oldLocal = localShifts[oldShiftId] || {
-            start: timeToMinutes(oldShift.startTime),
-            end: timeToMinutes(oldShift.endTime),
-            classType: oldShift.classType,
-            isError: oldShift.isError || false
-        };
-
-        const tempId = `temp-${crypto.randomUUID()}-${newStaffId}`;
-        const newShift: Shift = {
-            ...oldShift,
-            id: tempId,
-            staffId: newStaffId,
-            isError: false
-        };
-
-        dispatch({ type: 'SWAP_STAFF', oldId: oldShiftId, newShift, localData: { ...oldLocal, isError: false } });
-        setShowSwapMenu(null);
-    };
-
-    const renderGridLines = () => {
+    // ── Grid lines ──
+    const renderGridLines = useCallback(() => {
         const lines = [];
-        const totalSlots = (END_HOUR - START_HOUR) * 4;
+        const totalSlots = (hours.endHour - hours.startHour) * 4;
         for (let i = 0; i <= totalSlots; i++) {
-            const currentMins = START_HOUR * 60 + i * 15;
+            const currentMins = hours.startHour * 60 + i * 15;
             const isHour = i % 4 === 0;
             const isHalf = i % 2 === 0 && !isHour;
-            const leftOffset = ((currentMins - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
+            const leftOffset = ((currentMins - hours.displayStartMins) / hours.displayTotalMins) * 100;
             lines.push(
                 <div
                     key={i}
@@ -638,12 +253,34 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                         : isHalf
                             ? 'border-slate-200 dark:border-slate-700 border-dashed'
                             : 'border-slate-100 dark:border-slate-800'
-                        }`}
+                    }`}
                     style={{ left: `${leftOffset}%` }}
                 />
             );
         }
         return lines;
+    }, [hours]);
+
+    // ── Class group color helper ──
+    const getDynamicColor = (classId: string, className: string) => {
+        const colorMap: Record<string, string> = {
+            'class_smile': 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800',
+            'class_niji': 'text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-100 dark:border-yellow-800',
+            'class_special': 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800',
+            'unassigned': 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
+        };
+        if (colorMap[classId]) return colorMap[classId];
+        if (className === 'スマイル組') return colorMap['class_smile'];
+        if (className === '虹組') return colorMap['class_niji'];
+        if (className === '特殊' || className === 'ヘルプ') return colorMap['class_special'];
+        if (classId === 'unassigned') return colorMap['unassigned'];
+        return 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800';
+    };
+
+    // ── Add from OffDutySection ──
+    const handleAddFromOffDuty = (staffId: string, classType: ClassType) => {
+        edit.handleAddStaff(staffId, classType);
+        setShowAddMenu(null);
     };
 
     return (
@@ -658,8 +295,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     <button
                         onClick={onToggleFixed}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border shadow-sm ${
-                            isFixed 
-                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' 
+                            isFixed
+                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
                         }`}
                     >
@@ -668,10 +305,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     </button>
                 </div>
             )}
+
             <div className="min-w-full md:min-w-[800px] overflow-visible flex flex-col bg-white dark:bg-slate-800">
-                {/* Header Row - Hide in readOnly mode to save space and avoid layout issues */}
+                {/* Header Row */}
                 {!readOnly && (
-                    <div className={`flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20`}>
+                    <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20">
                         <div className="hidden sm:flex w-[480px] flex-shrink-0">
                             <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
                             <div className="w-36 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">シフトパターン</div>
@@ -679,25 +317,14 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">終了</div>
                             <div className="w-14 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">時間</div>
                         </div>
-                        {/* Mobile Header Column for info */}
-                        <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">
-                            スタッフ
-                        </div>
+                        <div className="sm:hidden w-24 flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">スタッフ</div>
                         <div className="flex-1 relative h-8 border-l border-slate-300 dark:border-slate-600">
                             {hourLabels.map((h) => {
-                                const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
+                                const leftPct = ((h * 60 - hours.displayStartMins) / hours.displayTotalMins) * 100;
                                 return (
                                     <React.Fragment key={h}>
-                                        <div
-                                            className="absolute top-0 bottom-0 border-l border-slate-300/50 dark:border-slate-600/50"
-                                            style={{ left: `${leftPct}%` }}
-                                        />
-                                        <div
-                                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5 z-10"
-                                            style={{ left: `${leftPct}%` }}
-                                        >
-                                            {h}
-                                        </div>
+                                        <div className="absolute top-0 bottom-0 border-l border-slate-300/50 dark:border-slate-600/50" style={{ left: `${leftPct}%` }} />
+                                        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5 z-10" style={{ left: `${leftPct}%` }}>{h}</div>
                                     </React.Fragment>
                                 );
                             })}
@@ -705,21 +332,15 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     </div>
                 )}
 
-                {/* Simplified Header for readOnly mode */}
+                {/* Simplified readOnly header */}
                 {readOnly && (
                     <div className="flex bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 sticky top-0 z-20">
                         <div className="w-44 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center">名前 / 時間</div>
                         <div className="flex-1 relative h-6">
                             {hourLabels.map((h) => {
-                                const leftPct = ((h * 60 - DISPLAY_START_MINS) / DISPLAY_TOTAL_MINS) * 100;
+                                const leftPct = ((h * 60 - hours.displayStartMins) / hours.displayTotalMins) * 100;
                                 return (
-                                    <div
-                                        key={h}
-                                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[9px] text-slate-400"
-                                        style={{ left: `${leftPct}%` }}
-                                    >
-                                        {h}
-                                    </div>
+                                    <div key={h} className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[9px] text-slate-400" style={{ left: `${leftPct}%` }}>{h}</div>
                                 );
                             })}
                         </div>
@@ -733,36 +354,17 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             const local = localShifts[shift.id];
                             const currentClassId = local ? local.classType : shift.classType;
                             const isError = local ? local.isError : shift.isError;
-
-                            if (cls.id === 'unassigned') {
-                                return (isError || !classes.some(c => c.id === currentClassId));
-                            }
+                            if (cls.id === 'unassigned') return (isError || !classes.some(c => c.id === currentClassId));
                             return currentClassId === cls.id && !isError;
                         });
 
                         if (groupShifts.length === 0 && (cls.id === 'unassigned' || readOnly)) return null;
 
                         const groupTitle = cls.name === '特殊' ? 'ヘルプ' : cls.name;
-
-                        // classes テーブルの color フィールドから動的に色を解決
-                        const getDynamicColor = (classId: string) => {
-                            if (classId === 'unassigned') {
-                                return 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700';
-                            }
-                            // color フィールドがある場合はインラインスタイルで適用するため、
-                            // Tailwind クラスは最小限のテキスト色のみ返す
-                            if (classColorMap[classId]) {
-                                return 'text-slate-700 dark:text-slate-200';
-                            }
-                            // color フィールドがないクラスの汎用フォールバック
-                            return 'text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800';
-                        };
-
-                        const titleColor = getDynamicColor(cls.id);
-                        const hexColor = classColorMap[cls.id];
-                        const titleCustomStyle = hexColor && hoveredGroup !== cls.id ? {
-                            backgroundColor: hexToRgba(hexColor, 0.12),
-                            borderColor: hexToRgba(hexColor, 0.25),
+                        const titleColor = getDynamicColor(cls.id, cls.name);
+                        const titleCustomStyle = cls.color && hoveredGroup !== cls.id ? {
+                            backgroundColor: hexToRgba(cls.color, 0.12),
+                            borderColor: hexToRgba(cls.color, 0.25),
                         } : {};
 
                         return (
@@ -771,8 +373,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 ref={el => { groupRefs.current[cls.id] = el; }}
                                 className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm relative ${
                                     dayShifts.some(s => (showSwapMenu === s.id || deleteConfirmId === s.id) && (localShifts[s.id]?.classType === cls.id || (s.classType === cls.id && !localShifts[s.id]))) || showAddMenu === cls.id
-                                    ? 'z-50 overflow-visible'
-                                    : 'z-[5] overflow-visible'
+                                    ? 'z-50 overflow-visible' : 'z-[5] overflow-visible'
                                 }`}
                             >
                                 <div
@@ -785,56 +386,29 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                             <span className="ml-2 text-[10px] text-indigo-500 animate-pulse">ここへ移動</span>
                                         )}
                                     </div>
-
                                     {!readOnly && cls.id !== 'unassigned' && (
-                                        <div className="relative">
-                                            <button
-                                                onClick={() => setShowAddMenu(prev => prev === cls.id ? null : (cls.id as ClassType))}
-                                                className="flex items-center gap-1 px-2 py-0.5 text-[10px] bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 rounded border border-current transition-colors"
-                                            >
-                                                <Plus className="w-3 h-3" />
-                                                追加
-                                            </button>
-
-                                            {showAddMenu === cls.id && (
-                                                <>
-                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowAddMenu(null); }} />
-                                                    <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto">
-                                                    {staffList
-                                                        .filter(st => !dayShifts.some(s => s.staffId === st.id))
-                                                        .length === 0 ? (
-                                                        <div className="px-3 py-2 text-[11px] text-slate-400 text-center">追加可能な従業員はいません</div>
-                                                    ) : (
-                                                        staffList
-                                                            .filter(st => !dayShifts.some(s => s.staffId === st.id))
-                                                            .map(st => (
-                                                                <button
-                                                                    key={st.id}
-                                                                    onClick={() => handleAddStaff(st.id, cls.id as ClassType)}
-                                                                    className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                                                                >
-                                                                    {st.name}
-                                                                </button>
-                                                            ))
-                                                    )}
-                                                </div>
-                                                </>
-                                            )}
-                                        </div>
+                                        <AddStaffMenu
+                                            classId={cls.id as ClassType}
+                                            staffList={staffList}
+                                            dayShifts={dayShifts}
+                                            showAddMenu={showAddMenu}
+                                            onToggle={(id) => setShowAddMenu(id)}
+                                            onAddStaff={(staffId, classType) => { edit.handleAddStaff(staffId, classType); setShowAddMenu(null); }}
+                                        />
                                     )}
                                 </div>
+
                                 <div>
                                     {groupShifts.length === 0 && (
-                                        <div className="p-4 text-center text-slate-400 dark:text-slate-500 text-[10px]">
-                                            人員が割り当てられていません
-                                        </div>
+                                        <div className="p-4 text-center text-slate-400 dark:text-slate-500 text-[10px]">人員が割り当てられていません</div>
                                     )}
                                     {groupShifts.map((shift) => {
                                         const staff = staffList.find(s => s.id === shift.staffId);
                                         const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
-                                        const s = localShifts[shift.id] ?? { start: timeToMinutes(shift.startTime), end: timeToMinutes(shift.endTime), classType: shift.classType };
+                                        const s = localShifts[shift.id] ?? { start: timeToMinutes(shift.startTime), end: timeToMinutes(shift.endTime), classType: shift.classType, isError: shift.isError ?? false } as LocalShiftData;
                                         const isDragging = activeDragId === shift.id;
                                         const allowedPatterns = roles.find(r => r.name === staff?.role)?.patterns || [];
+                                        const conflictType = !s.isError ? getShiftConflictType(shift.staffId, s.start, s.end) : 'none' as const;
 
                                         return (
                                             <div
@@ -852,120 +426,34 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                     <span className="ml-1 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>
                                                                 )}
                                                             </div>
-                                                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-20 group-hover/name:opacity-100 transition-all bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-0.5 py-0.5 rounded shadow border border-slate-200 dark:border-slate-700/80">
-                                                                <button 
-                                                                    onClick={(e) => { e.stopPropagation(); setShowSwapMenu(prev => prev === shift.id ? null : shift.id); setDeleteConfirmId(null); }}
-                                                                    className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
-                                                                    title="入れ替え"
-                                                                >
-                                                                    <RefreshCw className="w-3.5 h-3.5" />
-                                                                </button>
-                                                                <div className="w-px h-3 bg-slate-200 dark:bg-slate-700"></div>
-                                                                <button 
-                                                                    onClick={(e) => { 
-                                                                        e.stopPropagation(); 
-                                                                        setDeleteConfirmId(prev => prev === shift.id ? null : shift.id);
-                                                                        setShowSwapMenu(null);
-                                                                    }} 
-                                                                    className={`p-1 rounded transition-colors ${deleteConfirmId === shift.id ? 'text-red-500 bg-red-50 dark:bg-red-900/30' : 'text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
-                                                                    title="削除"
-                                                                >
-                                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
-                                                            
-                                                            {deleteConfirmId === shift.id && (
-                                                                <>
-                                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} />
-                                                                    <div className="absolute left-full top-0 ml-1 z-[60] w-56 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/50 rounded-lg shadow-2xl py-3 px-3 animate-in fade-in zoom-in-95 duration-200">
-                                                                        <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-3">
-                                                                            このシフトを削除しますか？
-                                                                        </div>
-                                                                        <div className="flex gap-2">
-                                                                            <button 
-                                                                                onClick={(e) => { e.stopPropagation(); handleRemoveShift(shift.id); setDeleteConfirmId(null); }} 
-                                                                                className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-[11px] rounded transition-colors font-bold shadow-sm whitespace-nowrap"
-                                                                            >
-                                                                                削除
-                                                                            </button>
-                                                                            <button 
-                                                                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }} 
-                                                                                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-[11px] rounded transition-colors font-medium border border-slate-200 dark:border-slate-600 text-center whitespace-nowrap"
-                                                                            >
-                                                                                キャンセル
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                </>
-                                                            )}
-                                                            
-                                                            {showSwapMenu === shift.id && (() => {
-                                                                const currentStaff = staffList.find(s => s.id === shift.staffId);
-                                                                const availableStaff = currentStaff
-                                                                    ? offDutyStaff.filter(({ staff }) => staff.role === currentStaff.role)
-                                                                    : offDutyStaff;
-                                                                
-                                                                return (
-                                                                    <>
-                                                                        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowSwapMenu(null); }} />
-                                                                        <div className="absolute left-full top-0 ml-1 z-[60] w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-                                                                            <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 mb-1 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 flex justify-between">
-                                                                                <span>入れ替え候補 {currentStaff ? `(${currentStaff.role})` : '(全職種)'}</span>
-                                                                                <span className="text-[8px] font-normal lowercase">月間労働時間</span>
-                                                                            </div>
-                                                                            {availableStaff.length === 0 ? (
-                                                                                <div className="px-3 py-4 text-[11px] text-slate-400 text-center italic">
-                                                                                    {currentStaff ? '同じスタッフ区分の待機スタッフはいません' : '待機スタッフはいません'}
-                                                                                </div>
-                                                                            ) : (
-                                                                                availableStaff.map(({ staff, reason, isFullDayPref, isPartialPref, isTraining, timeStr }) => {
-                                                                                    const monthlyHours = formatHours(staffMonthlyHours[staff.id] || 0);
-                                                                                    const target = staff.hoursTarget || 0;
-                                                                                    const isOver = target > 0 && Number(monthlyHours) > target;
-                                                                                    
-                                                                                    return (
-                                                                                        <button
-                                                                                            key={staff.id}
-                                                                                            onClick={(e) => { e.stopPropagation(); handleSwapStaff(shift.id, staff.id); }}
-                                                                                            className="w-full text-left px-3 py-2 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group/candidate"
-                                                                                        >
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="font-medium group-hover/candidate:text-indigo-600 dark:group-hover/candidate:text-indigo-400">{staff.name}</span>
-                                                                                                {(reason === 'preference' || isFullDayPref || isTraining) && (
-                                                                                                    <span className={`text-[8px] ${isTraining ? 'text-amber-500' : 'text-red-500'} font-bold mt-0.5 flex items-center gap-0.5`}>
-                                                                                                        <CalendarX className="w-2 h-2" /> {isTraining ? '研修' : '希望休(終日)'}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                                {isPartialPref && timeStr && (
-                                                                                                    <span className="text-[8px] text-red-500 font-bold mt-0.5 flex items-center gap-0.5">
-                                                                                                        <CalendarX className="w-2 h-2" /> 希望休({timeStr})
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                            <div className="text-right">
-                                                                                                <div className={`text-[10px] font-mono ${isOver ? 'text-red-500 font-bold' : 'text-slate-500'}`}>
-                                                                                                    {monthlyHours}h
-                                                                                                </div>
-                                                                                                {target > 0 && (
-                                                                                                    <div className="text-[8px] text-slate-400">
-                                                                                                        目標: {target}h
-                                                                                                    </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </button>
-                                                                                    );
-                                                                                })
-                                                                            )}
-                                                                        </div>
-                                                                    </>
-                                                                );
-                                                            })()}
+                                                            <ShiftRowActions
+                                                                shiftId={shift.id}
+                                                                showSwapMenu={showSwapMenu}
+                                                                deleteConfirmId={deleteConfirmId}
+                                                                onToggleSwap={setShowSwapMenu}
+                                                                onToggleDelete={setDeleteConfirmId}
+                                                            />
+                                                            <DeleteConfirmPopup
+                                                                shiftId={shift.id}
+                                                                deleteConfirmId={deleteConfirmId}
+                                                                onConfirm={(id) => { edit.handleRemoveShift(id); setDeleteConfirmId(null); }}
+                                                                onCancel={() => setDeleteConfirmId(null)}
+                                                            />
+                                                            <SwapStaffMenu
+                                                                shiftId={shift.id}
+                                                                currentStaff={staff}
+                                                                offDutyStaff={offDutyStaff}
+                                                                staffMonthlyHours={staffMonthlyHours}
+                                                                showSwapMenu={showSwapMenu}
+                                                                onToggle={setShowSwapMenu}
+                                                                onSwapStaff={(oldId, newId) => { edit.handleSwapStaff(oldId, newId); setShowSwapMenu(null); }}
+                                                            />
                                                         </div>
                                                         <div className="w-36 border-r border-slate-200 dark:border-slate-700 flex items-center px-1">
                                                             <select
                                                                 className="w-full text-[10px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
                                                                 value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
-                                                                onChange={(e) => handlePatternChange(shift.id, e.target.value)}
+                                                                onChange={(e) => edit.handlePatternChange(shift.id, e.target.value)}
                                                             >
                                                                 <option value="">カスタム</option>
                                                                 {allowedPatterns.map(p => (
@@ -974,10 +462,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                             </select>
                                                         </div>
                                                         <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                            <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                            <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => edit.handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
                                                         </div>
                                                         <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                            <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                            <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => edit.handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
                                                         </div>
                                                         <div className="w-14 p-2 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
                                                             {calculateDuration(s.start, s.end)}
@@ -998,44 +486,22 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 )}
 
                                                 {/* Timeline Track */}
-                                                <div className={`flex-1 relative ${readOnly ? 'py-1 min-h-[36px]' : 'py-2 min-h-[52px]'} w-full bg-white dark:bg-slate-800`} id={`track-${shift.id}`} style={readOnly ? { touchAction: 'pan-y' } : {}}>
-                                                    {renderGridLines()}
-                                                    {(() => {
-                                                        const currentClassType = isDragging && hoveredGroup ? hoveredGroup : (readOnly ? shift.classType : s.classType);
-                                                        const currentIsError = readOnly ? shift.isError : s.isError;
-                                                        const conflictType = !currentIsError ? getShiftConflictType(shift.staffId, s.start, s.end) : 'none';
-                                                        const hexColor = !currentIsError && conflictType === 'none' ? classColorMap[currentClassType] : undefined;
-                                                        const barColorStyle = hexColor ? {
-                                                            backgroundColor: hexToRgba(hexColor, 0.55),
-                                                            borderColor: hexToRgba(hexColor, 0.85),
-                                                        } : {};
-                                                        return (
-                                                    <div
-                                                        className={`absolute ${readOnly ? 'top-1 bottom-1' : 'top-2 bottom-2'} rounded flex items-center ${hexColor ? '' : getBarColor(currentClassType, currentIsError, conflictType)} ${isDragging ? 'z-50 shadow-2xl scale-105 opacity-100 ring-2 ring-indigo-500 cursor-grabbing' : highlightStaffId === shift.staffId ? 'z-20 ring-2 ring-indigo-500 ring-offset-1 border-indigo-400 shadow-md transform scale-[1.01]' : `z-10 border shadow ${readOnly ? '' : 'cursor-grab active:cursor-grabbing hover:scale-[1.02]'}`} transition-all duration-75`}
-                                                        style={{ ...getBarStyle(shift), ...barColorStyle, transform: isDragging ? `translateY(${dragDeltaY}px)` : 'none', ...(readOnly ? { pointerEvents: 'none' } : {}) }}
-                                                        {...(!readOnly ? {
-                                                            onPointerDown: (e: React.PointerEvent) => {
-                                                                const trackEl = document.getElementById(`track-${shift.id}`);
-                                                                if (trackEl) handlePointerDown(e, shift.id, 'move', trackEl);
-                                                            },
-                                                            onPointerUp: handlePointerUp,
-                                                            onPointerCancel: handlePointerUp,
-                                                        } : {})}
-                                                    >
-                                                        {!readOnly && (
-                                                            <div className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-l transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-left', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
-                                                        )}
-                                                        <div className="flex-1 px-1 sm:px-2 text-[9px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-800 truncate text-center select-none pointer-events-none uppercase tracking-tighter">
-                                                            {!readOnly && <GripVertical className="inline w-3 h-3 mr-1 opacity-40" />}
-                                                            {getShiftLabel(readOnly ? timeToMinutes(shift.startTime) : s.start, readOnly ? timeToMinutes(shift.endTime) : s.end)}
-                                                        </div>
-                                                        {!readOnly && (
-                                                            <div className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center z-20 rounded-r transition-opacity hover:bg-black/5" onPointerDown={e => { e.stopPropagation(); if (readOnly) return; const trackEl = document.getElementById(`track-${shift.id}`); if (trackEl) handlePointerDown(e, shift.id, 'resize-right', trackEl); }}><div className="w-1 h-5 bg-slate-600/30 rounded-full" /></div>
-                                                        )}
-                                                    </div>
-                                                        );
-                                                    })()}
-                                                </div>
+                                                <TimelineBar
+                                                    shift={shift}
+                                                    localData={s}
+                                                    isDragging={isDragging}
+                                                    dragDeltaY={dragDeltaY}
+                                                    hoveredGroup={hoveredGroup}
+                                                    highlightStaffId={highlightStaffId}
+                                                    readOnly={readOnly}
+                                                    classColorMap={classColorMap}
+                                                    timePatterns={timePatterns}
+                                                    hours={hours}
+                                                    conflictType={conflictType}
+                                                    onPointerDown={handlePointerDown}
+                                                    onPointerUp={handlePointerUp}
+                                                    renderGridLines={renderGridLines}
+                                                />
                                             </div>
                                         );
                                     })}
@@ -1046,79 +512,15 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 </div>
             </div>
 
-
             {/* Off-duty staff section */}
-            <div className="mt-6 pb-4 px-4">
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">本日のお休み</span>
-                    <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700/50"></div>
-                </div>
-                
-                <div className="flex flex-wrap gap-2">
-                    {offDutyStaff.length === 0 ? (
-                        <div className="w-full text-center py-4 text-xs text-slate-400 italic">
-                            全員シフトに入っています
-                        </div>
-                    ) : (
-                        offDutyStaff.map(({ staff, reason, isFullDayPref, isPartialPref, isTraining, timeStr, isOnShift }) => (
-                            <div key={staff.id} className="relative">
-                                <button
-                                    onClick={() => !readOnly && !isOnShift && setShowAddMenu(prev => prev === staff.id ? null : staff.id)}
-                                    disabled={readOnly || isOnShift}
-                                    className={`group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[11px] font-medium ${
-                                        isOnShift
-                                            ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400 opacity-90 cursor-default'
-                                            : isTraining
-                                                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
-                                                : reason === 'preference' || isPartialPref
-                                                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                                                    : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                                    } ${!isOnShift && !readOnly ? (isTraining) ? 'hover:bg-amber-100 dark:hover:bg-amber-900/40' : (reason === 'preference' || isPartialPref) ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''}`}
-                                >
-                                    {(reason === 'preference' || isPartialPref || isTraining) && <CalendarX className="w-3 h-3 opacity-70" />}
-                                    <span>{staff.name}</span>
-                                    {(reason === 'preference' || isFullDayPref || isTraining) && (
-                                        <span className={`text-[9px] ${isTraining ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-900/50'} px-1 rounded`}>
-                                            {isTraining ? '研修' : '希望休(終日)'}
-                                        </span>
-                                    )}
-                                    {isPartialPref && timeStr && !isTraining && (
-                                        <span className="text-[9px] bg-red-100 dark:bg-red-900/50 px-1 rounded">希望休({timeStr})</span>
-                                    )}
-                                    {isOnShift && (
-                                        <span className="text-[9px] bg-orange-100 dark:bg-orange-900/50 px-1 rounded font-bold">※シフトあり</span>
-                                    )}
-                                    {!readOnly && !isOnShift && (
-                                        <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
-                                    )}
-                                </button>
-
-                                {!readOnly && !isOnShift && showAddMenu === staff.id && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowAddMenu(null); }} />
-                                        <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                        <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700 mb-1">
-                                            追加先のクラスを選択
-                                        </div>
-                                        {classes.map(cls => (
-                                            <button
-                                                key={cls.id}
-                                                onClick={() => handleAddStaff(staff.id, cls.id)}
-                                                className="w-full text-left px-3 py-1.5 text-[11px] text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-between group/cls"
-                                            >
-                                                <span>{cls.name}</span>
-                                                <Plus className="w-3 h-3 text-indigo-500 opacity-0 group-hover/cls:opacity-100" />
-                                            </button>
-                                        ))}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
+            <OffDutySection
+                offDutyStaff={offDutyStaff}
+                classes={classes}
+                readOnly={readOnly}
+                showAddMenu={showAddMenu}
+                onToggleAddMenu={setShowAddMenu}
+                onAddStaff={handleAddFromOffDuty}
+            />
         </div>
     );
 };

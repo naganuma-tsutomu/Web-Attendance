@@ -412,7 +412,8 @@ export const useScheduleData = () => {
                 holidays.map(h => h.date),
                 requirements,
                 mergedContext,
-                Array.from(fixedDates)
+                Array.from(fixedDates),
+                businessHours?.closedDays
             );
             const errCount = generatedShifts.filter(s => s.staffId === 'UNASSIGNED').length;
 

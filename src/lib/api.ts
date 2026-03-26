@@ -1,9 +1,4 @@
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday } from '../types';
-
-export interface BusinessHours {
-    startHour: number;
-    endHour: number;
-}
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours } from '../types';
 
 const API_BASE = '/api';
 

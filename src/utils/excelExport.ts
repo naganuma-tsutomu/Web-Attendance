@@ -4,8 +4,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { calculateDuration } from './timeUtils';
-import type { Staff, Shift, ShiftClass, ShiftTimePattern } from '../types';
-import type { BusinessHours } from '../lib/api';
+import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours } from '../types';
 
 /**
  * デフォルト営業時間

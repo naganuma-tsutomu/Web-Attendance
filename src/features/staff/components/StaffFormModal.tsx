@@ -324,7 +324,7 @@ const StaffFormModal = ({
                             onClick={onClose}
                             className="flex-1 px-6 py-4 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest text-xs"
                         >
-                            Cancel
+                            キャンセル
                         </button>
                         <button
                             type="submit"
@@ -334,10 +334,10 @@ const StaffFormModal = ({
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span>Saving...</span>
+                                    <span>保存中...</span>
                                 </>
                             ) : (
-                                <span>Confirm & Save</span>
+                                <span>保存</span>
                             )}
                         </button>
                     </div>

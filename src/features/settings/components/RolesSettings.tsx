@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Plus, Trash2, Loader2, CheckCircle, GripVertical, Edit2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { createRole, deleteRole, updateRole, updateRolePatterns, updateRoleOrder } from '../../../lib/api';
+import { handleApiError } from '../../../lib/errorHandler';
 import type { DynamicRole, ShiftTimePattern } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 import RoleEditModal from './RoleEditModal';
@@ -32,7 +34,6 @@ interface RolesSettingsProps {
     timePatterns: ShiftTimePattern[];
     loading: boolean;
     onUpdate: () => void;
-    showMessage: (msg: string) => void;
 }
 
 const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: {
@@ -168,7 +169,7 @@ const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: 
     );
 };
 
-const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showMessage }: RolesSettingsProps) => {
+const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: RolesSettingsProps) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -208,10 +209,10 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
         try {
             await createRole(newRole.name, newRole.hoursTarget, newRole.patternIds, newRole.weeklyHoursTarget);
             setNewRole({ name: '', hoursTarget: null, weeklyHoursTarget: null, patternIds: [] });
-            showMessage('スタッフ区分を追加しました');
+            toast.success('スタッフ区分を追加しました');
             onUpdate();
         } catch (err) {
-            console.error(err);
+            handleApiError(err, 'スタッフ区分の追加に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -258,12 +259,11 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
             // Update patterns
             await updateRolePatterns(editingId, editFormData.patternIds);
 
-            showMessage('スタッフ区分を更新しました');
+            toast.success('スタッフ区分を更新しました');
             setIsEditModalOpen(false);
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('エラーが発生しました');
+            handleApiError(err, 'スタッフ区分の更新に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -277,7 +277,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
             setDeleteConfirmId(null);
             onUpdate();
         } catch (err) {
-            console.error(err);
+            handleApiError(err, 'スタッフ区分の削除に失敗しました');
         } finally {
             setIsDeleting(false);
         }
@@ -305,10 +305,8 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate, showM
                 order: index + 1
             }));
             await updateRoleOrder(orders);
-            showMessage('優先順位を更新しました');
         } catch (err) {
-            console.error('Failed to update role order', err);
-            showMessage('並び替えの保存に失敗しました');
+            handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();
         }
     };

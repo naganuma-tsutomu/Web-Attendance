@@ -6,6 +6,7 @@ import { ja } from 'date-fns/locale';
 import type { Staff, Shift } from '../types';
 import { formatHours, calculateDuration } from '../utils/timeUtils';
 import { toast } from 'sonner';
+import { handleApiError } from './errorHandler';
 
 /**
  * シフトデータをExcel形式で書き出す
@@ -59,8 +60,7 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
     XLSX.writeFile(workbook, `シフト表_${yearMonth}.xlsx`);
     toast.success('Excelファイルを出力しました');
     } catch (err) {
-        console.error('Excel出力エラー:', err);
-        toast.error('Excelファイルの出力に失敗しました');
+        handleApiError(err, 'Excelファイルの出力に失敗しました');
     }
 };
 
@@ -139,7 +139,6 @@ export const exportToPDF = (yearMonth: string, staffs: Staff[], shifts: Shift[])
 
     toast.warning('PDFの日本語表示には制限がある場合があります。きれいに印刷する場合はブラウザの印刷機能をご利用ください。', { duration: 6000 });
     } catch (err) {
-        console.error('PDF出力エラー:', err);
-        toast.error('PDFファイルの出力に失敗しました');
+        handleApiError(err, 'PDFファイルの出力に失敗しました');
     }
 };

@@ -4,6 +4,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin, X } from 'lucide-react';
 import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses, getTimePatterns, getRoles } from '../lib/api';
+import { handleApiError } from '../lib/errorHandler';
 import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole } from '../types';
 import DailyTimelineView from '../features/schedule/DailyTimelineView';
 
@@ -73,7 +74,7 @@ const StaffPreferencePage = () => {
                 setPreferences(details);
                 setSavedPreferences(details);
             } catch (err) {
-                console.error(err);
+                handleApiError(err, 'データの読み込みに失敗しました');
             } finally {
                 setLoading(false);
             }

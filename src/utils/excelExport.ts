@@ -4,6 +4,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { calculateDuration } from './timeUtils';
+import { handleApiError } from '../lib/errorHandler';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours } from '../types';
 
 /**
@@ -231,7 +232,6 @@ export const exportToExcelAdvanced = async (
     saveAs(new Blob([buffer]), `シフト詳細表_${yearMonth}_数式連動.xlsx`);
     toast.success('Excelファイルを出力しました', { id: toastId });
     } catch (err) {
-        console.error('Excel出力エラー:', err);
-        toast.error('Excelファイルの出力に失敗しました', { id: toastId });
+        handleApiError(err, 'Excelファイルの出力に失敗しました');
     }
 };

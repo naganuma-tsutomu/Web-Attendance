@@ -17,7 +17,9 @@ import {
     arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { toast } from 'sonner';
 import { getClasses, getShiftRequirements, saveShiftRequirements } from '../../lib/api';
+import { handleApiError } from '../../lib/errorHandler';
 import type { ShiftClass, ShiftRequirement } from '../../types';
 
 // 曜日パターンの選択肢
@@ -395,10 +397,9 @@ const ShiftRequirementsPage = () => {
         try {
             await saveShiftRequirements(requirements);
             setSavedRequirements(requirements);
-            showMessage('保存しました');
+            toast.success('保存しました');
         } catch (err) {
-            console.error('Failed to save', err);
-            showError('保存に失敗しました');
+            handleApiError(err, '保存に失敗しました');
         } finally {
             setSaving(false);
         }

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { handleApiError } from '../../lib/errorHandler';
 import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -88,8 +89,7 @@ const StaffPage = () => {
             setDeleteConfirm(null);
             toast.success("スタッフを削除しました。");
         } catch (err) {
-            console.error(err);
-            toast.error("削除に失敗しました。");
+            handleApiError(err, '削除に失敗しました');
         } finally {
             setIsDeleting(false);
         }
@@ -150,8 +150,7 @@ const StaffPage = () => {
             setIsModalOpen(false);
             toast.success(editingStaff ? "スタッフ情報を更新しました。" : "スタッフを追加しました。");
         } catch (err) {
-            console.error(err);
-            toast.error("保存に失敗しました。");
+            handleApiError(err, '保存に失敗しました');
         }
     };
 
@@ -171,10 +170,7 @@ const StaffPage = () => {
             
             // 楽観的更新のためにキャッシュを直接操作することも可能だが、ここでは再フェッチに任せるか直接mutationを実行
             updateOrderMut.mutate(orders, {
-                onError: (err) => {
-                    console.error("Failed to save order", err);
-                    toast.error("並び替えの保存に失敗しました。");
-                }
+                onError: (err) => handleApiError(err, '並び替えの保存に失敗しました')
             });
         }
     };

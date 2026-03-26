@@ -54,7 +54,6 @@ interface ClassesSettingsProps {
     loading: boolean;
     onUpdate: () => void;
     setClasses: React.Dispatch<React.SetStateAction<ShiftClass[]>>;
-    showMessage: (msg: string) => void;
 }
 
 const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocation, isOverlay = false }: {
@@ -167,7 +166,7 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
     );
 };
 
-const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showMessage }: ClassesSettingsProps) => {
+const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: ClassesSettingsProps) => {
     const [newClass, setNewClass] = useState({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
     const [editingClass, setEditingClass] = useState<ShiftClass | null>(null);
     const [editForm, setEditForm] = useState({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
@@ -188,11 +187,10 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
         try {
             await createClass(newClass.name, newClass.auto_allocate, newClass.color);
             setNewClass({ name: '', auto_allocate: 1, color: CLASS_COLORS[0] });
-            showMessage(`クラス「${newClass.name}」を追加しました`);
+            toast.success(`クラス「${newClass.name}」を追加しました`);
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('エラー：クラスの追加に失敗しました');
+            handleApiError(err, 'クラスの追加に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -202,11 +200,10 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
         const newValue = cls.auto_allocate === 1 ? 0 : 1;
         try {
             await updateClass(cls.id, { auto_allocate: newValue });
-            showMessage(`設定を${newValue === 1 ? '有効' : '無効'}に更新しました`);
+            toast.success(`設定を${newValue === 1 ? '有効' : '無効'}に更新しました`);
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('設定の更新に失敗しました');
+            handleApiError(err, '設定の更新に失敗しました');
         }
     };
 
@@ -219,12 +216,11 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
         setIsDeleting(true);
         try {
             await deleteClass(deleteConfirm.id);
-            showMessage(`クラス「${deleteConfirm.name}」を削除しました`);
+            toast.success(`クラス「${deleteConfirm.name}」を削除しました`);
             setDeleteConfirm(null);
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('エラー：削除に失敗しました');
+            handleApiError(err, '削除に失敗しました');
         } finally {
             setIsDeleting(false);
         }
@@ -241,11 +237,10 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
         try {
             await updateClass(editingClass.id, { name: editForm.name, color: editForm.color, auto_allocate: editForm.auto_allocate });
             setEditingClass(null);
-            showMessage('クラスを更新しました');
+            toast.success('クラスを更新しました');
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('エラー：更新に失敗しました');
+            handleApiError(err, '更新に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -267,8 +262,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses, showM
             const orders = newClasses.map((c, index) => ({ id: c.id, order: index }));
             await updateClassOrder(orders);
         } catch (err) {
-            console.error('Failed to update class order', err);
-            showMessage('並び替えの保存に失敗しました');
+            handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();
         }
     };

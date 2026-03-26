@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Clock, Loader2, GripVertical, Calendar, UserCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { createTimePattern, deleteTimePattern, updateTimePattern, updateTimePatternOrder, getRoles } from '../../../lib/api';
+import { handleApiError } from '../../../lib/errorHandler';
 import type { ShiftTimePattern, DynamicRole } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 import TimePatternEditModal from './TimePatternEditModal';
@@ -31,7 +33,6 @@ interface TimePatternsSettingsProps {
     setPatterns: React.Dispatch<React.SetStateAction<ShiftTimePattern[]>>;
     loading: boolean;
     onUpdate: () => void;
-    showMessage: (msg: string) => void;
 }
 
 const DAYS = [
@@ -140,7 +141,7 @@ const SortablePatternRow = ({ pattern, roles, onDelete, onEdit, isOverlay = fals
     );
 };
 
-const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMessage }: TimePatternsSettingsProps) => {
+const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: TimePatternsSettingsProps) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -172,7 +173,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
     );
 
     useEffect(() => {
-        getRoles().then(setRoles).catch(console.error);
+        getRoles().then(setRoles).catch(err => handleApiError(err, 'スタッフ区分の読み込みに失敗しました'));
     }, []);
 
     const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -180,15 +181,14 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
         setIsSubmitting(true);
         try {
             await createTimePattern(formData);
-            showMessage('パターンを追加しました');
+            toast.success('パターンを追加しました');
             setFormData({
                 name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
                 sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
             });
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('エラーが発生しました');
+            handleApiError(err, 'パターンの追加に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -200,12 +200,11 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
         setIsSubmitting(true);
         try {
             await updateTimePattern(editingId, editFormData);
-            showMessage('パターンを更新しました');
+            toast.success('パターンを更新しました');
             setIsEditModalOpen(false);
             onUpdate();
         } catch (err) {
-            console.error(err);
-            showMessage('エラーが発生しました');
+            handleApiError(err, 'パターンの更新に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -229,10 +228,10 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
         try {
             await deleteTimePattern(deleteConfirmId);
             setDeleteConfirmId(null);
-            showMessage('パターンを削除しました');
+            toast.success('パターンを削除しました');
             onUpdate();
         } catch (err) {
-            console.error(err);
+            handleApiError(err, 'パターンの削除に失敗しました');
         } finally {
             setIsDeleting(false);
         }
@@ -266,8 +265,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate, showMe
         try {
             await updateTimePatternOrder(newPatterns.map((p, i) => ({ id: p.id, order: i })));
         } catch (err) {
-            console.error(err);
-            showMessage('並び替えの保存に失敗しました');
+            handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();
         }
     };

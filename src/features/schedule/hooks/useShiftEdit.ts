@@ -250,7 +250,7 @@ export function useShiftEdit({
 
             onShiftUpdate?.();
         } catch (error) {
-            console.error('Save failed:', error);
+            console.error(error);
             throw error;
         }
     }, [addedShifts, deletedIds, localShifts, initialShifts, shifts, onShiftUpdate]);

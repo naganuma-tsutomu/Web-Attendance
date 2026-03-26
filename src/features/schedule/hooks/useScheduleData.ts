@@ -3,6 +3,7 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { handleApiError } from '../../../lib/errorHandler';
 import { useQueries } from '@tanstack/react-query';
 import { 
     syncHolidaysIfNeeded, getShiftRequirements,
@@ -455,8 +456,7 @@ export const useScheduleData = () => {
                 toast.success('シフトの自動生成が完了しました！');
             }
         } catch (err) {
-            console.error(err);
-            toast.error('シフト生成中にエラーが発生しました。');
+            handleApiError(err, 'シフト生成中にエラーが発生しました');
         } finally {
             setGenerating(false);
             setIsActionExecuting(false);
@@ -483,8 +483,7 @@ export const useScheduleData = () => {
                     toast.success('削除しました');
                     setConfirmAction(null);
                 } catch (err) {
-                    console.error(err);
-                    toast.error('削除に失敗しました。');
+                    handleApiError(err, '削除に失敗しました');
                 } finally {
                     setIsActionExecuting(false);
                 }
@@ -523,8 +522,7 @@ export const useScheduleData = () => {
             }
             toast.success('保存しました');
         } catch (err) {
-            console.error(err);
-            toast.error('保存に失敗しました。');
+            handleApiError(err, '保存に失敗しました');
             throw err;
         }
     };
@@ -535,7 +533,7 @@ export const useScheduleData = () => {
         if (next.has(dateStr)) next.delete(dateStr);
         else next.add(dateStr);
         saveFixedDatesMutation.mutate({ yearMonth: targetYearMonth, dates: Array.from(next) }, {
-            onError: (err) => console.error('Failed to save fixed dates', err)
+            onError: (err) => handleApiError(err, '固定日の保存に失敗しました')
         });
     };
 

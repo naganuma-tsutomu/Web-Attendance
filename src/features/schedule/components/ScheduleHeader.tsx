@@ -5,10 +5,7 @@ import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, Chevron
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours } from '../../../types';
 import { exportToPDF } from '../../../lib/exportUtils';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
-
-const getWeekStartsOn = (): 0 | 1 => {
-    return (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
-};
+import { getWeekStartsOn } from '../../../utils/dateUtils';
 
 interface ScheduleHeaderProps {
     currentDate: Date;

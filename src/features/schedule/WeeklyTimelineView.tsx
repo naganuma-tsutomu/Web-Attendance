@@ -3,6 +3,7 @@ import { format, startOfWeek, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ExternalLink } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
+import { getWeekStartsOn } from '../../utils/dateUtils';
 import DailyTimelineView from './DailyTimelineView';
 
 interface WeeklyTimelineViewProps {
@@ -25,7 +26,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
     onDateClick
 }) => {
     // 週の開始日を取得
-    const weekStartsOn = (parseInt(localStorage.getItem('weekStartsOn') || '0') as 0 | 1);
+    const weekStartsOn = getWeekStartsOn();
     const weekStart = startOfWeek(startDate, { locale: ja, weekStartsOn });
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 

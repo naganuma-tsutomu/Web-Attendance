@@ -66,12 +66,12 @@ export const exportToExcelAdvanced = async (
         // 固定休の判定
         const dayOfWeek = getDay(date);
         const nthWeek = Math.ceil(date.getDate() / 7);
-        const hasAvailableConfig = staff.availableDays?.some((d: any) => {
+        const hasAvailableConfig = (staff as any).availableDays?.some((d: any) => {
             const dayNum = typeof d === 'number' ? d : d.day;
             const weekMatch = typeof d === 'number' || !d.weeks || d.weeks.includes(nthWeek);
             return dayNum === dayOfWeek && weekMatch;
         });
-        
+
         if (!hasAvailableConfig) {
             return { text: '[固] ' + staff.name, color: 'FFFF0000' }; // Red
         }
@@ -119,13 +119,26 @@ export const exportToExcelAdvanced = async (
 
     worksheet.columns = columns;
 
-    // ヘッダー行の時刻セルを1時間単位で結合
+    // --- 1行目: 年月タイトル行 ---
+    const totalCols = 8 + TOTAL_SLOTS;
+    const titleRow = worksheet.getRow(1);
+    titleRow.getCell(1).value = `${year}年${month}月`;
+    worksheet.mergeCells(1, 1, 1, totalCols);
+    titleRow.getCell(1).font = { bold: true, size: 14 };
+    titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EAF6' } };
+    titleRow.height = 24;
+
+    // 2行目: 列ヘッダー行を挿入
+    worksheet.insertRow(2, columns.map((c: any) => c.header));
+
+    // ヘッダー行(2行目)の時刻セルを1時間単位で結合
     for (let h = 0; h < END_HOUR - START_HOUR; h++) {
-        const startCol = 9 + h * 4; // 8+1
-        worksheet.mergeCells(1, startCol, 1, startCol + 3);
+        const startCol = 9 + h * 4; // 休み列追加で+1
+        worksheet.mergeCells(2, startCol, 2, startCol + 3);
     }
 
-    let currentRow = 2;
+    let currentRow = 3;
     const dateRowRanges: { start: number, end: number }[] = [];
 
     days.forEach((day) => {
@@ -181,11 +194,8 @@ export const exportToExcelAdvanced = async (
             let rowHighlightColor: string | null = null;
             if (shift && excelSettings?.highlightRules) {
                 const rule = excelSettings.highlightRules.find(r => r.staffId === shift.staffId);
-                if (rule) {
-                    // 通常時間と異なるかチェック (08:00 vs 8:00 などの些細な差異を許容するため文字列比較前に正規化を検討するが、一旦直接比較)
-                    if (shift.startTime !== rule.regularStartTime || shift.endTime !== rule.regularEndTime) {
-                        rowHighlightColor = rule.highlightColor;
-                    }
+                if (rule && (shift.startTime !== rule.regularStartTime || shift.endTime !== rule.regularEndTime)) {
+                    rowHighlightColor = rule.highlightColor;
                 }
             }
 
@@ -241,17 +251,17 @@ export const exportToExcelAdvanced = async (
 
     // --- 条件付き書式 (土日) ---
     worksheet.addConditionalFormatting({
-        ref: `A2:H${lastRow}`, // A-G to A-H
+        ref: `A3:H${lastRow}`,
         rules: [
-            { type: 'expression', formulae: ['$B2="日"'], priority: 1, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
-            { type: 'expression', formulae: ['$B2="土"'], priority: 2, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
+            { type: 'expression', formulae: ['$B3="日"'], priority: 1, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
+            { type: 'expression', formulae: ['$B3="土"'], priority: 2, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
         ]
     });
 
     // --- 条件付き書式 (タイムラインの動的色付け) ---
-    const firstTimelineCol = worksheet.getColumn(9).letter; // 8 to 9
+    const firstTimelineCol = worksheet.getColumn(9).letter;
     const lastTimelineCol = worksheet.getColumn(8 + TOTAL_SLOTS).letter;
-    const slotFormula = `(${START_HOUR * 60}+(COLUMN()-9)*15)/1440`; 
+    const slotFormula = `(${START_HOUR * 60}+(COLUMN()-9)*15)/1440`;
 
     classes.forEach(cls => {
         const barColor = cls.color
@@ -259,12 +269,12 @@ export const exportToExcelAdvanced = async (
             : getClassColor(cls.id);
         const escapedName = cls.name.replace(/"/g, '""');
         worksheet.addConditionalFormatting({
-            ref: `${firstTimelineCol}2:${lastTimelineCol}${lastRow}`,
+            ref: `${firstTimelineCol}3:${lastTimelineCol}${lastRow}`,
             rules: [
                 {
                     type: 'expression',
-                    // $E2=区分, $F2=開始, $G2=終了, COLUMN()で現在列のスロット時間を動的計算
-                    formulae: [`AND($E2="${escapedName}",$F2<=${slotFormula},$G2>${slotFormula})`],
+                    // $E3=区分, $F3=開始, $G3=終了, COLUMN()で現在列のスロット時間を動的計算
+                    formulae: [`AND($E3="${escapedName}",$F3<=${slotFormula},$G3>${slotFormula})`],
                     priority: 1,
                     style: {
                         fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: barColor } }
@@ -275,11 +285,10 @@ export const exportToExcelAdvanced = async (
     });
 
     // --- スタイル仕上げ ---
-    const totalCols = 8 + TOTAL_SLOTS;
     const dateStartRows = new Set(dateRowRanges.map(r => r.start));
     const dateEndRows = new Set(dateRowRanges.map(r => r.end));
 
-    for (let rowNumber = 1; rowNumber <= lastRow; rowNumber++) {
+    for (let rowNumber = 2; rowNumber <= lastRow; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
         const isDateStart = dateStartRows.has(rowNumber);
         const isDateEnd = dateEndRows.has(rowNumber);
@@ -290,13 +299,13 @@ export const exportToExcelAdvanced = async (
             const isLastCol = colNumber === totalCols;
 
             cell.border = {
-                top: { style: rowNumber === 1 ? 'thin' : isDateStart ? 'medium' : 'thin' },
+                top: { style: rowNumber === 2 ? 'thin' : isDateStart ? 'medium' : 'thin' },
                 bottom: { style: isDateEnd ? 'medium' : 'thin' },
                 left: { style: isFirstCol ? 'medium' : 'thin' },
                 right: { style: isLastCol ? 'medium' : 'thin' }
             };
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            if (rowNumber === 1) {
+            if (rowNumber === 2) {
                 cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
             }

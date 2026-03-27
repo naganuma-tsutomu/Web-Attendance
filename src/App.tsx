@@ -18,6 +18,7 @@ import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import StaffPreferencePage from './pages/StaffPreferencePage';
 import LandingPage from './pages/LandingPage';
+import UserManualPage from './pages/UserManualPage';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -64,6 +65,7 @@ const AppRoutes = () => {
           <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           <Route path="settings/excel" element={<ExcelSettingsPage />} />
+          <Route path="manual" element={<UserManualPage />} />
         </Route>
         <Route path="/staff/login" element={<StaffLoginPage />} />
         <Route path="/staff/preference" element={<StaffPreferencePage />} />

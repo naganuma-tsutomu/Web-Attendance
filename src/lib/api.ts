@@ -383,3 +383,19 @@ export const updateExcelSettings = async (data: ExcelSettings): Promise<void> =>
         body: JSON.stringify(data)
     });
 };
+
+// ==========================================
+// Facility API (施設名設定)
+// ==========================================
+
+export const getFacilityName = async (): Promise<string> => {
+    const res = await apiFetch<{ name: string }>('/settings/facility');
+    return res.name;
+};
+
+export const updateFacilityName = async (name: string): Promise<void> => {
+    await apiFetch('/settings/facility', {
+        method: 'PUT',
+        body: JSON.stringify({ name }),
+    });
+};

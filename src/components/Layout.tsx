@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog, FileSpreadsheet } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog, FileSpreadsheet, BookOpen } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
+import { useFacilityName } from '../lib/hooks';
 
 const Layout = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { logout, currentUser } = useAuth();
+    const { data: facilityName = '施設名未設定' } = useFacilityName();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const closeMenu = () => {
@@ -30,6 +32,7 @@ const Layout = () => {
         { path: '/admin/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
         { path: '/admin/settings/appearance', label: '基本設定', icon: Palette },
         { path: '/admin/settings/excel', label: 'Excel出力設定', icon: FileSpreadsheet },
+        { path: '/admin/manual', label: 'ユーザーマニュアル', icon: BookOpen },
     ];
 
     return (
@@ -38,7 +41,7 @@ const Layout = () => {
             <header className="md:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center">
                     <Moon className="w-6 h-6 text-indigo-500 mr-2" />
-                    <h1 className="text-lg font-bold tracking-wider text-slate-800 dark:text-white">星空児童館</h1>
+                    <h1 className="text-lg font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
                 </div>
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -65,7 +68,7 @@ const Layout = () => {
             `}>
                 <div className="hidden md:flex p-6 items-center justify-center border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
                     <Moon className="w-8 h-8 text-indigo-500 mr-3" />
-                    <h1 className="text-xl font-bold tracking-wider text-slate-800 dark:text-white">星空児童館</h1>
+                    <h1 className="text-xl font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
                 </div>
 
                 <div className="flex-1 py-6 px-4 space-y-2 flex flex-col overflow-y-auto">

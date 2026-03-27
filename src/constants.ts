@@ -8,12 +8,15 @@
 export const UNASSIGNED_STAFF_ID = 'UNASSIGNED';
 
 // ── 曜日パターン（ShiftRequirement.dayOfWeek 用） ──
+// 0=日, 1=月, ..., 6=土 に加えて以下の拡張値を使用する。
+// ※ 休館日設定の CLOSED_DAY_HOLIDAY とは別スコープの値。
 
-/** 平日（月〜金） */
-export const DAY_WEEKDAYS = 7;
-
-/** 毎日 */
-export const DAY_EVERYDAY = 8;
+export const SHIFT_DAY = {
+    /** 平日（月〜金）*/
+    WEEKDAYS: 7,
+    /** 毎日 */
+    EVERYDAY: 8,
+} as const;
 
 // ── デフォルト休館日 ──
 

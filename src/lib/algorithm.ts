@@ -1,6 +1,6 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek } from 'date-fns';
 import { timeToMinutes } from '../utils/timeUtils';
-import { UNASSIGNED_STAFF_ID, DAY_WEEKDAYS, DAY_EVERYDAY, DEFAULT_CLOSED_DAYS } from '../constants';
+import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS } from '../constants';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern } from '../types';
 
 /**
@@ -252,9 +252,9 @@ const getRequirementsForDay = (
             const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
             let dayMatches = false;
-            if (req.dayOfWeek === DAY_EVERYDAY) {
+            if (req.dayOfWeek === SHIFT_DAY.EVERYDAY) {
                 dayMatches = true; // Everyday
-            } else if (req.dayOfWeek === DAY_WEEKDAYS) {
+            } else if (req.dayOfWeek === SHIFT_DAY.WEEKDAYS) {
                 dayMatches = isWeekday; // Weekdays only
             } else {
                 dayMatches = req.dayOfWeek === dayOfWeek;

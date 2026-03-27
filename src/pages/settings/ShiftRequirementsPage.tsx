@@ -21,10 +21,11 @@ import { toast } from 'sonner';
 import { getClasses, getShiftRequirements, saveShiftRequirements } from '../../lib/api';
 import { handleApiError } from '../../lib/errorHandler';
 import type { ShiftClass, ShiftRequirement } from '../../types';
+import { SHIFT_DAY } from '../../constants';
 
 // 曜日パターンの選択肢
 const dayOfWeekOptions = [
-    { value: 7, label: '平日（月〜金）' },
+    { value: SHIFT_DAY.WEEKDAYS, label: '平日（月〜金）' },
     { value: 1, label: '月曜日' },
     { value: 2, label: '火曜日' },
     { value: 3, label: '水曜日' },
@@ -47,7 +48,7 @@ const priorityOptions = [
 const createEmptyRequirement = (): ShiftRequirement => ({
     id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     classId: '',
-    dayOfWeek: 7,
+    dayOfWeek: SHIFT_DAY.WEEKDAYS,
     startTime: '09:00',
     endTime: '18:00',
     minStaffCount: 1,

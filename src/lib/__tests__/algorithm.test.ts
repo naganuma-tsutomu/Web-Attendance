@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateShiftsForMonth, isStaffAvailable } from '../algorithm';
-import { UNASSIGNED_STAFF_ID } from '../../constants';
+import { UNASSIGNED_STAFF_ID, SHIFT_DAY } from '../../constants';
 import type { Staff, ShiftPreference, DynamicRole, ShiftRequirement } from '../../types';
 
 // テスト用のスタッフデータ
@@ -11,7 +11,7 @@ const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role:
 
 // テスト用の必要人数データ
 const makeReq = (overrides: Partial<ShiftRequirement> & { id: string; classId: string }): ShiftRequirement => ({
-    dayOfWeek: 8, // Everyday
+    dayOfWeek: SHIFT_DAY.EVERYDAY,
     startTime: '09:00',
     endTime: '18:00',
     minStaffCount: 1,
@@ -222,7 +222,7 @@ describe('generateShiftsForMonth', () => {
     it('ShiftRequirementのdayOfWeek=7（平日のみ）が正しく機能する', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
         // 平日のみ (dayOfWeek: 7)
-        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', dayOfWeek: 7 })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', dayOfWeek: SHIFT_DAY.WEEKDAYS })];
 
         const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
         

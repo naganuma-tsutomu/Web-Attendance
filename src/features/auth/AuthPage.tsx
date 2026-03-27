@@ -24,18 +24,6 @@ const AuthPage = () => {
         }
     };
 
-    const handleTestLogin = async () => {
-        setIsLoading(true);
-        setError('');
-        try {
-            await login('admin');
-        } catch (err: any) {
-            setError('テストログインに失敗しました。');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 shrink-0">
             <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl p-8 border border-white dark:border-slate-800 animate-in zoom-in-95 duration-300 relative">
@@ -87,14 +75,6 @@ const AuthPage = () => {
                             <span>{isLoading ? 'ログイン中...' : 'ログイン'}</span>
                         </button>
 
-                        <button
-                            type="button"
-                            onClick={handleTestLogin}
-                            disabled={isLoading}
-                            className="w-full py-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all font-bold text-sm cursor-pointer disabled:cursor-not-allowed"
-                        >
-                            【検証用】パスワードなしでログイン
-                        </button>
                     </div>
                 </form>
             </div>

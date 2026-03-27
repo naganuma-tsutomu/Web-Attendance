@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { updateShift, saveShiftsBatch, deleteShift } from '../../../lib/api';
 import { timeToMinutes } from '../../../utils/timeUtils';
-import { UNASSIGNED_STAFF_ID } from '../../../constants';
+import { UNASSIGNED_STAFF_ID, SHIFT_STEP_MINS } from '../../../constants';
 import type { Shift, ClassType, ShiftTimePattern } from '../../../types';
 
 // ── Default Constants ──
@@ -21,8 +21,8 @@ export interface BusinessHoursConfig {
 export function resolveBusinessHours(bh?: { startHour?: number; endHour?: number } | null): BusinessHoursConfig {
     const startHour = bh?.startHour ?? DEFAULT_START_HOUR;
     const endHour = bh?.endHour ?? DEFAULT_END_HOUR;
-    const displayStartMins = startHour * 60 - 15;
-    const displayEndMins = endHour * 60 + 15;
+    const displayStartMins = startHour * 60 - SHIFT_STEP_MINS;
+    const displayEndMins = endHour * 60 + SHIFT_STEP_MINS;
     return { startHour, endHour, displayStartMins, displayEndMins, displayTotalMins: displayEndMins - displayStartMins };
 }
 
@@ -34,7 +34,7 @@ export const toTimeStr = (mins: number): string => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
-export const snapTo15 = (mins: number): number => Math.round(mins / 15) * 15;
+export const snapTo15 = (mins: number): number => Math.round(mins / SHIFT_STEP_MINS) * SHIFT_STEP_MINS;
 
 // ── Types ──
 
@@ -276,12 +276,11 @@ export function useShiftEdit({
         const snapped = snapTo15(mins);
         dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
             const curr = prev[shiftId];
-            const MIN_DURATION = 15;
             if (field === 'start') {
-                const newStart = Math.max(hours.startHour * 60, Math.min(curr.end - MIN_DURATION, snapped));
+                const newStart = Math.max(hours.startHour * 60, Math.min(curr.end - SHIFT_STEP_MINS, snapped));
                 return { ...prev, [shiftId]: { ...curr, start: newStart } };
             } else {
-                const newEnd = Math.min(hours.endHour * 60, Math.max(curr.start + MIN_DURATION, snapped));
+                const newEnd = Math.min(hours.endHour * 60, Math.max(curr.start + SHIFT_STEP_MINS, snapped));
                 return { ...prev, [shiftId]: { ...curr, end: newEnd } };
             }
         }});

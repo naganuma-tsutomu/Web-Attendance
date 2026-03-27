@@ -23,6 +23,11 @@ export const DEFAULT_CLOSED_DAYS: number[] = [0];
 /** 休館日設定において祝日を意味する特別定数 */
 export const CLOSED_DAY_HOLIDAY = 7;
 
+// ── シフト時間グリッド ──
+
+/** シフトのスナップ単位・最小時間・タイムライン表示パディング（分） */
+export const SHIFT_STEP_MINS = 15;
+
 // ── カレンダーイベント色 ──
 
 export const CALENDAR_COLORS = {

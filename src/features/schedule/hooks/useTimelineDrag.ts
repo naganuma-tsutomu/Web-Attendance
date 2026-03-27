@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { snapTo15 } from './useShiftEdit';
+import { SHIFT_STEP_MINS } from '../../../constants';
 import type { DragState, DragType, LocalShiftData } from './useShiftEdit';
 import type { ClassType, ShiftClass } from '../../../types';
 
@@ -72,7 +73,6 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
             const orig = { start: drag.origStartMins, end: drag.origEndMins };
             let newStart = orig.start;
             let newEnd = orig.end;
-            const MIN_DURATION = 15;
             const isChangingClass = drag.type === 'move' && newClassType !== (drag.origIsError ? 'unassigned' : drag.origClassType);
 
             if (!isChangingClass) {
@@ -80,9 +80,9 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
                     newStart = Math.max(hours.startHour * 60, Math.min(hours.endHour * 60 - (orig.end - orig.start), orig.start + deltaMins));
                     newEnd = newStart + (orig.end - orig.start);
                 } else if (drag.type === 'resize-left') {
-                    newStart = Math.max(hours.startHour * 60, Math.min(orig.end - MIN_DURATION, orig.start + deltaMins));
+                    newStart = Math.max(hours.startHour * 60, Math.min(orig.end - SHIFT_STEP_MINS, orig.start + deltaMins));
                 } else if (drag.type === 'resize-right') {
-                    newEnd = Math.min(hours.endHour * 60, Math.max(orig.start + MIN_DURATION, orig.end + deltaMins));
+                    newEnd = Math.min(hours.endHour * 60, Math.max(orig.start + SHIFT_STEP_MINS, orig.end + deltaMins));
                 }
             }
 

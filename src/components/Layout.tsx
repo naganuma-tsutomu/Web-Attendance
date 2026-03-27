@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog, FileSpreadsheet } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog, FileSpreadsheet, BookOpen } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { useFacilityName } from '../lib/hooks';
 
@@ -32,6 +32,7 @@ const Layout = () => {
         { path: '/admin/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
         { path: '/admin/settings/appearance', label: '基本設定', icon: Palette },
         { path: '/admin/settings/excel', label: 'Excel出力設定', icon: FileSpreadsheet },
+        { path: '/admin/manual', label: 'ユーザーマニュアル', icon: BookOpen },
     ];
 
     return (

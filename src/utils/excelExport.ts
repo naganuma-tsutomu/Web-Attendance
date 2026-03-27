@@ -6,15 +6,12 @@ import { toast } from 'sonner';
 import { calculateDuration } from './timeUtils';
 import { handleApiError } from '../lib/errorHandler';
 import { createHolidayMap, isHoliday } from '../lib/holidayUtils';
+import { SHIFT_STEP_MINS } from '../constants';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings } from '../types';
 
-/**
- * デフォルト営業時間
- * 15分刻み
- */
 const DEFAULT_START_HOUR = 8;
 const DEFAULT_END_HOUR = 19;
-const SLOTS_PER_HOUR = 4;
+const SLOTS_PER_HOUR = 60 / SHIFT_STEP_MINS;
 
 /**
  * HH:MM 形式を Excel 用の数値（1日=1.0）に変換
@@ -111,8 +108,8 @@ export const exportToExcelAdvanced = async (
 
     // タイムラインのヘッダー（15分刻み）
     for (let i = 0; i < TOTAL_SLOTS; i++) {
-        const hour = START_HOUR + Math.floor(i / 4);
-        const min = (i % 4) * 15;
+        const hour = START_HOUR + Math.floor(i / SLOTS_PER_HOUR);
+        const min = (i % SLOTS_PER_HOUR) * SHIFT_STEP_MINS;
         const timeStr = `${hour}:${min === 0 ? '00' : String(min).padStart(2, '0')}`;
         columns.push({ header: min === 0 ? timeStr : '', key: `t_${i}`, width: 2.5 });
     }
@@ -261,7 +258,7 @@ export const exportToExcelAdvanced = async (
     // --- 条件付き書式 (タイムラインの動的色付け) ---
     const firstTimelineCol = worksheet.getColumn(9).letter;
     const lastTimelineCol = worksheet.getColumn(8 + TOTAL_SLOTS).letter;
-    const slotFormula = `(${START_HOUR * 60}+(COLUMN()-9)*15)/1440`;
+    const slotFormula = `(${START_HOUR * 60}+(COLUMN()-9)*${SHIFT_STEP_MINS})/1440`;
 
     classes.forEach(cls => {
         const barColor = cls.color
@@ -314,7 +311,7 @@ export const exportToExcelAdvanced = async (
 
     // 書き出し
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), `シフト詳細表_${yearMonth}_数式連動.xlsx`);
+    saveAs(new Blob([buffer]), `シフト表_${yearMonth}.xlsx`);
     toast.success('Excelファイルを出力しました', { id: toastId });
     } catch (err) {
         handleApiError(err, 'Excelファイルの出力に失敗しました');

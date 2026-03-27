@@ -5,7 +5,8 @@ import {
     getPreferencesByMonth, getShiftRequirements, getFixedDates, saveShiftsBatch,
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
     getBusinessHours, updateBusinessHours,
-    getExcelSettings, updateExcelSettings
+    getExcelSettings, updateExcelSettings,
+    getFacilityName, updateFacilityName
 } from './api';
 import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings } from '../types';
 
@@ -21,6 +22,7 @@ export const QUERY_KEYS = {
     shiftRequirements: ['shiftRequirements'],
     fixedDates: (monthStr: string) => ['fixedDates', monthStr],
     businessHours: ['businessHours'],
+    facilityName: ['facilityName'],
 };
 
 // ==============================
@@ -225,6 +227,28 @@ export const useUpdateExcelSettings = () => {
         mutationFn: (data: ExcelSettings) => updateExcelSettings(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['excelSettings'] });
+        },
+    });
+};
+
+// ==============================
+// Facility Name (施設名設定)
+// ==============================
+
+export const useFacilityName = () => {
+    return useQuery({
+        queryKey: QUERY_KEYS.facilityName,
+        queryFn: getFacilityName,
+        staleTime: 30 * 60 * 1000,
+    });
+};
+
+export const useUpdateFacilityName = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (name: string) => updateFacilityName(name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.facilityName });
         },
     });
 };

@@ -46,7 +46,7 @@ const priorityOptions = [
 
 // 新規要件の初期値を生成
 const createEmptyRequirement = (): ShiftRequirement => ({
-    id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `temp-${crypto.randomUUID()}`,
     classId: '',
     dayOfWeek: SHIFT_DAY.WEEKDAYS,
     startTime: '09:00',

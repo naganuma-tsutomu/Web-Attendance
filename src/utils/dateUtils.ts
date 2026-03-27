@@ -15,7 +15,12 @@ export const STORAGE_KEYS = {
 // 週の開始日
 // ==========================================
 export const getWeekStartsOn = (): 0 | 1 => {
-    return (parseInt(localStorage.getItem(STORAGE_KEYS.WEEK_STARTS_ON) || '0') as 0 | 1);
+    try {
+        const val = parseInt(localStorage.getItem(STORAGE_KEYS.WEEK_STARTS_ON) || '0');
+        return val === 1 ? 1 : 0;
+    } catch {
+        return 0;
+    }
 };
 
 export const setWeekStartsOn = (value: 0 | 1): void => {

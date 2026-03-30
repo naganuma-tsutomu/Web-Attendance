@@ -72,7 +72,7 @@ const ExcelSettings = () => {
             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                 <div className="flex items-start justify-between">
                     <div className="flex gap-3">
-                        <FileSpreadsheet className="w-5 h-5 text-green-600 mt-1" />
+                        <FileSpreadsheet className="w-5 h-5 text-green-600 shrink-0 mt-1" />
                         <div>
                             <p className="font-bold text-slate-800 dark:text-white text-lg">Excel出力の表示制御</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -83,14 +83,14 @@ const ExcelSettings = () => {
                 </div>
 
                 <div className="mt-8 space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <div>
+                    <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <div className="flex-1">
                             <p className="font-bold text-slate-700 dark:text-slate-200">土曜日の休日スタッフを非表示にする</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ONにすると、土曜日の行には出勤スタッフのみが表示されます。</p>
                         </div>
                         <button
                             onClick={handleToggleSaturdayOff}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${excludeHolidayStaffOnSaturdays ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${excludeHolidayStaffOnSaturdays ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${excludeHolidayStaffOnSaturdays ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
@@ -100,9 +100,9 @@ const ExcelSettings = () => {
 
             {/* スタッフ別ハイライト設定 */}
             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <div className="flex items-start justify-between mb-8">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 mb-8">
                     <div className="flex gap-3">
-                        <AlertCircle className="w-5 h-5 text-indigo-500 mt-1" />
+                        <AlertCircle className="w-5 h-5 text-indigo-500 shrink-0 mt-1 sm:mt-0" />
                         <div>
                             <p className="font-bold text-slate-800 dark:text-white text-lg">スタッフ別シフトハイライト</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -112,7 +112,7 @@ const ExcelSettings = () => {
                     </div>
                     <button
                         onClick={addRule}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/60 dark:text-indigo-400 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center justify-center sm:justify-start gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/60 dark:text-indigo-400 rounded-xl text-sm font-bold transition-all w-full sm:w-auto shrink-0"
                     >
                         <Plus className="w-4 h-4" />
                         ルールを追加
@@ -155,24 +155,27 @@ const ExcelSettings = () => {
                                         />
                                     </div>
                                 </div>
-                                <div className="w-full sm:w-24">
-                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">背景色</label>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="color"
-                                            value={`#${rule.highlightColor.slice(2)}`}
-                                            onChange={(e) => updateRule(idx, { highlightColor: 'FF' + e.target.value.slice(1).toUpperCase() })}
-                                            className="w-10 h-9 p-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer"
-                                        />
-                                        <div className="sm:hidden text-xs text-slate-500">色を選択</div>
+                                <div className="w-full flex items-end justify-between sm:w-auto sm:justify-start gap-4">
+                                    <div className="w-full sm:w-24">
+                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">背景色</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                value={`#${rule.highlightColor.slice(2)}`}
+                                                onChange={(e) => updateRule(idx, { highlightColor: 'FF' + e.target.value.slice(1).toUpperCase() })}
+                                                className="w-10 h-9 p-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer shrink-0"
+                                            />
+                                            <div className="sm:hidden text-xs text-slate-500 whitespace-nowrap">色を選択</div>
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={() => removeRule(idx)}
+                                        className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors mb-0 sm:mt-5 shrink-0"
+                                        title="ルールを削除"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => removeRule(idx)}
-                                    className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors sm:mt-5"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
                             </div>
                         ))
                     )}

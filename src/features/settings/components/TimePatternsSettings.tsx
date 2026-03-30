@@ -96,23 +96,23 @@ const SortablePatternRow = ({ pattern, roles, onDelete, onEdit, isOverlay = fals
                     {pattern.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-2">
                         <p className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{pattern.name}</p>
-                        <div className="flex space-x-0.5">
+                        <div className="flex space-x-1">
                             {DAYS.map(d => (
-                                <span key={d.key} className={`text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold ${(pattern as any)[d.key] === 1 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600'}`}>
+                                <span key={d.key} className={`text-[10px] md:text-[9px] w-5 h-5 md:w-4 md:h-4 rounded-full flex items-center justify-center font-bold ${(pattern as any)[d.key] === 1 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600'}`}>
                                     {d.label}
                                 </span>
                             ))}
                         </div>
                     </div>
-                    <div className="flex items-center space-x-3 mt-1">
-                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3 mt-2">
+                        <p className="text-sm sm:text-xs text-slate-500 dark:text-slate-400 flex items-center space-x-1.5">
+                            <Clock className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
                             <span className="font-mono">{pattern.startTime} 〜 {pattern.endTime}</span>
                         </p>
                         {assignedRoles.length > 0 && (
-                            <div className="flex items-center space-x-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded-md">
+                            <div className="flex items-center space-x-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded-md w-fit">
                                 <UserCheck className="w-2.5 h-2.5" />
                                 <span>{assignedRoles.length}スタッフ区分</span>
                             </div>

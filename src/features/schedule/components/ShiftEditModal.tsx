@@ -81,19 +81,19 @@ const ShiftEditModal = ({
                     </div>
                 </div>
 
-                <div className="pt-4 flex space-x-3">
+                <div className="pt-4 flex flex-col-reverse sm:flex-row gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
+                        className="flex-1 min-w-0 px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-medium"
                     >
                         キャンセル
                     </button>
                     <button
                         type="submit"
-                        className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors text-sm font-medium flex items-center justify-center space-x-2"
+                        className="flex-1 min-w-0 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-colors text-sm font-medium flex items-center justify-center gap-2"
                     >
-                        <Save className="w-4 h-4" />
+                        <Save className="w-4 h-4 flex-shrink-0" />
                         <span>保存</span>
                     </button>
                 </div>

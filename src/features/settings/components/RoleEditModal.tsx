@@ -206,22 +206,22 @@ const RoleEditModal = ({
                         </div>
                     </div>
 
-                    <div className="flex space-x-4 pt-6">
+                    <div className="flex flex-col-reverse sm:flex-row gap-3 pt-6">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-6 py-4 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest text-xs"
+                            className="flex-1 min-w-0 px-4 py-4 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest text-xs"
                         >
                             キャンセル
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex-[2] px-6 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-100 dark:shadow-none transition-all font-bold uppercase tracking-widest text-xs flex items-center justify-center space-x-2 disabled:opacity-50"
+                            className="flex-[2] min-w-0 px-4 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-100 dark:shadow-none transition-all font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {isSubmitting ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
                                     <span>更新中...</span>
                                 </>
                             ) : (

@@ -26,7 +26,7 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
     const dragRef = useRef<DragState | null>(null);
     const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-    // refs で最新値を保持（window リスナーからアクセスするため）
+    // 最新の値を ref で保持（イベントリスナーのクロージャから参照）
     const classesRef = useRef(classes);
     classesRef.current = classes;
     const hoursRef = useRef(hours);
@@ -43,72 +43,77 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
         e.preventDefault();
         const rect = trackEl.getBoundingClientRect();
         const s = localShifts[shiftId];
-        dragRef.current = {
+        if (!s) return;
+
+        const dragState: DragState = {
             shiftId, type, startX: e.clientX, startY: e.clientY,
             origStartMins: s.start, origEndMins: s.end,
             origClassType: s.classType, origIsError: s.isError,
             trackWidth: rect.width,
         };
+        dragRef.current = dragState;
         setActiveDragId(shiftId);
         setDragDeltaY(0);
         setHoveredGroup(s.isError ? 'unassigned' : s.classType);
-    }, [localShifts, readOnly]);
 
-    // window レベルでの pointermove / pointerup リスナー
-    useEffect(() => {
-        if (!activeDragId) return;
-
-        const onMove = (e: PointerEvent) => {
+        const onMove = (ev: PointerEvent) => {
             const drag = dragRef.current;
             if (!drag) return;
 
-            const h = hoursRef.current;
-            const cls = classesRef.current;
+            try {
+                const h = hoursRef.current;
+                const cls = classesRef.current;
+                const dx = ev.clientX - drag.startX;
+                const minsPerPx = h.displayTotalMins / drag.trackWidth;
+                const deltaMins = snapTo15(dx * minsPerPx);
 
-            const dx = e.clientX - drag.startX;
-            const minsPerPx = h.displayTotalMins / drag.trackWidth;
-            const deltaMins = snapTo15(dx * minsPerPx);
-
-            let newClassType: ClassType | 'unassigned' = drag.origIsError ? 'unassigned' : drag.origClassType;
-            if (drag.type === 'move') {
-                setDragDeltaY(e.clientY - drag.startY);
-                const groups: (string | 'unassigned')[] = [...cls.map(c => c.id), 'unassigned'];
-                for (const clsId of groups) {
-                    const el = groupRefs.current[clsId];
-                    if (el) {
-                        const rect = el.getBoundingClientRect();
-                        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                            newClassType = clsId as ClassType | 'unassigned';
-                            break;
+                let newClassType: ClassType | 'unassigned' = drag.origIsError ? 'unassigned' : drag.origClassType;
+                if (drag.type === 'move') {
+                    setDragDeltaY(ev.clientY - drag.startY);
+                    const groups: (string | 'unassigned')[] = [...cls.map(c => c.id), 'unassigned'];
+                    for (const clsId of groups) {
+                        const el = groupRefs.current[clsId];
+                        if (el) {
+                            const r = el.getBoundingClientRect();
+                            if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
+                                newClassType = clsId as ClassType | 'unassigned';
+                                break;
+                            }
                         }
                     }
+                    setHoveredGroup(newClassType);
+                    hoveredGroupRef.current = newClassType;
                 }
-                setHoveredGroup(newClassType);
-                hoveredGroupRef.current = newClassType;
-            }
 
-            dispatchRef.current({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
-                const orig = { start: drag.origStartMins, end: drag.origEndMins };
-                let newStart = orig.start;
-                let newEnd = orig.end;
-                const isChangingClass = drag.type === 'move' && newClassType !== (drag.origIsError ? 'unassigned' : drag.origClassType);
+                dispatchRef.current({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
+                    const orig = { start: drag.origStartMins, end: drag.origEndMins };
+                    let newStart = orig.start;
+                    let newEnd = orig.end;
+                    const isChangingClass = drag.type === 'move' && newClassType !== (drag.origIsError ? 'unassigned' : drag.origClassType);
 
-                if (!isChangingClass) {
-                    if (drag.type === 'move') {
-                        newStart = Math.max(h.startHour * 60, Math.min(h.endHour * 60 - (orig.end - orig.start), orig.start + deltaMins));
-                        newEnd = newStart + (orig.end - orig.start);
-                    } else if (drag.type === 'resize-left') {
-                        newStart = Math.max(h.startHour * 60, Math.min(orig.end - SHIFT_STEP_MINS, orig.start + deltaMins));
-                    } else if (drag.type === 'resize-right') {
-                        newEnd = Math.min(h.endHour * 60, Math.max(orig.start + SHIFT_STEP_MINS, orig.end + deltaMins));
+                    if (!isChangingClass) {
+                        if (drag.type === 'move') {
+                            newStart = Math.max(h.startHour * 60, Math.min(h.endHour * 60 - (orig.end - orig.start), orig.start + deltaMins));
+                            newEnd = newStart + (orig.end - orig.start);
+                        } else if (drag.type === 'resize-left') {
+                            newStart = Math.max(h.startHour * 60, Math.min(orig.end - SHIFT_STEP_MINS, orig.start + deltaMins));
+                        } else if (drag.type === 'resize-right') {
+                            newEnd = Math.min(h.endHour * 60, Math.max(orig.start + SHIFT_STEP_MINS, orig.end + deltaMins));
+                        }
                     }
-                }
 
-                return { ...prev, [drag.shiftId]: { ...prev[drag.shiftId], start: newStart, end: newEnd } };
-            }});
+                    return { ...prev, [drag.shiftId]: { ...prev[drag.shiftId], start: newStart, end: newEnd } };
+                }});
+            } catch (err) {
+                console.error('[DRAG] onMove error:', err);
+            }
         };
 
-        const onUp = (_e: PointerEvent) => {
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+
             const drag = dragRef.current;
             if (!drag) return;
             dragRef.current = null;
@@ -126,21 +131,18 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup', onUp);
         window.addEventListener('pointercancel', onUp);
+    }, [localShifts, readOnly]);
 
-        return () => {
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-            window.removeEventListener('pointercancel', onUp);
-        };
-    }, [activeDragId]);
+    // React Hook 順序エラー回避のためのダミー useEffect（以前の useEffect の名残）
+    useEffect(() => {}, []);
 
-    // DailyTimelineView の onPointerMove / onPointerUp は互換性のために残す（既存の JSX バインディング用）
+    // DailyTimelineView の JSX バインディング用（互換性維持）
     const handlePointerMove = useCallback((_e: React.PointerEvent) => {
-        // window レベルのリスナーで処理するため不要
+        // window レベルのリスナーで処理
     }, []);
 
     const handlePointerUp = useCallback((_e: React.PointerEvent) => {
-        // window レベルのリスナーで処理するため不要
+        // window レベルのリスナーで処理
     }, []);
 
     return {

@@ -63,7 +63,8 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
             }
         }
         return result;
-    }, [shiftQueries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shiftQueries.map(q => q.dataUpdatedAt).join(',')]);
 
     const preferences = useMemo(() => {
         const result: ShiftPreference[] = [];
@@ -78,7 +79,8 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
             }
         }
         return result;
-    }, [prefQueries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prefQueries.map(q => q.dataUpdatedAt).join(',')]);
 
     const fixedDates = useMemo(() => {
         const result = new Set<string>();
@@ -89,7 +91,8 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
             }
         }
         return result;
-    }, [fixedDatesQueries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fixedDatesQueries.map(q => q.dataUpdatedAt).join(',')]);
 
     const isFetching = shiftQueries.some(q => q.isLoading) || prefQueries.some(q => q.isLoading) || fixedDatesQueries.some(q => q.isLoading);
     const isError = shiftQueries.some(q => q.isError) || prefQueries.some(q => q.isError);

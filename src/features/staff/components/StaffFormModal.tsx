@@ -94,9 +94,11 @@ const StaffFormModal = ({
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        const buf = new Uint32Array(1);
-                                        crypto.getRandomValues(buf);
-                                        setFormData({ ...formData, accessKey: (100000 + (buf[0] % 900000)).toString() });
+                                        if (window.confirm('アクセスキーを新しく自動生成しますか？\n変更された場合、必ずスタッフに新しいアクセスキーを再度通知してください。')) {
+                                            const buf = new Uint32Array(1);
+                                            crypto.getRandomValues(buf);
+                                            setFormData({ ...formData, accessKey: (100000 + (buf[0] % 900000)).toString() });
+                                        }
                                     }}
                                     className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                                 >

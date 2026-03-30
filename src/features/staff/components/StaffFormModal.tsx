@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, CheckCircle, Loader2 } from 'lucide-react';
+import { Plus, CheckCircle, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { Staff, DynamicRole, ShiftClass } from '../../../types';
 
 interface StaffFormModalProps {
@@ -30,6 +30,7 @@ const StaffFormModal = ({
     closedDays = []
 }: StaffFormModalProps) => {
     const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = React.useState(false);
+    const [showKeyConfirm, setShowKeyConfirm] = React.useState(false);
 
     if (!isOpen) return null;
 
@@ -55,7 +56,7 @@ const StaffFormModal = ({
             onMouseDown={handleBackdropMouseDown}
             onMouseUp={handleBackdropMouseUp}
         >
-            <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
+            <div className="relative bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white">
                         {editingStaff ? '情報を更新' : 'スタッフ登録'}
@@ -93,13 +94,7 @@ const StaffFormModal = ({
                                 <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">アクセスキー (6桁の数字)</label>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        if (window.confirm('アクセスキーを新しく自動生成しますか？\n変更された場合、必ずスタッフに新しいアクセスキーを再度通知してください。')) {
-                                            const buf = new Uint32Array(1);
-                                            crypto.getRandomValues(buf);
-                                            setFormData({ ...formData, accessKey: (100000 + (buf[0] % 900000)).toString() });
-                                        }
-                                    }}
+                                    onClick={() => setShowKeyConfirm(true)}
                                     className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                                 >
                                     自動生成
@@ -353,6 +348,47 @@ const StaffFormModal = ({
                         </button>
                     </div>
                 </form>
+
+                {showKeyConfirm && (
+                    <div className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm rounded-[2rem]">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 border border-amber-100 dark:border-amber-900/50">
+                            <div className="flex items-center gap-4 mb-5 text-amber-600 dark:text-amber-500">
+                                <div className="p-3 bg-amber-50 dark:bg-amber-500/10 rounded-full">
+                                    <AlertTriangle className="w-6 h-6" />
+                                </div>
+                                <h4 className="text-lg font-bold text-slate-800 dark:text-white">アクセスキーの自動生成</h4>
+                            </div>
+                            <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-4 mb-6">
+                                <p className="text-sm text-amber-800 dark:text-amber-200 font-bold leading-relaxed">
+                                    新しいアクセスキーを自動生成します。<br/>
+                                    <span className="underline decoration-amber-300 dark:decoration-amber-700 underline-offset-4">変更した場合、必ず該当スタッフへ新しい情報の通知が必要です。</span>
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowKeyConfirm(false)}
+                                    className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-bold transition-colors text-sm"
+                                >
+                                    キャンセル
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const buf = new Uint32Array(1);
+                                        crypto.getRandomValues(buf);
+                                        setFormData({ ...formData, accessKey: (100000 + (buf[0] % 900000)).toString() });
+                                        setShowKeyConfirm(false);
+                                    }}
+                                    className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-amber-500/20 text-sm flex justify-center items-center gap-2"
+                                >
+                                    <RefreshCw className="w-4 h-4" />
+                                    生成する
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

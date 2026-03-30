@@ -216,22 +216,23 @@ const StaffPage = () => {
     const activeStaff = activeId ? staffList.find(s => s.id === activeId) : null;
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
-            <div className="flex items-center space-x-3 mb-6">
-                <Users className="w-8 h-8 text-indigo-500" />
+        <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
+            <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500" />
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">スタッフ管理</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 sm:text-sm">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white tracking-tight">スタッフ管理</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
                 </div>
             </div>
 
             <div className="flex justify-end">
                 <button
                     onClick={handleOpenAddModal}
-                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold"
+                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold text-sm"
                 >
-                    <Plus className="w-5 h-5" />
-                    <span>スタッフ追加</span>
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden xs:inline">スタッフ追加</span>
+                    <span className="xs:hidden">追加</span>
                 </button>
             </div>
 
@@ -288,33 +289,34 @@ const StaffPage = () => {
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col">
-                <div className="overflow-x-auto flex-1">
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                        modifiers={[restrictToVerticalAxis]}
-                        accessibility={{ screenReaderInstructions: { draggable: '' } }}
-                    >
-                        <SortableContext
-                            items={filteredStaff.map(s => s.id)}
-                            strategy={verticalListSortingStrategy}
+            <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col">
+                <div className="overflow-x-auto flex-1 -mx-4 sm:mx-0">
+                    <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            modifiers={[restrictToVerticalAxis]}
+                            accessibility={{ screenReaderInstructions: { draggable: '' } }}
                         >
-                            <table className="w-full text-left border-collapse min-w-[700px]">
-                                <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                                    <tr>
-                                        <th className="w-12 px-4 py-4"></th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">スタッフ区分</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">アクセスキー</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">所属クラス</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">固定休日</th>
-                                        <th className="px-4 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">操作</th>
-                                    </tr>
-                                </thead>
+                            <SortableContext
+                                items={filteredStaff.map(s => s.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <table className="w-full text-left border-collapse min-w-[700px]">
+                                    <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                                        <tr>
+                                            <th className="w-8 sm:w-12 px-2 sm:px-4 py-3 sm:py-4"></th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">スタッフ区分</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">アクセスキー</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">所属クラス</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">固定休日</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">操作</th>
+                                        </tr>
+                                    </thead>
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                                     {loading ? (
                                         <tr>
@@ -373,6 +375,7 @@ const StaffPage = () => {
                             ) : null}
                         </DragOverlay>
                     </DndContext>
+                    </div>
                 </div>
             </div>
 

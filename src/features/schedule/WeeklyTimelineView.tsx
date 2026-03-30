@@ -2,7 +2,7 @@ import React from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { ExternalLink } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole } from '../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, BusinessHours } from '../../types';
 import { getWeekStartsOn } from '../../utils/dateUtils';
 import DailyTimelineView from './DailyTimelineView';
 
@@ -13,6 +13,8 @@ interface WeeklyTimelineViewProps {
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
     roles: DynamicRole[];
+    businessHours?: BusinessHours;
+    isHolidayDate?: (date: Date) => boolean;
     onDateClick: (date: Date) => void;
 }
 
@@ -23,12 +25,18 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
     classes,
     timePatterns,
     roles,
+    businessHours,
+    isHolidayDate,
     onDateClick
 }) => {
     // 週の開始日を取得
     const weekStartsOn = getWeekStartsOn();
     const weekStart = startOfWeek(startDate, { locale: ja, weekStartsOn });
-    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).filter(day => {
+        const isClosedDay = businessHours?.closedDays?.includes(day.getDay()) || false;
+        const isNationalHoliday = isHolidayDate ? isHolidayDate(day) : false;
+        return !isClosedDay && !isNationalHoliday;
+    });
 
     return (
         <div className="h-full overflow-y-auto flex flex-col p-4">

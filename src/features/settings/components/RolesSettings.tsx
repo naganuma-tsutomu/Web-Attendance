@@ -64,103 +64,95 @@ const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: 
         <div
             ref={setNodeRef}
             style={style}
-            className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row hover:shadow-md transition-shadow group ${isOverlay ? 'ring-2 ring-indigo-500 shadow-xl' : ''}`}
+            className={`bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group ${isOverlay ? 'ring-2 ring-indigo-500 shadow-xl' : ''}`}
         >
-            {/* 左側：優先順位とドラッグハンドル */}
-            <div className="flex items-center px-4 py-4 sm:py-0 border-b sm:border-b-0 sm:border-r border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-t-2xl sm:rounded-l-2xl sm:rounded-tr-none min-w-[100px] justify-center space-x-3 sm:space-x-0 sm:flex-col sm:space-y-2">
+            {/* スマホ: コンパクト表示 */}
+            <div className="md:hidden p-4 flex items-center gap-3">
                 {!isOverlay && (
-                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1">
+                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1 flex-shrink-0">
+                        <GripVertical className="w-4 h-4" />
+                    </div>
+                )}
+                <div className="w-8 h-8 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0">
+                    {index + 1}
+                </div>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-200 dark:border-indigo-800 flex-shrink-0">
+                        {role.name.charAt(0)}
+                    </div>
+                    <h4 className="font-bold text-slate-800 dark:text-white text-sm truncate">{role.name}</h4>
+                </div>
+                {!isOverlay && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={onEdit} className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-1.5 rounded-lg transition-all" title="編集">
+                            <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => onDelete?.(role.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg transition-all" title="削除">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* PC: 詳細表示 */}
+            <div className="hidden md:flex p-4 items-center gap-4">
+                {!isOverlay && (
+                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1 flex-shrink-0">
                         <GripVertical className="w-5 h-5" />
                     </div>
                 )}
-                <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter mb-1">優先順位</span>
-                    <div className="w-10 h-10 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-white dark:border-slate-800">
-                        {index + 1}
-                    </div>
+                <div className="w-10 h-10 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white font-bold text-base shadow-sm flex-shrink-0">
+                    {index + 1}
                 </div>
-            </div>
-
-            {/* 中央：スタッフ区分情報と設定 */}
-            <div className="flex-1 p-5 flex flex-col md:flex-row gap-6">
-                <div className="flex-1 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm border border-indigo-200 dark:border-indigo-800">
-                                {role.name.charAt(0)}
-                            </div>
-                            <h4 className="font-bold text-slate-800 dark:text-white text-base">{role.name}</h4>
-                        </div>
-                        {!isOverlay && (
-                            <div className="flex items-center space-x-1 sm:hidden">
-                                <button
-                                    onClick={onEdit}
-                                    className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2 rounded-lg transition-all"
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={() => onDelete?.(role.id)}
-                                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                <div className="flex items-center gap-3 min-w-[150px]">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm border border-indigo-200 dark:border-indigo-800 flex-shrink-0">
+                        {role.name.charAt(0)}
+                    </div>
+                    <h4 className="font-bold text-slate-800 dark:text-white">{role.name}</h4>
+                </div>
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="flex flex-col min-w-[100px]">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mb-0.5">月間労働時間</span>
+                        <span className={`text-sm font-bold ${role.targetHours === null ? 'text-slate-400 italic' : 'text-slate-700 dark:text-white'}`}>
+                            {role.targetHours !== null ? `${role.targetHours}時間` : '設定なし'}
+                        </span>
+                    </div>
+                    <div className="flex flex-col min-w-[100px]">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mb-0.5">週間労働時間</span>
+                        <span className={`text-sm font-bold ${role.weeklyHoursTarget === null || role.weeklyHoursTarget === undefined ? 'text-slate-400 italic' : 'text-slate-700 dark:text-white'}`}>
+                            {role.weeklyHoursTarget !== null && role.weeklyHoursTarget !== undefined ? `${role.weeklyHoursTarget}時間` : '設定なし'}
+                        </span>
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-[180px]">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mb-1">利用可能なパターン</span>
+                        {role.patterns.length === 0 ? (
+                            <span className="text-xs text-slate-400 italic">パターンなし</span>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded text-xs font-bold">
+                                    {role.patterns.length}件
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                    {role.patterns.slice(0, 2).map(p => (
+                                        <span key={p.id} className="text-[10px] text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded font-medium">
+                                            {p.name}
+                                        </span>
+                                    ))}
+                                    {role.patterns.length > 2 && (
+                                        <span className="text-[10px] text-slate-400 font-medium">+{role.patterns.length - 2}</span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block pl-1">月間労働時間</label>
-                            <div className={`px-3 py-1.5 border rounded-lg text-sm font-bold bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${role.targetHours === null ? 'text-slate-400 italic' : 'text-slate-700 dark:text-white'}`}>
-                                {role.targetHours !== null ? `${role.targetHours}時間` : '設定なし'}
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block pl-1">週間労働時間</label>
-                            <div className={`px-3 py-1.5 border rounded-lg text-sm font-bold bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${role.weeklyHoursTarget === null || role.weeklyHoursTarget === undefined ? 'text-slate-400 italic' : 'text-slate-700 dark:text-white'}`}>
-                                {role.weeklyHoursTarget !== null && role.weeklyHoursTarget !== undefined ? `${role.weeklyHoursTarget}時間` : '設定なし'}
-                            </div>
-                        </div>
-
-                        <div className="space-y-2 md:col-span-2">
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">利用可能なパターン</p>
-                            <div className="flex flex-wrap gap-2">
-                                {role.patterns.length === 0 ? (
-                                    <p className="text-xs text-slate-400 italic">パターンが設定されていません</p>
-                                ) : (
-                                    role.patterns.map(p => (
-                                        <div
-                                            key={p.id}
-                                            className="px-3 py-1.2 rounded-lg text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700 flex items-center space-x-1.5"
-                                        >
-                                            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                                            <span>{p.name}</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
                 </div>
-
-                {/* 右側：編集・削除ボタン（PCのみ） */}
                 {!isOverlay && (
-                    <div className="hidden sm:flex flex-col space-y-2 items-start pt-1">
-                        <button
-                            onClick={onEdit}
-                            className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2 rounded-lg transition-all"
-                            title="編集"
-                        >
-                            <Edit2 className="w-5 h-5" />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={onEdit} className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2 rounded-lg transition-all" title="編集">
+                            <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
-                            onClick={() => onDelete?.(role.id)}
-                            className="text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all"
-                            title="削除"
-                        >
-                            <Trash2 className="w-5 h-5" />
+                        <button onClick={() => onDelete?.(role.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all" title="削除">
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     </div>
                 )}
@@ -335,49 +327,61 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
             </div>
 
             {/* Role List */}
-            {loading ? (
-                <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>
-            ) : (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    modifiers={[restrictToVerticalAxis]}
-                >
-                    <SortableContext
-                        items={roles.map(r => r.id)}
-                        strategy={verticalListSortingStrategy}
+            <div className="space-y-4 max-w-4xl mx-auto w-full">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm px-6 py-4 flex justify-between items-center">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider flex items-center">
+                        <span className="w-1 h-4 bg-indigo-500 rounded-full mr-2"></span>
+                        登録済みスタッフ区分
+                    </h4>
+                    <span className="text-[10px] font-black text-white bg-indigo-500 px-2 py-0.5 rounded-full shadow-sm">
+                        {roles.length}
+                    </span>
+                </div>
+
+                {loading ? (
+                    <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" /></div>
+                ) : (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        modifiers={[restrictToVerticalAxis]}
                     >
-                        <div className="flex flex-col gap-4 max-w-4xl mx-auto">
-                            {roles.map((role, index) => (
+                        <SortableContext
+                            items={roles.map(r => r.id)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <div className="flex flex-col gap-4">
+                                {roles.map((role, index) => (
+                                    <SortableRoleItem
+                                        key={role.id}
+                                        role={role}
+                                        index={index}
+                                        onDelete={setDeleteConfirmId}
+                                        onEdit={() => handleEditClick(role)}
+                                    />
+                                ))}
+                            </div>
+                        </SortableContext>
+                        <DragOverlay dropAnimation={{
+                            sideEffects: defaultDropAnimationSideEffects({
+                                styles: {
+                                    active: { opacity: '0.3' }
+                                }
+                            })
+                        }}>
+                            {activeRole ? (
                                 <SortableRoleItem
-                                    key={role.id}
-                                    role={role}
-                                    index={index}
-                                    onDelete={setDeleteConfirmId}
-                                    onEdit={() => handleEditClick(role)}
+                                    role={activeRole}
+                                    index={roles.findIndex(r => r.id === activeId)}
+                                    isOverlay
                                 />
-                            ))}
-                        </div>
-                    </SortableContext>
-                    <DragOverlay dropAnimation={{
-                        sideEffects: defaultDropAnimationSideEffects({
-                            styles: {
-                                active: { opacity: '0.3' }
-                            }
-                        })
-                    }}>
-                        {activeRole ? (
-                            <SortableRoleItem
-                                role={activeRole}
-                                index={roles.findIndex(r => r.id === activeId)}
-                                isOverlay
-                            />
-                        ) : null}
-                    </DragOverlay>
-                </DndContext>
-            )}
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
+                )}
+            </div>
 
             {/* Add Modal */}
             {isAddModalOpen && (

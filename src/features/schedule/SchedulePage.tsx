@@ -243,6 +243,8 @@ const SchedulePage = () => {
                                     classes={schedule.classes}
                                     timePatterns={schedule.timePatterns}
                                     roles={schedule.roles}
+                                    businessHours={schedule.businessHours}
+                                    isHolidayDate={schedule.isHolidayDate}
                                     onDateClick={(date) => handleOpenTimeline(date)}
                                 />
                             </div>

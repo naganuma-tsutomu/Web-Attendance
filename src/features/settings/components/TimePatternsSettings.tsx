@@ -76,11 +76,10 @@ const SortablePatternRow = ({ pattern, roles, onDelete, onEdit, isOverlay = fals
     return (
         <div
             ref={setNodeRef}
-            style={style}
-            className={`px-6 py-4 flex items-center justify-between transition-all ${isOverlay
-                ? 'bg-white dark:bg-slate-800 shadow-2xl ring-2 ring-indigo-500 opacity-90 rounded-xl'
-                : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                } ${isDragging && !isOverlay ? 'bg-indigo-50/30 border-y border-dashed border-indigo-200' : ''}`}
+            style={{ ...style, opacity: isDragging && !isOverlay ? 0.3 : 1 }}
+            className={`px-6 py-4 flex items-center justify-between transition-all bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md group ${isOverlay
+                ? 'ring-2 ring-indigo-500 shadow-xl opacity-90'
+                : ''}`}
         >
             <div className="flex items-center space-x-4 flex-1 min-w-0">
                 {!isOverlay && (
@@ -304,8 +303,8 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
             </div>
 
             {/* Patterns list */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm ring-1 ring-slate-200/50 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
+            <div className="space-y-4">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm px-6 py-4 flex justify-between items-center">
                     <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider flex items-center">
                         <span className="w-1 h-4 bg-indigo-500 rounded-full mr-2"></span>
                         登録済みパターン
@@ -315,7 +314,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
                     </span>
                 </div>
 
-                <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                <div className="flex flex-col gap-4">
                     {loading ? (
                         <div className="p-12 text-center text-slate-400">
                             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-500" />

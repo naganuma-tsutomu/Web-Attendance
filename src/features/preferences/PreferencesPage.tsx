@@ -514,7 +514,7 @@ const PreferencesPage = () => {
                                                         <span className={`text-base font-bold ${item.isNationalHoliday ? 'text-red-500 dark:text-red-400' : item.status === 'fixed' ? 'text-slate-400 dark:text-slate-500' : isTraining ? 'text-amber-700 dark:text-amber-400' : item.status === 'unavailable' ? 'text-red-700 dark:text-red-400' : isSaturday ? 'text-blue-800 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                             {parseInt(item.dateStr.split('-')[2])}
                                                         </span>
-                                                        <span className={`text-[10px] font-bold mt-1 px-1 py-0.5 rounded-md truncate max-w-[80px] text-center ${
+                                                        <span className={`text-[9px] sm:text-[10px] font-bold mt-1 px-0.5 sm:px-1 py-0.5 rounded-md truncate w-[calc(100%-4px)] sm:w-auto sm:max-w-[80px] text-center block ${
                                                             item.status === 'fixed'
                                                                 ? item.isNationalHoliday
                                                                     ? 'bg-red-100/70 dark:bg-red-900/50 text-red-600 dark:text-red-300'

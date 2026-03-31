@@ -368,19 +368,19 @@ const StaffPreferencePage = () => {
                                         
                                         <div className="p-4 bg-indigo-50 hover:bg-indigo-100/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl transition-colors">
                                             <div className="text-center font-bold text-indigo-700 dark:text-indigo-400 mb-3 block">一部の時間だけ不可</div>
-                                            <div className="flex items-center justify-between gap-3 text-slate-700 dark:text-slate-300 mb-4">
+                                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-slate-700 dark:text-slate-300 mb-4">
                                                 <input
                                                     type="time"
                                                     value={selectedStartTime}
                                                     onChange={e => setSelectedStartTime(e.target.value)}
-                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
                                                 />
-                                                <span className="font-bold text-slate-400">〜</span>
+                                                <span className="font-bold text-slate-400 text-sm">〜</span>
                                                 <input
                                                     type="time"
                                                     value={selectedEndTime}
                                                     onChange={e => setSelectedEndTime(e.target.value)}
-                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
                                                 />
                                             </div>
                                             <button

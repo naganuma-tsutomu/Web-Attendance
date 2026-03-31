@@ -29,6 +29,14 @@
     cursor: not-allowed;
   }
 
+  /* スマホでtime/date/number inputが重ならないようにする */
+  input[type="time"],
+  input[type="date"],
+  input[type="number"] {
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
   .dark {
     background-color: var(--color-dark-bg);
     color: var(--color-dark-text);

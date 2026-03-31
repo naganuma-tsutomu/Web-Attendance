@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings } from '../types';
 import { 
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema, 
     DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema
@@ -397,5 +397,35 @@ export const updateFacilityName = async (name: string): Promise<void> => {
     await apiFetch('/settings/facility', {
         method: 'PUT',
         body: JSON.stringify({ name }),
+    });
+};
+
+// ==========================================
+// Rotation Settings API (ローテーション設定)
+// ==========================================
+
+export const getRotationSettings = async (): Promise<RotationSettings> => {
+    return apiFetch<RotationSettings>('/settings/rotation-settings');
+};
+
+export const updateRotationSettings = async (data: RotationSettings): Promise<void> => {
+    await apiFetch('/settings/rotation-settings', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+};
+
+// ==========================================
+// Break Rules API (休憩設定)
+// ==========================================
+
+export const getBreakSettings = async (): Promise<BreakSettings> => {
+    return apiFetch<BreakSettings>('/settings/break-rules');
+};
+
+export const updateBreakSettings = async (data: BreakSettings): Promise<void> => {
+    await apiFetch('/settings/break-rules', {
+        method: 'PUT',
+        body: JSON.stringify(data)
     });
 };

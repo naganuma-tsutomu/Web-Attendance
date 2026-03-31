@@ -6,7 +6,7 @@ import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { calculateTotalHours } from '../../utils/timeUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder, useBusinessHours } from '../../lib/hooks';
+import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder, useBusinessHours, useBreakSettings } from '../../lib/hooks';
 import type { Staff } from '../../types';
 import {
     DndContext,
@@ -61,8 +61,9 @@ const StaffPage = () => {
     const updateStaffMut = useUpdateStaff();
     const deleteStaffMut = useDeleteStaff();
     const updateOrderMut = useUpdateStaffOrder();
+    const { data: breakSettings } = useBreakSettings();
 
-    const shiftTotals = useMemo(() => calculateTotalHours(shifts), [shifts]);
+    const shiftTotals = useMemo(() => calculateTotalHours(shifts, breakSettings), [shifts, breakSettings]);
 
     const loading = isStaffLoading || isRolesLoading || isClassesLoading;
     const error = (isStaffError || isRolesError || isClassesError) ? 'データの読み込みに失敗しました。' : '';

@@ -173,6 +173,7 @@ const SchedulePage = () => {
                 onRetry={schedule.loadShifts}
                 businessHours={schedule.businessHours}
                 excelSettings={schedule.excelSettings}
+                breakSettings={schedule.breakSettings}
             />
 
             {/* Calendar and Summary Area */}

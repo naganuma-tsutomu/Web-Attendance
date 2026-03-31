@@ -6,9 +6,11 @@ import {
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
-    getFacilityName, updateFacilityName
+    getFacilityName, updateFacilityName,
+    getRotationSettings, updateRotationSettings,
+    getBreakSettings, updateBreakSettings
 } from './api';
-import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings } from '../types';
+import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, RotationSettings, BreakSettings } from '../types';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {
@@ -249,6 +251,50 @@ export const useUpdateFacilityName = () => {
         mutationFn: (name: string) => updateFacilityName(name),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.facilityName });
+        },
+    });
+};
+
+// ==============================
+// Rotation Settings (ローテーション設定)
+// ==============================
+
+export const useRotationSettings = () => {
+    return useQuery({
+        queryKey: ['rotationSettings'],
+        queryFn: getRotationSettings,
+        staleTime: 30 * 60 * 1000,
+    });
+};
+
+export const useUpdateRotationSettings = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: RotationSettings) => updateRotationSettings(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['rotationSettings'] });
+        },
+    });
+};
+
+// ==============================
+// Break Settings (休憩設定)
+// ==============================
+
+export const useBreakSettings = () => {
+    return useQuery({
+        queryKey: ['breakSettings'],
+        queryFn: getBreakSettings,
+        staleTime: 30 * 60 * 1000,
+    });
+};
+
+export const useUpdateBreakSettings = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: BreakSettings) => updateBreakSettings(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['breakSettings'] });
         },
     });
 };

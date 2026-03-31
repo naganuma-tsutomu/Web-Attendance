@@ -103,3 +103,25 @@ export interface BusinessHours extends Omit<BusinessHoursInferred, 'closedDays'>
 /** Excel出力設定 */
 export type ExcelHighlightRule = z.infer<typeof ExcelHighlightRuleSchema>;
 export type ExcelSettings = z.infer<typeof ExcelSettingsSchema>;
+
+/** 休憩設定 */
+export interface BreakSettings {
+    exceptionEnabled: boolean;
+    exceptionThresholdTime: string;  // "HH:MM" (デフォルト: "12:00")
+    exceptionBreakMinutes: number;   // デフォルト: 30
+    displayActualHoursInModal: boolean;  // シフトモーダルで実労働時間表示
+    displayActualHoursInExcel: boolean;  // Excelで実労働時間表示
+}
+
+/** ローテーション設定 */
+export interface RotationSettings {
+    enabled: boolean;
+    roleId: string;
+    earlyPatternId: string;
+    latePatternId: string;
+    weekdayEarlyCount: number;
+    weekdayLateCount: number;
+    saturdayEnabled: boolean;
+    saturdayCount: number;
+    saturdayPreferFridayLate: boolean;
+}

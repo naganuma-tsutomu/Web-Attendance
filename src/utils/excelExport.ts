@@ -3,11 +3,11 @@ import { saveAs } from 'file-saver';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { calculateDuration } from './timeUtils';
+import { calculateDuration, calculateActualWorkingHours, calculateBreakMinutes } from './timeUtils';
 import { handleApiError } from '../lib/errorHandler';
 import { createHolidayMap, isHoliday } from '../lib/holidayUtils';
 import { SHIFT_STEP_MINS } from '../constants';
-import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings } from '../types';
+import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings } from '../types';
 
 const DEFAULT_START_HOUR = 8;
 const DEFAULT_END_HOUR = 19;
@@ -43,7 +43,8 @@ export const exportToExcelAdvanced = async (
     businessHours?: BusinessHours,
     preferences: ShiftPreference[] = [],
     holidays: Holiday[] = [],
-    excelSettings?: ExcelSettings
+    excelSettings?: ExcelSettings,
+    breakSettings?: BreakSettings
 ) => {
     const holidayMap = createHolidayMap(holidays);
     // 休日理由の判定と色・テキストを返す
@@ -217,14 +218,28 @@ export const exportToExcelAdvanced = async (
             }
 
             if (shift) {
-                // 実働時間の数式
+                // 実働時間の計算
                 const startCell = row.getCell(6).address;
                 const endCell = row.getCell(7).address;
-                const duration = calculateDuration(shift.startTime, shift.endTime);
-                row.getCell(8).value = {
-                    formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, IF((${endCell}-${startCell})<0, (${endCell}-${startCell}+1)*24, (${endCell}-${startCell})*24))`,
-                    result: duration
-                };
+                const useActual = breakSettings?.displayActualHoursInExcel;
+                const duration = useActual
+                    ? calculateActualWorkingHours(shift.startTime, shift.endTime, breakSettings)
+                    : calculateDuration(shift.startTime, shift.endTime);
+
+                if (useActual) {
+                    // 休憩差引き後の値を直接設定
+                    const breakMins = calculateBreakMinutes(shift.startTime, shift.endTime, breakSettings);
+                    const breakHours = breakMins / 60;
+                    row.getCell(8).value = {
+                        formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, IF((${endCell}-${startCell})<0, (${endCell}-${startCell}+1)*24, (${endCell}-${startCell})*24)-${breakHours.toFixed(4)})`,
+                        result: duration
+                    };
+                } else {
+                    row.getCell(8).value = {
+                        formula: `IF(OR(ISBLANK(${startCell}), ISBLANK(${endCell})), 0, IF((${endCell}-${startCell})<0, (${endCell}-${startCell}+1)*24, (${endCell}-${startCell})*24))`,
+                        result: duration
+                    };
+                }
                 row.getCell(8).numFmt = '0.00';
 
                 // 開始・終了セルのデータ型

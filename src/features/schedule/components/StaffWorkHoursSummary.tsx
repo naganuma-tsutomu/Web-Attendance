@@ -3,6 +3,7 @@ import { Users } from 'lucide-react';
 import { startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Staff, Shift } from '../../../types';
 import { calculateTotalHours, formatHours } from '../../../utils/timeUtils';
+import { useBreakSettings } from '../../../lib/hooks';
 
 interface StaffWorkHoursSummaryProps {
     staffs: Staff[];
@@ -12,6 +13,8 @@ interface StaffWorkHoursSummaryProps {
 }
 
 const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }: StaffWorkHoursSummaryProps) => {
+    const { data: breakSettings } = useBreakSettings();
+
     const totalHoursMap = useMemo(() => {
         const monthStart = startOfMonth(viewDate);
         const monthEnd = endOfMonth(viewDate);
@@ -19,8 +22,8 @@ const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }
             const shiftDate = parseISO(shift.date);
             return isWithinInterval(shiftDate, { start: monthStart, end: monthEnd });
         });
-        return calculateTotalHours(filteredShifts);
-    }, [shifts, viewDate]);
+        return calculateTotalHours(filteredShifts, breakSettings);
+    }, [shifts, viewDate, breakSettings]);
 
     // Calculate weekly hours for the week containing viewDate
     const weeklyHoursMap = useMemo(() => {
@@ -32,8 +35,8 @@ const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }
             return isWithinInterval(shiftDate, { start: weekStart, end: weekEnd });
         });
         
-        return calculateTotalHours(filteredShifts);
-    }, [shifts, viewDate]);
+        return calculateTotalHours(filteredShifts, breakSettings);
+    }, [shifts, viewDate, breakSettings]);
 
     const sortedStaffs = useMemo(() => {
         return [...staffs].sort((a, b) => {

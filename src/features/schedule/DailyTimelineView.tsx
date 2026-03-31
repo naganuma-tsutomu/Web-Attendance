@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Lock, Unlock } from 'lucide-react';
-import { useBusinessHours } from '../../lib/hooks';
+import { useBusinessHours, useBreakSettings } from '../../lib/hooks';
 import { isStaffAvailableReason } from '../../lib/algorithm';
-import { calculateDuration as calculateDurationHours, timeToMinutes } from '../../utils/timeUtils';
+import { calculateDuration as calculateDurationHours, calculateActualWorkingHours, timeToMinutes } from '../../utils/timeUtils';
 import { useShiftEdit, toTimeStr, resolveBusinessHours } from './hooks/useShiftEdit';
 import type { LocalShiftData } from './hooks/useShiftEdit';
 import { useTimelineDrag } from './hooks/useTimelineDrag';
@@ -39,6 +39,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 }) => {
     // ── Business hours ──
     const { data: businessHoursData } = useBusinessHours();
+    const { data: breakSettings } = useBreakSettings();
     const hours = useMemo(() => resolveBusinessHours(businessHoursData), [businessHoursData]);
 
     const edit = useShiftEdit({
@@ -93,11 +94,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             s.date.startsWith(targetYearMonth) && s.staffId !== UNASSIGNED_STAFF_ID
         );
         [...base, ...added].forEach(s => {
-            const duration = calculateDurationHours(s.startTime, s.endTime);
+            const duration = breakSettings
+                ? calculateActualWorkingHours(s.startTime, s.endTime, breakSettings)
+                : calculateDurationHours(s.startTime, s.endTime);
             hrs[s.staffId] = (hrs[s.staffId] || 0) + duration;
         });
         return hrs;
-    }, [shifts, addedShifts, deletedIds, targetYearMonth]);
+    }, [shifts, addedShifts, deletedIds, targetYearMonth, breakSettings]);
 
     const offDutyStaff = useMemo<OffDutyStaffInfo[]>(() => {
         return staffList
@@ -157,6 +160,13 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     const calculateDuration = (startMins: number, endMins: number) => {
         const diff = endMins - startMins;
         if (diff < 0) return '??';
+        if (breakSettings?.displayActualHoursInModal) {
+            const startStr = toTimeStr(startMins);
+            const endStr = toTimeStr(endMins);
+            const actualHrs = calculateActualWorkingHours(startStr, endStr, breakSettings);
+            const actualMins = Math.round(actualHrs * 60);
+            return `${Math.floor(actualMins / 60)}:${String(actualMins % 60).padStart(2, '0')}`;
+        }
         return `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`;
     };
 

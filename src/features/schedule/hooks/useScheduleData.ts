@@ -5,12 +5,13 @@ import { toast } from 'sonner';
 import { handleApiError } from '../../../lib/errorHandler';
 import {
     syncHolidaysIfNeeded, getShiftRequirements,
-    getShiftsByMonth, getFixedDates as _getFixedDates
+    getShiftsByMonth, getFixedDates as _getFixedDates,
+    getRotationSettings
 } from '../../../lib/api';
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
     useSaveShiftsBatch, useUpdateShift, useDeleteShiftsByMonth, useSaveFixedDates,
-    useBusinessHours, useExcelSettings,
+    useBusinessHours, useExcelSettings, useBreakSettings
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
@@ -54,6 +55,7 @@ export const useScheduleData = () => {
     const { data: holidays = [], isLoading: isLoadingHolidays } = useHolidays(currentDate.getFullYear());
     const { data: businessHours } = useBusinessHours();
     const { data: excelSettings } = useExcelSettings();
+    const { data: breakSettings } = useBreakSettings();
 
     // 動的な複数月データフェッチ
     const { rawShifts, preferences, fixedDates, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
@@ -103,7 +105,10 @@ export const useScheduleData = () => {
         setIsActionExecuting(true);
         setGenerating(true);
         try {
-            const requirements = await getShiftRequirements();
+            const [requirements, rotationSettings] = await Promise.all([
+                getShiftRequirements(),
+                getRotationSettings()
+            ]);
 
             const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
             const nextMonth = format(addMonths(currentDate, 1), 'yyyy-MM');
@@ -128,7 +133,10 @@ export const useScheduleData = () => {
                 requirements,
                 mergedContext,
                 Array.from(fixedDates),
-                businessHours?.closedDays
+                businessHours?.closedDays,
+                rotationSettings,
+                timePatterns,
+                breakSettings
             );
             const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
 
@@ -233,6 +241,7 @@ export const useScheduleData = () => {
         holidays,
         businessHours,
         excelSettings,
+        breakSettings,
         summaryEvents,
 
         // UI状態

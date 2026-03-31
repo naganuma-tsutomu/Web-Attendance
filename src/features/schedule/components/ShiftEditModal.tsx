@@ -1,5 +1,7 @@
 import { format } from 'date-fns';
-import { Save, X } from 'lucide-react';
+import { Save, X, Clock } from 'lucide-react';
+import { useBreakSettings } from '../../../lib/hooks';
+import { calculateActualWorkingHours, calculateDuration, calculateBreakMinutes } from '../../../utils/timeUtils';
 import type { Staff } from '../../../types';
 import type { EditFormData, CalendarEvent } from '../hooks/useScheduleData';
 
@@ -22,6 +24,15 @@ const ShiftEditModal = ({
     onSubmit,
     onClose,
 }: ShiftEditModalProps) => {
+    const { data: breakSettings } = useBreakSettings();
+
+    // 実働時間・休憩時間の計算
+    const duration = calculateDuration(editFormData.startTime, editFormData.endTime);
+    const actualHours = breakSettings?.displayActualHoursInModal
+        ? calculateActualWorkingHours(editFormData.startTime, editFormData.endTime, breakSettings)
+        : duration;
+    const breakMins = calculateBreakMinutes(editFormData.startTime, editFormData.endTime, breakSettings);
+
     return (
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
@@ -80,6 +91,20 @@ const ShiftEditModal = ({
                         />
                     </div>
                 </div>
+                
+                {editFormData.startTime && editFormData.endTime && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm">
+                        <Clock className="w-4 h-4" />
+                        <span>
+                            {breakSettings?.displayActualHoursInModal ? '実労働時間' : 'シフト時間'}: <span className="font-bold">{actualHours.toFixed(2)}h</span>
+                        </span>
+                        {breakSettings?.displayActualHoursInModal && breakMins > 0 && (
+                            <span className="text-xs opacity-80 ml-auto">
+                                (休憩 {breakMins}分差引)
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 <div className="pt-4 flex flex-col-reverse sm:flex-row gap-3">
                     <button

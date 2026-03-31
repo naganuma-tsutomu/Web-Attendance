@@ -15,6 +15,7 @@ import ClassesPage from './pages/settings/ClassesPage';
 import AppearancePage from './pages/settings/AppearancePage';
 import ExcelSettingsPage from './pages/settings/ExcelSettingsPage';
 import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
+import RotationPage from './pages/settings/RotationPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import StaffPreferencePage from './pages/StaffPreferencePage';
 import LandingPage from './pages/LandingPage';
@@ -65,6 +66,7 @@ const AppRoutes = () => {
           <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           <Route path="settings/excel" element={<ExcelSettingsPage />} />
+          <Route path="settings/rotation" element={<RotationPage />} />
           <Route path="manual" element={<UserManualPage />} />
         </Route>
         <Route path="/staff/login" element={<StaffLoginPage />} />

@@ -1,14 +1,39 @@
-import { Moon, Sun, Clock, Building2 } from 'lucide-react';
+import { Moon, Sun, Clock, Building2, Coffee } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { useBusinessHours, useUpdateBusinessHours, useFacilityName, useUpdateFacilityName } from '../../../lib/hooks';
+import { useBusinessHours, useUpdateBusinessHours, useFacilityName, useUpdateFacilityName, useBreakSettings, useUpdateBreakSettings } from '../../../lib/hooks';
 import { getWeekStartsOn, setWeekStartsOn as saveWeekStartsOn, STORAGE_KEYS } from '../../../utils/dateUtils';
+import { DEFAULT_BREAK_SETTINGS } from '../../../utils/timeUtils';
+import type { BreakSettings } from '../../../types';
 
 const AppearanceSettings = () => {
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
         return (localStorage.getItem(STORAGE_KEYS.THEME) as 'light' | 'dark') || 'light';
     });
     const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(() => getWeekStartsOn());
+    const [appearanceModified, setAppearanceModified] = useState(false);
+
+    const handleThemeChange = (newTheme: 'light' | 'dark') => {
+        setTheme(newTheme);
+        setAppearanceModified(true);
+    };
+
+    const handleWeekStartsOnChange = (newDay: 0 | 1) => {
+        setWeekStartsOn(newDay);
+        setAppearanceModified(true);
+    };
+
+    const handleSaveAppearance = () => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        localStorage.setItem(STORAGE_KEYS.THEME, theme);
+        saveWeekStartsOn(weekStartsOn);
+        setAppearanceModified(false);
+        toast.success('表示設定を保存しました');
+    };
 
     // 施設名設定
     const { data: facilityNameData } = useFacilityName();
@@ -49,19 +74,6 @@ const AppearanceSettings = () => {
             setHoursModified(false);
         }
     }, [businessHours]);
-
-    useEffect(() => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-        localStorage.setItem(STORAGE_KEYS.THEME, theme);
-    }, [theme]);
-
-    useEffect(() => {
-        saveWeekStartsOn(weekStartsOn);
-    }, [weekStartsOn]);
 
     const handleStartHourChange = (value: number) => {
         setStartHour(value);
@@ -145,14 +157,14 @@ const AppearanceSettings = () => {
                         </div>
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl self-start sm:self-auto">
                             <button
-                                onClick={() => setTheme('light')}
+                                onClick={() => handleThemeChange('light')}
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 ${theme === 'light' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 dark:text-slate-400'}`}
                             >
                                 <Sun className="w-4 h-4" />
                                 <span className="sm:inline">ライト</span>
                             </button>
                             <button
-                                onClick={() => setTheme('dark')}
+                                onClick={() => handleThemeChange('dark')}
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 ${theme === 'dark' ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                             >
                                 <Moon className="w-4 h-4" />
@@ -168,13 +180,13 @@ const AppearanceSettings = () => {
                         </div>
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl self-start sm:self-auto">
                             <button
-                                onClick={() => setWeekStartsOn(0)}
+                                onClick={() => handleWeekStartsOnChange(0)}
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${weekStartsOn === 0 ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
                             >
                                 日曜日
                             </button>
                             <button
-                                onClick={() => setWeekStartsOn(1)}
+                                onClick={() => handleWeekStartsOnChange(1)}
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${weekStartsOn === 1 ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
                             >
                                 月曜日
@@ -187,6 +199,17 @@ const AppearanceSettings = () => {
                             ※ 現時点ではダークモードは一部の画面で正しく表示されない場合があります。順次対応中です。
                         </p>
                     </div>
+
+                    {appearanceModified && (
+                        <div className="flex justify-end animate-in slide-in-from-bottom-2 pt-2">
+                            <button
+                                onClick={handleSaveAppearance}
+                                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2"
+                            >
+                                表示設定を保存
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -301,6 +324,198 @@ const AppearanceSettings = () => {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* 休憩設定 */}
+            <BreakSettingsSection />
+        </div>
+    );
+};
+
+// 休憩設定コンポーネント
+const BreakSettingsSection = () => {
+    const { data: breakSettingsData, isLoading: isLoadingBreak } = useBreakSettings();
+    const updateBreakMutation = useUpdateBreakSettings();
+    const [breakSettings, setBreakSettings] = useState<BreakSettings>(DEFAULT_BREAK_SETTINGS);
+    const [breakModified, setBreakModified] = useState(false);
+
+    useEffect(() => {
+        if (breakSettingsData) {
+            setBreakSettings(breakSettingsData);
+            setBreakModified(false);
+        }
+    }, [breakSettingsData]);
+
+    const handleBreakChange = (patch: Partial<BreakSettings>) => {
+        setBreakSettings(prev => ({ ...prev, ...patch }));
+        setBreakModified(true);
+    };
+
+    const handleSaveBreakSettings = async () => {
+        try {
+            await updateBreakMutation.mutateAsync(breakSettings);
+            toast.success('休憩設定を保存しました');
+            setBreakModified(false);
+        } catch {
+            toast.error('保存に失敗しました');
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                    <Coffee className="w-5 h-5 text-indigo-500" />
+                    <div>
+                        <p className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">休憩設定</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            労働基準法に基づく休憩時間の自動計算と、例外ルールを設定します。
+                        </p>
+                    </div>
+                </div>
+
+                {isLoadingBreak ? (
+                    <div className="flex items-center justify-center py-8">
+                        <div className="text-slate-400 text-sm animate-pulse">読み込み中...</div>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {/* 法定休憩の説明 */}
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">法定休憩（自動適用）</p>
+                            <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                <p>• 労働時間が <span className="font-bold text-slate-700 dark:text-slate-300">8時間超</span> → <span className="font-bold text-indigo-600 dark:text-indigo-400">60分</span></p>
+                                <p>• 労働時間が <span className="font-bold text-slate-700 dark:text-slate-300">6時間超〜8時間</span> → <span className="font-bold text-indigo-600 dark:text-indigo-400">45分</span></p>
+                                <p>• 労働時間が <span className="font-bold text-slate-700 dark:text-slate-300">6時間以下</span> → <span className="font-bold text-indigo-600 dark:text-indigo-400">休憩なし</span></p>
+                            </div>
+                        </div>
+
+                        {/* 例外ルール */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">例外休憩ルール</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                        指定時刻までに出勤したスタッフに例外的に休憩を付与します。
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleBreakChange({ exceptionEnabled: !breakSettings.exceptionEnabled })}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                        breakSettings.exceptionEnabled
+                                            ? 'bg-indigo-600'
+                                            : 'bg-slate-300 dark:bg-slate-600'
+                                    }`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        breakSettings.exceptionEnabled ? 'translate-x-6' : 'translate-x-1'
+                                    }`} />
+                                </button>
+                            </div>
+
+                            {breakSettings.exceptionEnabled && (
+                                <div className="ml-0 sm:ml-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
+                                        <div className="flex items-center gap-3">
+                                            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[80px] whitespace-nowrap">
+                                                判定時刻
+                                            </label>
+                                            <input
+                                                type="time"
+                                                value={breakSettings.exceptionThresholdTime}
+                                                onChange={(e) => handleBreakChange({ exceptionThresholdTime: e.target.value })}
+                                                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[80px] whitespace-nowrap">
+                                                休憩時間
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={120}
+                                                    value={breakSettings.exceptionBreakMinutes}
+                                                    onChange={(e) => handleBreakChange({ exceptionBreakMinutes: parseInt(e.target.value) || 0 })}
+                                                    className="w-20 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                                                />
+                                                <span className="text-sm text-slate-500 dark:text-slate-400">分</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
+                                        ※ 出勤時刻が判定時刻以前の場合に例外休憩を適用します。ただし、法定休憩の方が大きい場合は法定休憩が優先されます。
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 表示設定 */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">表示設定</p>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-700 dark:text-slate-300">シフトモーダルの時間表示</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                            {breakSettings.displayActualHoursInModal ? '実労働時間（休憩差引き）で表示' : 'シフト時間で表示'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleBreakChange({ displayActualHoursInModal: !breakSettings.displayActualHoursInModal })}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                            breakSettings.displayActualHoursInModal
+                                                ? 'bg-indigo-600'
+                                                : 'bg-slate-300 dark:bg-slate-600'
+                                        }`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                            breakSettings.displayActualHoursInModal ? 'translate-x-6' : 'translate-x-1'
+                                        }`} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-700 dark:text-slate-300">Excel出力の実働列</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                            {breakSettings.displayActualHoursInExcel ? '実労働時間（休憩差引き）で出力' : 'シフト時間で出力'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleBreakChange({ displayActualHoursInExcel: !breakSettings.displayActualHoursInExcel })}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                            breakSettings.displayActualHoursInExcel
+                                                ? 'bg-indigo-600'
+                                                : 'bg-slate-300 dark:bg-slate-600'
+                                        }`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                            breakSettings.displayActualHoursInExcel ? 'translate-x-6' : 'translate-x-1'
+                                        }`} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 保存ボタン */}
+                        {breakModified && (
+                            <div className="flex justify-end animate-in slide-in-from-bottom-2 pt-2">
+                                <button
+                                    onClick={handleSaveBreakSettings}
+                                    disabled={updateBreakMutation.isPending}
+                                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {updateBreakMutation.isPending ? (
+                                        <span className="animate-pulse">保存中...</span>
+                                    ) : (
+                                        '休憩設定を保存'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

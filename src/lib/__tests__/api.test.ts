@@ -149,7 +149,7 @@ describe('API - Shift functions', () => {
         it('月別のシフトを取得できる', async () => {
             const yearMonth = '2025-06';
             const mockShifts = [
-                { id: 'shift1', date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isEarlyShift: false, isError: false }
+                { id: 'shift1', date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isError: false }
             ];
             
             mockFetch.mockResolvedValueOnce({
@@ -169,7 +169,7 @@ describe('API - Shift functions', () => {
     describe('saveShiftsBatch', () => {
         it('複数のシフトを一括保存できる', async () => {
             const shifts = [
-                { date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isEarlyShift: false, isError: false }
+                { date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isError: false }
             ];
             
             mockFetch.mockResolvedValueOnce({

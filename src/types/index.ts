@@ -56,9 +56,8 @@ export type ShiftPreferenceDetail = ShiftPreferenceDetailInferred;
 export type ShiftPreference = ShiftPreferenceInferred;
 
 /** シフト */
-export interface Shift extends Omit<ShiftInferred, 'isEarlyShift' | 'isError' | 'classType'> {
+export interface Shift extends Omit<ShiftInferred, 'isError' | 'classType'> {
     classType: ClassType;
-    isEarlyShift: boolean;
     isError?: boolean;
 }
 

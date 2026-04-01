@@ -412,8 +412,7 @@ export const generateShiftsForMonth = (
                             staffId: staff.id,
                             startTime: shiftStart,
                             endTime: shiftEnd,
-                            classType: slot.req.classId,
-                            isEarlyShift: shiftStart < '12:00'
+                            classType: slot.req.classId
                         });
 
                         const duration = calcDuration(shiftStart, shiftEnd, breakSettings);
@@ -428,8 +427,7 @@ export const generateShiftsForMonth = (
                             startTime: slot.req.startTime,
                             endTime: slot.req.endTime,
                             classType: slot.req.classId,
-                            isError: true,
-                            isEarlyShift: false
+                            isError: true
                         });
                     }
 

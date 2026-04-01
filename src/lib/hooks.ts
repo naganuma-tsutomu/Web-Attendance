@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
-    getPreferencesByMonth, getShiftRequirements, getFixedDates, saveShiftsBatch,
+    getPreferencesByMonth, getShiftRequirements, saveShiftsBatch,
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
@@ -87,13 +87,6 @@ export const useShiftRequirements = () => {
     return useQuery({
         queryKey: QUERY_KEYS.shiftRequirements,
         queryFn: getShiftRequirements,
-    });
-};
-
-export const useFixedDates = (monthStr: string) => {
-    return useQuery({
-        queryKey: QUERY_KEYS.fixedDates(monthStr),
-        queryFn: () => getFixedDates(monthStr),
     });
 };
 

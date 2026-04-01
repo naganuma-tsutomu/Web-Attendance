@@ -53,7 +53,6 @@ export const ShiftSchema = z.object({
   startTime: z.string(),
   endTime: z.string(),
   classType: z.string(),
-  isEarlyShift: z.union([z.boolean(), z.number()]).optional().nullable(),
   isError: z.union([z.boolean(), z.number()]).optional().nullable(),
 });
 

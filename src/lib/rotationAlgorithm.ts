@@ -55,8 +55,7 @@ const addRotationShift = (
         staffId: staff.id,
         startTime: pattern.startTime,
         endTime: pattern.endTime,
-        classType: classId,
-        isEarlyShift: shiftType === 'early'
+        classType: classId
     });
 
     const duration = calcDuration(pattern.startTime, pattern.endTime, breakSettings);

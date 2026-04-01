@@ -295,8 +295,8 @@ describe('generateShiftsForMonth', () => {
             ];
             
             const existingShifts = [
-                { id: 'ex1', date: '2025-05-30', staffId: 'rs1', startTime: '10:00', endTime: '19:00', classType: 'class_niji', isEarlyShift: false }, // 遅番
-                { id: 'ex2', date: '2025-05-30', staffId: 'rs2', startTime: '07:00', endTime: '16:00', classType: 'class_niji', isEarlyShift: true }  // 早番
+                { id: 'ex1', date: '2025-05-30', staffId: 'rs1', startTime: '10:00', endTime: '19:00', classType: 'class_niji' }, // 遅番
+                { id: 'ex2', date: '2025-05-30', staffId: 'rs2', startTime: '07:00', endTime: '16:00', classType: 'class_niji' }  // 早番
             ] as any[];
 
             const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], existingShifts, [], [], rotationSettings, rotationPatterns);

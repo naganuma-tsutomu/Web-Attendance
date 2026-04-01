@@ -56,12 +56,11 @@ interface ClassesSettingsProps {
     setClasses: React.Dispatch<React.SetStateAction<ShiftClass[]>>;
 }
 
-const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocation, isOverlay = false }: {
+const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, isOverlay = false }: {
     cls: ShiftClass,
     staffCount: number,
     onDelete?: (id: string) => void,
     onEdit?: () => void,
-    onToggleAllocation?: () => void,
     isOverlay?: boolean
 }) => {
     const {
@@ -103,21 +102,6 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, onToggleAllocatio
                             <span>{staffCount}名</span>
                         </div>
                     )}
-                </div>
-                <div className="flex items-center space-x-3 mt-1">
-                    <label className={`relative inline-flex items-center ${onToggleAllocation ? 'cursor-pointer' : 'cursor-default'} scale-75 origin-left`}>
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={cls.auto_allocate === 1}
-                            onChange={() => onToggleAllocation?.()}
-                            disabled={!onToggleAllocation}
-                        />
-                        <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 shadow-sm border border-slate-200 dark:border-slate-600"></div>
-                    </label>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-                        自動割り当て: {cls.auto_allocate === 1 ? '有効' : '無効'}
-                    </span>
                 </div>
             </div>
         </div>
@@ -178,16 +162,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    const handleToggleClassAllocation = async (cls: ShiftClass) => {
-        const newValue = cls.auto_allocate === 1 ? 0 : 1;
-        try {
-            await updateClass(cls.id, { auto_allocate: newValue });
-            toast.success(`設定を${newValue === 1 ? '有効' : '無効'}に更新しました`);
-            onUpdate();
-        } catch (err) {
-            handleApiError(err, '設定の更新に失敗しました');
-        }
-    };
+
 
     const handleDeleteClick = (cls: ShiftClass) => {
         setDeleteConfirm({ id: cls.id, name: cls.name });
@@ -314,7 +289,6 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                                         staffCount={staffs.filter(s => s.classIds?.includes(c.id)).length}
                                         onDelete={() => handleDeleteClick(c)}
                                         onEdit={() => handleOpenEdit(c)}
-                                        onToggleAllocation={() => handleToggleClassAllocation(c)}
                                     />
                                 ))}
                             </SortableContext>
@@ -376,20 +350,6 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400">クラスカラー</label>
                                 <ColorPicker value={editForm.color} onChange={c => setEditForm({ ...editForm, color: c })} />
-                            </div>
-
-                            {/* 自動割り当て */}
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">自動シフト作成の対象にする</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={editForm.auto_allocate === 1}
-                                        onChange={e => setEditForm({ ...editForm, auto_allocate: e.target.checked ? 1 : 0 })}
-                                    />
-                                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
                             </div>
                         </div>
 

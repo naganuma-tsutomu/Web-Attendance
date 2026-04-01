@@ -218,8 +218,7 @@ export function useShiftEdit({
                         staffId: s.staffId,
                         startTime: local ? toTimeStr(local.start) : s.startTime,
                         endTime: local ? toTimeStr(local.end) : s.endTime,
-                        classType: local ? local.classType : s.classType,
-                        isEarlyShift: s.isEarlyShift
+                        classType: local ? local.classType : s.classType
                     };
                 });
                 await saveShiftsBatch(newShiftsToSave);
@@ -299,7 +298,6 @@ export function useShiftEdit({
             startTime: startTime,
             endTime: endTime,
             classType: classType,
-            isEarlyShift: false,
             isError: false,
         };
         dispatch({ type: 'ADD_SHIFT', shift: newShift, localData: {

@@ -5,8 +5,7 @@ import { toast } from 'sonner';
 import { handleApiError } from '../../../lib/errorHandler';
 import {
     syncHolidaysIfNeeded, getShiftRequirements,
-    getShiftsByMonth, getFixedDates as _getFixedDates,
-    getRotationSettings
+    getShiftsByMonth, getRotationSettings
 } from '../../../lib/api';
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
@@ -208,13 +207,12 @@ export const useScheduleData = () => {
                     startTime: editFormData.startTime,
                     endTime: editFormData.endTime,
                     classType: classes[0]?.id || 'class_niji',
-                    isEarlyShift: false,
                     isError: editFormData.staffId === ''
                 }]);
             }
             toast.success('保存しました');
-        } catch (err) {
-            handleApiError(err, '保存に失敗しました');
+        } catch (err: any) {
+            handleApiError(err, 'シフトの保存に失敗しました');
             throw err;
         }
     };
@@ -224,7 +222,7 @@ export const useScheduleData = () => {
         if (next.has(dateStr)) next.delete(dateStr);
         else next.add(dateStr);
         saveFixedDatesMutation.mutate({ yearMonth: targetYearMonth, dates: Array.from(next) }, {
-            onError: (err) => handleApiError(err, '固定日の保存に失敗しました')
+            onError: (err: any) => handleApiError(err, '固定日の保存に失敗しました')
         });
     };
 

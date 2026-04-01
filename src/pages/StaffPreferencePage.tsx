@@ -239,31 +239,35 @@ const StaffPreferencePage = () => {
                 <div className="hidden md:block w-10"></div> {/* Spacer to balance header */}
             </header>
 
-            <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-                {/* Month Selector (Constant across tabs except settings) */}
-                {activeTab !== 'settings' && (
-                    <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
-                        <button
-                            onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
-                            className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500"
-                        >
-                            <ChevronLeft className="w-6 h-6" />
-                        </button>
-                        <div className="flex items-center space-x-2">
-                            <span className="text-xl font-black text-slate-800 dark:text-white lowercase tracking-tight">
-                                {format(currentMonth, 'yyyy年 M月', { locale: ja })}
-                            </span>
-                            {loading && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+            {/* Month Selector (sticky below header) */}
+            {activeTab !== 'settings' && (
+                <div className="sticky top-[68px] z-20 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+                            <button
+                                onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
+                                className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <div className="flex items-center space-x-2">
+                                <span className="text-xl font-black text-slate-800 dark:text-white lowercase tracking-tight">
+                                    {format(currentMonth, 'yyyy年 M月', { locale: ja })}
+                                </span>
+                                {loading && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+                            </div>
+                            <button
+                                onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
+                                className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
-                            className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500"
-                        >
-                            <ChevronRight className="w-6 h-6" />
-                        </button>
                     </div>
-                )}
+                </div>
+            )}
 
+            <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
                 {/* Tab Content */}
                 {activeTab === 'preference' && (
                     <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -368,8 +372,8 @@ const StaffPreferencePage = () => {
 
                         {/* Partial Selection Modal */}
                         {selectedDateAction && (
-                            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateAction(null)}>
-                                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateAction(null)}>
+                                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                         <h3 className="text-lg font-black text-slate-800 dark:text-white">
                                             {format(new Date(selectedDateAction), 'M月d日 (E)', { locale: ja })} の希望
@@ -425,8 +429,8 @@ const StaffPreferencePage = () => {
 
                         {/* Cancel Confirmation Modal */}
                         {showCancelConfirm && (
-                            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowCancelConfirm(false)}>
-                                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowCancelConfirm(false)}>
+                                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                                         <h3 className="text-lg font-black text-slate-800 dark:text-white">変更を破棄しますか？</h3>
                                         <button onClick={() => setShowCancelConfirm(false)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">

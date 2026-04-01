@@ -95,7 +95,7 @@ const LandingPage = () => {
 
                 <div className="md:col-span-2 text-center mt-4">
                     <p className="text-[10px] font-bold text-slate-300 dark:text-slate-700 uppercase tracking-[0.3em]">
-                        Web Attendance Management System v2.3.0
+                        Web Attendance Management System v2.3.1
                     </p>
                 </div>
             </div>

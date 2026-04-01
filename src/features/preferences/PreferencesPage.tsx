@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Save, AlertCircle, ChevronLeft, ChevronRight, Users, Loader2, RefreshCw, X, Edit2, CheckCircle2, Clock, CalendarX, BookOpen } from 'lucide-react';
 import { syncHolidays } from '../../lib/api';
-import { useStaffList, usePreferencesByMonth, useSavePreference, useHolidays, useBusinessHours } from '../../lib/hooks';
+import { useStaffList, usePreferencesByMonth, useSavePreference, useUpdatePreferenceSubmitted, useHolidays, useBusinessHours } from '../../lib/hooks';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
@@ -56,6 +56,7 @@ const PreferencesPage = () => {
     const [isEditingModalMode, setIsEditingModalMode] = useState(false);
     const [editStartTime, setEditStartTime] = useState<string>('09:00');
     const [editEndTime, setEditEndTime] = useState<string>('18:00');
+    const [confirmSubmit, setConfirmSubmit] = useState<{ submitted: boolean } | null>(null);
 
     const yearMonth = format(targetDate, 'yyyy-MM');
 
@@ -76,17 +77,21 @@ const PreferencesPage = () => {
     const savePreferenceMutation = useSavePreference();
     const saving = savePreferenceMutation.isPending;
 
+    // TanStack Query: 提出済み状態変更ミューテーション
+    const updateSubmittedMutation = useUpdatePreferenceSubmitted();
+    const updatingSubmitted = updateSubmittedMutation.isPending;
+
     const prefError = prefHasError ? '希望休データの読み込みに失敗しました。' : null;
 
     const handleRetryPrefs = () => {
         refetchPrefs();
     };
 
-    // rawPrefs → staffId ごとの details マップに変換
+    // rawPrefs → staffId ごとの details + submitted マップに変換
     const allPrefsForMonth = useMemo(() => {
-        const map: Record<string, { date: string, startTime?: string | null, endTime?: string | null, type?: string | null }[]> = {};
+        const map: Record<string, { details: { date: string, startTime?: string | null, endTime?: string | null, type?: string | null }[], submitted: boolean }> = {};
         rawPrefs.forEach(p => {
-            map[p.staffId] = p.details || [];
+            map[p.staffId] = { details: p.details || [], submitted: p.submitted === true };
         });
         return map;
     }, [rawPrefs]);
@@ -108,7 +113,7 @@ const PreferencesPage = () => {
         const baseDays = generateMonthDays(targetDate, holidays);
         if (selectedStaffId) {
             const staff = staffList.find(s => s.id === selectedStaffId);
-            const unavailable = allPrefsForMonth[selectedStaffId] || [];
+            const unavailable = allPrefsForMonth[selectedStaffId]?.details || [];
 
             setPreferences(baseDays.map(day => {
                 // 固定休日の判定 (外部関数に移管)
@@ -195,6 +200,26 @@ const PreferencesPage = () => {
         }
     };
 
+    const handleToggleSubmitted = (submitted: boolean) => {
+        if (!selectedStaffId) return;
+        setConfirmSubmit({ submitted });
+    };
+
+    const handleConfirmSubmitted = async () => {
+        if (!selectedStaffId || !confirmSubmit) return;
+        const { submitted } = confirmSubmit;
+        setConfirmSubmit(null);
+        try {
+            await updateSubmittedMutation.mutateAsync({ staffId: selectedStaffId, yearMonth, submitted });
+            setMessage({ text: submitted ? '提出済みに変更しました' : '未提出に戻しました', type: 'success' });
+        } catch (err) {
+            console.error(err);
+            setMessage({ text: '提出状態の変更に失敗しました', type: 'error' });
+        } finally {
+            setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+        }
+    };
+
     const handleSyncHolidays = async () => {
         setSyncingHolidays(true);
         try {
@@ -213,12 +238,10 @@ const PreferencesPage = () => {
 
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
 
-    const submittedCount = staffList.filter(s => {
-        const dates = allPrefsForMonth[s.id];
-        return dates !== undefined; // D1にレコードがある = 提出済み
-    }).length;
+    const submittedCount = staffList.filter(s => allPrefsForMonth[s.id]?.submitted === true).length;
 
     return (
+        <>
         <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -291,7 +314,7 @@ const PreferencesPage = () => {
                             <ul className="p-2 space-y-1">
                                 {staffList.map(staff => {
                                     const isSelected = staff.id === selectedStaffId;
-                                    const hasSubmitted = allPrefsForMonth[staff.id] !== undefined;
+                                    const hasSubmitted = allPrefsForMonth[staff.id]?.submitted === true;
                                     return (
                                         <li key={staff.id}>
                                             <button
@@ -343,7 +366,7 @@ const PreferencesPage = () => {
                                 }}
                             >
                                 {staffList.map(staff => {
-                                    const hasSubmitted = allPrefsForMonth[staff.id] !== undefined;
+                                    const hasSubmitted = allPrefsForMonth[staff.id]?.submitted === true;
                                     return (
                                         <option key={staff.id} value={staff.id}>
                                             {staff.name} {hasSubmitted ? '✓' : ''}
@@ -666,7 +689,7 @@ const PreferencesPage = () => {
                             )}
 
                             {/* 保存フッター */}
-                            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
+                            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center gap-3 flex-wrap">
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
                                     不可: <span className="font-semibold text-red-600 dark:text-red-400">
                                         {preferences.filter(p => p.status === 'unavailable' && p.type !== 'training').length} 日
@@ -676,20 +699,98 @@ const PreferencesPage = () => {
                                         {preferences.filter(p => p.status === 'unavailable' && p.type === 'training').length} 日
                                     </span>
                                 </p>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving || prefLoading}
-                                    className={`flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white px-5 py-2.5 rounded-xl shadow-sm transition-colors font-medium text-sm ${(saving || prefLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                >
-                                    <Save className="w-4 h-4" />
-                                    {saving ? '保存中...' : '保存'}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {(() => {
+                                        const isSubmitted = allPrefsForMonth[selectedStaffId!]?.submitted === true;
+                                        return isSubmitted ? (
+                                            <button
+                                                onClick={() => handleToggleSubmitted(false)}
+                                                disabled={updatingSubmitted || prefLoading}
+                                                className={`flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors font-medium text-sm ${(updatingSubmitted || prefLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            >
+                                                <X className="w-4 h-4" />
+                                                {updatingSubmitted ? '変更中...' : '未提出に戻す'}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleToggleSubmitted(true)}
+                                                disabled={updatingSubmitted || prefLoading}
+                                                className={`flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors font-medium text-sm ${(updatingSubmitted || prefLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            >
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                {updatingSubmitted ? '変更中...' : '提出済みにする'}
+                                            </button>
+                                        );
+                                    })()}
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving || prefLoading}
+                                        className={`flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white px-5 py-2.5 rounded-xl shadow-sm transition-colors font-medium text-sm ${(saving || prefLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        {saving ? '保存中...' : '保存'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             </div>
         </div>
+
+        {/* 提出状態変更 確認ダイアログ */}
+        {confirmSubmit && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setConfirmSubmit(null)} />
+                <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                        {confirmSubmit.submitted ? (
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                        ) : (
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                        )}
+                        <div>
+                            <p className="font-semibold text-slate-800 dark:text-slate-100">
+                                {confirmSubmit.submitted ? '提出済みにする' : '未提出に戻す'}
+                            </p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                {selectedStaff?.name} の {format(targetDate, 'yyyy年M月', { locale: ja })}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+                        {confirmSubmit.submitted
+                            ? 'この操作により提出済みとしてマークされます。'
+                            : 'この操作により未提出状態に戻ります。'}
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setConfirmSubmit(null)}
+                            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            onClick={handleConfirmSubmitted}
+                            disabled={updatingSubmitted}
+                            className={`flex-1 py-2.5 rounded-xl font-medium text-sm text-white transition-colors flex items-center justify-center gap-2 ${
+                                confirmSubmit.submitted
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600'
+                                    : 'bg-amber-500 hover:bg-amber-600 dark:bg-amber-500 dark:hover:bg-amber-600'
+                            } ${updatingSubmitted ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                            {updatingSubmitted ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            {confirmSubmit.submitted ? '提出済みにする' : '未提出に戻す'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 

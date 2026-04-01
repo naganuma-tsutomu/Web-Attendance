@@ -147,6 +147,7 @@ const StaffPreferencePage = () => {
             await updatePreferences({
                 staffId: staff.id,
                 yearMonth: format(currentMonth, 'yyyy-MM'),
+                submitted: true,
                 details: preferences
             });
             setSavedPreferences(preferences);

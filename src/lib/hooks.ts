@@ -3,7 +3,7 @@ import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
     getPreferencesByMonth, getShiftRequirements, saveShiftsBatch,
-    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference,
+    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference, updatePreferenceSubmitted,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
     getFacilityName, updateFacilityName,
@@ -180,6 +180,17 @@ export const useSavePreference = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (data: Omit<ShiftPreference, 'id'>) => savePreference(data),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.preferences(variables.yearMonth) });
+        },
+    });
+};
+
+export const useUpdatePreferenceSubmitted = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ staffId, yearMonth, submitted }: { staffId: string; yearMonth: string; submitted: boolean }) =>
+            updatePreferenceSubmitted(staffId, yearMonth, submitted),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.preferences(variables.yearMonth) });
         },

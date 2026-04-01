@@ -43,6 +43,7 @@ export const ShiftPreferenceSchema = z.object({
   id: z.string(),
   staffId: z.string(),
   yearMonth: z.string(),
+  submitted: z.boolean().optional(),
   details: z.array(ShiftPreferenceDetailSchema).optional(),
 });
 

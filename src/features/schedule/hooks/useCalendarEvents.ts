@@ -12,7 +12,6 @@ export interface CalendarEvent {
     end: Date;
     resourceId: string;
     isError: boolean;
-    isEarly: boolean;
     isSummary?: boolean;
     type?: string;
     classNameValue?: string;
@@ -39,9 +38,7 @@ export const useCalendarEvents = (
             const shiftClass = classes.find(c => c.id === shift.classType);
             const className = shiftClass ? shiftClass.name : shift.classType;
 
-            let titleSuffix = '';
-            if (shift.isError) titleSuffix = '(エラー)';
-            else titleSuffix = shift.isEarlyShift ? '(早番)' : '(遅番)';
+            const titleSuffix = shift.isError ? '(エラー)' : '';
 
             return {
                 id: shift.id,
@@ -50,7 +47,6 @@ export const useCalendarEvents = (
                 end: new Date(`${shift.date}T${shift.endTime}:00`),
                 resourceId: shift.classType,
                 isError: shift.isError ?? false,
-                isEarly: shift.isEarlyShift,
                 classNameValue: className,
                 classColor: shiftClass?.color
             };
@@ -125,13 +121,13 @@ export const useCalendarEvents = (
             classes.forEach(cls => {
                 const count = data.classes[cls.name];
                 if (count > 0) {
-                    summaries.push({ id: `summary-class-${cls.id}-${dateStr}`, title: `${cls.name}: ${count}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isEarly: false, isSummary: true, type: 'class', classNameValue: cls.name, classColor: cls.color });
+                    summaries.push({ id: `summary-class-${cls.id}-${dateStr}`, title: `${cls.name}: ${count}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isSummary: true, type: 'class', classNameValue: cls.name, classColor: cls.color });
                 }
             });
-            if (data.insufficient > 0) summaries.push({ id: `summary-insufficient-${dateStr}`, title: `不足: ${data.insufficient}名`, start: baseDate, end: baseDate, resourceId: '', isError: true, isEarly: false, isSummary: true, type: 'error' });
-            if (data.training > 0) summaries.push({ id: `summary-training-${dateStr}`, title: `研修: ${data.training}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isEarly: false, isSummary: true, type: 'training' });
-            if (data.requestedOff > 0) summaries.push({ id: `summary-req-off-${dateStr}`, title: `希望休: ${data.requestedOff}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isEarly: false, isSummary: true, type: 'requested-off' });
-            if (data.fixedOff > 0) summaries.push({ id: `summary-fixed-off-${dateStr}`, title: `固定休: ${data.fixedOff}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isEarly: false, isSummary: true, type: 'fixed-off' });
+            if (data.insufficient > 0) summaries.push({ id: `summary-insufficient-${dateStr}`, title: `不足: ${data.insufficient}名`, start: baseDate, end: baseDate, resourceId: '', isError: true, isSummary: true, type: 'error' });
+            if (data.training > 0) summaries.push({ id: `summary-training-${dateStr}`, title: `研修: ${data.training}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isSummary: true, type: 'training' });
+            if (data.requestedOff > 0) summaries.push({ id: `summary-req-off-${dateStr}`, title: `希望休: ${data.requestedOff}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isSummary: true, type: 'requested-off' });
+            if (data.fixedOff > 0) summaries.push({ id: `summary-fixed-off-${dateStr}`, title: `固定休: ${data.fixedOff}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isSummary: true, type: 'fixed-off' });
         });
         return summaries;
     }, [view, targetYearMonth, events, staffList, preferences, classes, businessHours?.closedDays]);
@@ -157,12 +153,9 @@ export const useCalendarEvents = (
         } else if (event.type === 'fixed-off') {
             style.backgroundColor = CALENDAR_COLORS.fixedOffBg;
             style.color = CALENDAR_COLORS.fixedOffText;
-        } else if (event.type === 'class') {
-            style.backgroundColor = event.classColor || CALENDAR_COLORS.classFallback;
-        } else if (event.isEarly) {
-            style.backgroundColor = CALENDAR_COLORS.early;
         } else {
-            style.backgroundColor = CALENDAR_COLORS.late;
+            // 通常シフト: クラスの色（DB管理）を使用、なければフォールバック
+            style.backgroundColor = event.classColor || CALENDAR_COLORS.classFallback;
         }
 
         return { style };

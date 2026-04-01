@@ -94,7 +94,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fixedDatesQueries.map(q => q.dataUpdatedAt).join(',')]);
 
-    const isFetching = shiftQueries.some(q => q.isLoading) || prefQueries.some(q => q.isLoading) || fixedDatesQueries.some(q => q.isLoading);
+    const isFetching = shiftQueries.some(q => q.isFetching) || prefQueries.some(q => q.isFetching) || fixedDatesQueries.some(q => q.isFetching);
     const isError = shiftQueries.some(q => q.isError) || prefQueries.some(q => q.isError);
 
     const refetch = () => {

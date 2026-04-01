@@ -8,13 +8,6 @@ const DEFAULT_CLOSED_DAYS = [0]; // デフォルトは日曜日休館
 // GET /api/settings/business-hours — 営業時間・休館日設定を取得
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
-        await context.env.DB.prepare(
-            `CREATE TABLE IF NOT EXISTS app_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )`
-        ).run();
-
         const { results } = await context.env.DB.prepare(
             `SELECT key, value FROM app_settings WHERE key IN ('business_hours_start', 'business_hours_end', 'business_hours_closed_days')`
         ).all<{ key: string, value: string }>();
@@ -65,13 +58,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (!Array.isArray(closedDays) || !closedDays.every(d => Number.isInteger(d) && d >= 0 && d <= 7)) {
             return createValidationError('休館日は0〜7の数で指定してください');
         }
-
-        await context.env.DB.prepare(
-            `CREATE TABLE IF NOT EXISTS app_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )`
-        ).run();
 
         // UPSERT
         await context.env.DB.batch([

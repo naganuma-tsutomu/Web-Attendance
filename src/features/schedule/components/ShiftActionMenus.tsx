@@ -113,9 +113,17 @@ export const SwapStaffMenu: React.FC<SwapStaffMenuProps> = ({
                             >
                                 <div className="flex flex-col">
                                     <span className="font-medium group-hover/candidate:text-indigo-600 dark:group-hover/candidate:text-indigo-400">{staff.name}</span>
-                                    {(reason === 'preference' || isFullDayPref || isTraining) && (
-                                        <span className={`text-[8px] ${isTraining ? 'text-amber-500' : 'text-red-500'} font-bold mt-0.5 flex items-center gap-0.5`}>
-                                            <CalendarX className="w-2 h-2" /> {isTraining ? '研修' : '希望休(終日)'}
+                                    {(reason === 'preference' || isFullDayPref || isTraining || reason === 'fixed') && (
+                                        <span className={`text-[8px] ${
+                                            isTraining ? 'text-amber-500' : 
+                                            reason === 'fixed' ? 'text-slate-500 dark:text-slate-400' : 
+                                            'text-red-500'
+                                        } font-bold mt-0.5 flex items-center gap-0.5`}>
+                                            <CalendarX className="w-2 h-2" /> {
+                                                isTraining ? '研修' : 
+                                                reason === 'fixed' ? '固定休' : 
+                                                '希望休(終日)'
+                                            }
                                         </span>
                                     )}
                                     {isPartialPref && timeStr && (

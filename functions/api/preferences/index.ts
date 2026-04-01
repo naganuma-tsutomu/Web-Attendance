@@ -1,5 +1,5 @@
 import type { ShiftPreference } from '../../../src/types';
-import { createValidationError, handleServerError, validateYearMonth, safeJsonParse } from '../../utils/validation';
+import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {

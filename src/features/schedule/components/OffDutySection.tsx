@@ -40,14 +40,20 @@ const OffDutySection: React.FC<OffDutySectionProps> = ({
                                         ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
                                         : reason === 'preference' || isPartialPref
                                             ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                            } ${!isOnShift && !readOnly ? (isTraining) ? 'hover:bg-amber-100 dark:hover:bg-amber-900/40' : (reason === 'preference' || isPartialPref) ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''}`}
+                                            : reason === 'fixed'
+                                                ? 'bg-slate-200 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                            } ${!isOnShift && !readOnly ? (isTraining) ? 'hover:bg-amber-100 dark:hover:bg-amber-900/40' : (reason === 'preference' || isPartialPref) ? 'hover:bg-red-100 dark:hover:bg-red-900/40' : reason === 'fixed' ? 'hover:bg-slate-300 dark:hover:bg-slate-800' : 'hover:bg-slate-100 dark:hover:bg-slate-800' : ''}`}
                         >
-                            {(reason === 'preference' || isPartialPref || isTraining) && <CalendarX className="w-3 h-3 opacity-70" />}
+                            {(reason === 'preference' || isPartialPref || isTraining || reason === 'fixed') && <CalendarX className="w-3 h-3 opacity-70" />}
                             <span>{staff.name}</span>
-                            {(reason === 'preference' || isFullDayPref || isTraining) && (
-                                <span className={`text-[9px] ${isTraining ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-900/50'} px-1 rounded`}>
-                                    {isTraining ? '研修' : '希望休(終日)'}
+                            {(reason === 'preference' || isFullDayPref || isTraining || reason === 'fixed') && (
+                                <span className={`text-[9px] ${
+                                    isTraining ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400' :
+                                    reason === 'fixed' ? 'bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300' :
+                                    'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400'
+                                } px-1 rounded`}>
+                                    {isTraining ? '研修' : reason === 'fixed' ? '固定休' : '希望休(終日)'}
                                 </span>
                             )}
                             {isPartialPref && timeStr && !isTraining && (

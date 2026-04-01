@@ -46,8 +46,4 @@ export const CALENDAR_COLORS = {
     fixedOffText: '#475569',
     /** クラス（フォールバック） */
     classFallback: '#6366f1',
-    /** 早番 */
-    early: '#3b82f6',
-    /** 遅番 */
-    late: '#f59e0b',
 } as const;

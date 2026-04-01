@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, LogOut, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock, MapPin, X } from 'lucide-react';
 import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffList, getClasses, getTimePatterns, getRoles, getHolidays, getBusinessHours } from '../lib/api';
-import { handleApiError } from '../lib/errorHandler';
-import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole, Holiday } from '../types';
+import { QUERY_KEYS } from '../lib/hooks';
+import { CLOSED_DAY_HOLIDAY } from '../constants';
+import type { ShiftPreferenceDetail } from '../types';
 import DailyTimelineView from '../features/schedule/DailyTimelineView';
 
 type TabType = 'preference' | 'shifts' | 'settings';
@@ -15,17 +17,8 @@ const StaffPreferencePage = () => {
     const [staff, setStaff] = useState<{ id: string, name: string } | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>('preference');
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [allShifts, setAllShifts] = useState<Shift[]>([]);
-    const [staffList, setStaffList] = useState<Staff[]>([]);
-    const [myAvailableDays, setMyAvailableDays] = useState<Staff['availableDays']>(undefined);
-    const [classes, setClasses] = useState<ShiftClass[]>([]);
-    const [timePatterns, setTimePatterns] = useState<ShiftTimePattern[]>([]);
-    const [roles, setRoles] = useState<DynamicRole[]>([]);
-    const [holidays, setHolidays] = useState<Holiday[]>([]);
-    const [closedDays, setClosedDays] = useState<number[]>([]);
     const [preferences, setPreferences] = useState<ShiftPreferenceDetail[]>([]);
     const [savedPreferences, setSavedPreferences] = useState<ShiftPreferenceDetail[]>([]);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [selectedDateAction, setSelectedDateAction] = useState<string | null>(null);
@@ -33,19 +26,17 @@ const StaffPreferencePage = () => {
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+    const monthStr = format(currentMonth, 'yyyy-MM');
+    const currentYear = currentMonth.getFullYear();
+
+    // ── セッション認証（独自エンドポイントのため useEffect で管理） ──
     useEffect(() => {
         const checkSession = async () => {
             try {
                 const res = await fetch('/api/auth/staff-me');
-                if (!res.ok) {
-                    navigate('/staff/login');
-                    return;
-                }
+                if (!res.ok) { navigate('/staff/login'); return; }
                 const data = await res.json() as { authenticated: boolean; staff?: { id: string; name: string } };
-                if (!data.authenticated || !data.staff) {
-                    navigate('/staff/login');
-                    return;
-                }
+                if (!data.authenticated || !data.staff) { navigate('/staff/login'); return; }
                 setStaff(data.staff);
             } catch {
                 navigate('/staff/login');
@@ -54,47 +45,66 @@ const StaffPreferencePage = () => {
         checkSession();
     }, [navigate]);
 
+    // ── 静的データ（月をまたいでも変わらない） ──
+    const { data: staffList = [] } = useQuery({
+        queryKey: QUERY_KEYS.staffs,
+        queryFn: getStaffList,
+        enabled: !!staff,
+    });
+    const { data: classes = [] } = useQuery({
+        queryKey: QUERY_KEYS.classes,
+        queryFn: getClasses,
+        enabled: !!staff,
+    });
+    const { data: timePatterns = [] } = useQuery({
+        queryKey: QUERY_KEYS.timePatterns,
+        queryFn: getTimePatterns,
+        enabled: !!staff,
+    });
+    const { data: roles = [] } = useQuery({
+        queryKey: QUERY_KEYS.roles,
+        queryFn: getRoles,
+        enabled: !!staff,
+    });
+    const { data: businessHours } = useQuery({
+        queryKey: QUERY_KEYS.businessHours,
+        queryFn: getBusinessHours,
+        enabled: !!staff,
+        staleTime: 30 * 60 * 1000,
+    });
+    const closedDays = businessHours?.closedDays ?? [];
+
+    // ── 月依存データ ──
+    const { data: allShifts = [], isLoading: shiftsLoading } = useQuery({
+        queryKey: QUERY_KEYS.shifts(monthStr),
+        queryFn: () => getShiftsByMonth(monthStr),
+        enabled: !!staff,
+    });
+    const { data: holidays = [] } = useQuery({
+        queryKey: QUERY_KEYS.holidays(currentYear),
+        queryFn: () => getHolidays(currentYear),
+        enabled: !!staff,
+        staleTime: 24 * 60 * 60 * 1000,
+    });
+    const { data: prefsData, isLoading: prefsLoading } = useQuery({
+        queryKey: QUERY_KEYS.preferences(monthStr),
+        queryFn: () => getPreferencesByMonth(monthStr),
+        enabled: !!staff,
+    });
+
+    const loading = shiftsLoading || prefsLoading;
+
+    // ── 自分の希望休を prefsData から初期化（月が変わるたびに同期） ──
     useEffect(() => {
-        if (!staff) return;
+        if (!staff || !prefsData) return;
+        const myPref = prefsData.find(p => p.staffId === staff.id);
+        const details = myPref?.details || [];
+        setPreferences(details);
+        setSavedPreferences(details);
+    }, [prefsData, staff]);
 
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const monthStr = format(currentMonth, 'yyyy-MM');
-                const [shiftsData, prefsData, staffData, classesData, patternsData, rolesData, holidaysData, businessData] = await Promise.all([
-                    getShiftsByMonth(monthStr),
-                    getPreferencesByMonth(monthStr),
-                    getStaffList(),
-                    getClasses(),
-                    getTimePatterns(),
-                    getRoles(),
-                    getHolidays(currentMonth.getFullYear()),
-                    getBusinessHours()
-                ]);
+    const myAvailableDays = staffList.find(s => s.id === staff?.id)?.availableDays;
 
-                setAllShifts(shiftsData);
-                setStaffList(staffData);
-                setClasses(classesData);
-                setTimePatterns(patternsData);
-                setRoles(rolesData);
-                setHolidays(holidaysData);
-                setClosedDays(businessData.closedDays || []);
-                const myData = staffData.find(s => s.id === staff.id);
-                setMyAvailableDays(myData?.availableDays);
-                
-                const myPref = prefsData.find(p => p.staffId === staff.id);
-                const details = myPref?.details || [];
-                setPreferences(details);
-                setSavedPreferences(details);
-            } catch (err) {
-                handleApiError(err, 'データの読み込みに失敗しました');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [staff, currentMonth]);
 
     const handleLogout = async () => {
         await fetch('/api/auth/staff-logout', { method: 'POST' }).catch(() => {});
@@ -160,7 +170,7 @@ const StaffPreferencePage = () => {
     const isFixedHoliday = (date: Date): boolean => {
         const dateStr = format(date, 'yyyy-MM-dd');
         const holiday = holidays.find(h => h.date === dateStr);
-        if (holiday && !holiday.isWorkday && closedDays.includes(7)) return true;
+        if (holiday && !holiday.isWorkday && closedDays.includes(CLOSED_DAY_HOLIDAY)) return true;
 
         if (!myAvailableDays || myAvailableDays.length === 0) return false;
         const dow = getDay(date);

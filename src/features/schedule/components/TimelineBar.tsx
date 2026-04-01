@@ -26,10 +26,9 @@ const getBarColor = (classType: ClassType | 'unassigned', isError?: boolean, con
     if (isError || classType === 'unassigned') return 'bg-slate-300 border-slate-400 dark:bg-slate-600 dark:border-slate-500';
     if (conflictType === 'training') return 'bg-amber-300 border-amber-400 dark:bg-amber-500/60 dark:border-amber-500';
     if (conflictType === 'preference') return 'bg-orange-300 border-orange-400 dark:bg-orange-500/60 dark:border-orange-500';
-    if (classType === '虹組' || classType === 'class_niji') return 'bg-yellow-300 border-yellow-400';
-    if (classType === 'スマイル組' || classType === 'class_smile') return 'bg-blue-300 border-blue-400';
-    if (classType === '特殊' || classType === 'class_special') return 'bg-emerald-300 border-emerald-400';
-    return 'bg-purple-300 border-purple-400';
+    // classColorMap (DB color フィールド) を持つクラスはインラインスタイルで色付け済み
+    // ここではフォールバック色のみ返す
+    return 'bg-indigo-300 border-indigo-400 dark:bg-indigo-500/60 dark:border-indigo-500';
 };
 
 const hexToRgba = (hex: string, alpha: number): string => {

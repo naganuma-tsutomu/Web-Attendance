@@ -5,6 +5,7 @@ import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequi
 
 export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
 import { isStaffAvailable } from './availabilityUtils';
+import { applyRotation } from './rotationAlgorithm';
 
 /**
  * Check if a staff member is available for a specific time slot
@@ -19,10 +20,12 @@ const isStaffAvailableForTimeSlot = (
     preferences: ShiftPreference[],
     existingShifts: Shift[],
     roles: DynamicRole[],
-    holidays: string[] = [] // YYYY-MM-DD
+    holidays: string[] = [], // YYYY-MM-DD
+    closedDays: number[] = [] // 0=日, 1=月, ..., 6=土, 7=祝日
 ): { available: boolean; matchingPattern?: ShiftTimePattern } => {
     // First check basic day availability (full-day unavailable)
-    if (!isStaffAvailable(staff, date, dateStr, preferences)) return { available: false };
+    // closedDays と isNationalHoliday を専門の引数経由で渡す
+    if (!isStaffAvailable(staff, date, dateStr, preferences, closedDays, holidays.includes(dateStr))) return { available: false };
 
     // Check partial-day unavailability from preference details
     const pref = preferences.find(p => p.staffId === staff.id);
@@ -152,7 +155,8 @@ const findAvailableStaff = (
     currentWeeklyHours: Record<string, Record<string, number>>,
     roles: DynamicRole[],
     holidays: string[] = [],
-    breakSettings?: BreakSettings
+    breakSettings?: BreakSettings,
+    closedDays: number[] = []
 ): Array<{ staff: Staff; pattern?: ShiftTimePattern }> => {
     const yesterdayStr = format(subDays(date, 1), 'yyyy-MM-dd');
     const todayShiftsByStaff = new Map<string, Shift[]>();
@@ -172,7 +176,7 @@ const findAvailableStaff = (
     return staffList
         .map(staff => ({
             staff,
-            result: isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, todayShiftsByStaff.get(staff.id) || [], roles, holidays)
+            result: isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, todayShiftsByStaff.get(staff.id) || [], roles, holidays, closedDays)
         }))
         .filter(({ result }) => result.available)
         .map(({ staff, result }) => ({ staff, pattern: result.matchingPattern }))
@@ -264,7 +268,9 @@ const getRequirementsForDay = (
  * Calculate shift duration in hours
  */
 export const calcDuration = (startTime: string, endTime: string, breakSettings?: BreakSettings): number => {
-    if (breakSettings && breakSettings.displayActualHoursInModal) { // 便宜上ここでチェック、本来は休憩計算
+    // 休憩設定が有効な場合は実労働時間（休憩込み）で計算
+    // displayActualHoursInModal はUIフラグのため使用しない
+    if (breakSettings && breakSettings.exceptionEnabled) {
         return calculateActualWorkingHours(startTime, endTime, breakSettings);
     }
     const startMins = timeToMinutes(startTime);
@@ -273,7 +279,6 @@ export const calcDuration = (startTime: string, endTime: string, breakSettings?:
     return (endMins - startMins) / 60;
 };
 
-import { applyRotation } from './rotationAlgorithm';
 
 /**
  * Heuristic shift generator.
@@ -349,7 +354,7 @@ export const generateShiftsForMonth = (
         }
 
         const availableStaff = staffList.filter(staff =>
-            isStaffAvailable(staff, date, dateStr, preferences)
+            isStaffAvailable(staff, date, dateStr, preferences, closedDays, holidays.includes(dateStr))
         );
 
         // 曜日の必要要件を取得（優先度順）
@@ -392,7 +397,8 @@ export const generateShiftsForMonth = (
                         currentWeeklyHours,
                         roles,
                         holidays,
-                        breakSettings
+                        breakSettings,
+                        closedDays
                     );
 
                     if (candidates.length > 0) {
@@ -407,7 +413,7 @@ export const generateShiftsForMonth = (
                             startTime: shiftStart,
                             endTime: shiftEnd,
                             classType: slot.req.classId,
-                            isEarlyShift: true
+                            isEarlyShift: shiftStart < '12:00'
                         });
 
                         const duration = calcDuration(shiftStart, shiftEnd, breakSettings);

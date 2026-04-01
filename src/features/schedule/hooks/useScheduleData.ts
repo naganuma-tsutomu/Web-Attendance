@@ -129,7 +129,7 @@ export const useScheduleData = () => {
                 preferences as ShiftPreference[],
                 roles,
                 classes,
-                holidays.map(h => h.date),
+                holidays.filter(h => !h.isWorkday).map(h => h.date),
                 requirements,
                 mergedContext,
                 Array.from(fixedDates),

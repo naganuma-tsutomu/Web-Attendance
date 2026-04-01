@@ -25,6 +25,9 @@ export const QUERY_KEYS = {
     fixedDates: (monthStr: string) => ['fixedDates', monthStr],
     businessHours: ['businessHours'],
     facilityName: ['facilityName'],
+    excelSettings: ['excelSettings'],
+    rotationSettings: ['rotationSettings'],
+    breakSettings: ['breakSettings'],
 };
 
 // ==============================
@@ -218,7 +221,7 @@ export const useUpdateBusinessHours = () => {
 
 export const useExcelSettings = () => {
     return useQuery({
-        queryKey: ['excelSettings'],
+        queryKey: QUERY_KEYS.excelSettings,
         queryFn: getExcelSettings,
     });
 };
@@ -228,7 +231,7 @@ export const useUpdateExcelSettings = () => {
     return useMutation({
         mutationFn: (data: ExcelSettings) => updateExcelSettings(data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['excelSettings'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.excelSettings });
         },
     });
 };
@@ -261,7 +264,7 @@ export const useUpdateFacilityName = () => {
 
 export const useRotationSettings = () => {
     return useQuery({
-        queryKey: ['rotationSettings'],
+        queryKey: QUERY_KEYS.rotationSettings,
         queryFn: getRotationSettings,
         staleTime: 30 * 60 * 1000,
     });
@@ -272,7 +275,7 @@ export const useUpdateRotationSettings = () => {
     return useMutation({
         mutationFn: (data: RotationSettings) => updateRotationSettings(data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['rotationSettings'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.rotationSettings });
         },
     });
 };
@@ -283,7 +286,7 @@ export const useUpdateRotationSettings = () => {
 
 export const useBreakSettings = () => {
     return useQuery({
-        queryKey: ['breakSettings'],
+        queryKey: QUERY_KEYS.breakSettings,
         queryFn: getBreakSettings,
         staleTime: 30 * 60 * 1000,
     });
@@ -294,7 +297,7 @@ export const useUpdateBreakSettings = () => {
     return useMutation({
         mutationFn: (data: BreakSettings) => updateBreakSettings(data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['breakSettings'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.breakSettings });
         },
     });
 };

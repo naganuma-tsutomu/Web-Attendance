@@ -28,28 +28,49 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             if (roleError) return createValidationError(roleError);
         }
 
-        const statements = [
-            context.env.DB.prepare(
-                `UPDATE staffs SET
-                    name = COALESCE(?, name),
-                    role = COALESCE(?, role),
-                    hoursTarget = COALESCE(?, hoursTarget),
-                    weeklyHoursTarget = COALESCE(?, weeklyHoursTarget),
-                    defaultWorkingHoursStart = COALESCE(?, defaultWorkingHoursStart),
-                    defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd),
-                    access_key = COALESCE(?, access_key)
-                 WHERE id = ?`
-            ).bind(
-                staffData.name !== undefined ? staffData.name.trim() : null,
-                staffData.role !== undefined ? staffData.role : null,
-                staffData.hoursTarget !== undefined ? staffData.hoursTarget : null,
-                staffData.weeklyHoursTarget !== undefined ? staffData.weeklyHoursTarget : null,
-                staffData.defaultWorkingHoursStart || null,
-                staffData.defaultWorkingHoursEnd || null,
-                staffData.accessKey || null,
-                id
-            )
-        ];
+        // 更新するカラムを動的に構築（undefined = 更新しない、null = NULL を書き込む）
+        const setClauses: string[] = [];
+        const binds: D1BindParam[] = [];
+
+        if (staffData.name !== undefined) {
+            setClauses.push('name = ?');
+            binds.push(staffData.name.trim());
+        }
+        if (staffData.role !== undefined) {
+            setClauses.push('role = ?');
+            binds.push(staffData.role);
+        }
+        if (staffData.hoursTarget !== undefined) {
+            setClauses.push('hoursTarget = ?');
+            binds.push(staffData.hoursTarget);
+        }
+        if (staffData.weeklyHoursTarget !== undefined) {
+            setClauses.push('weeklyHoursTarget = ?');
+            binds.push(staffData.weeklyHoursTarget);
+        }
+        if (staffData.defaultWorkingHoursStart !== undefined) {
+            setClauses.push('defaultWorkingHoursStart = ?');
+            binds.push(staffData.defaultWorkingHoursStart || null);
+        }
+        if (staffData.defaultWorkingHoursEnd !== undefined) {
+            setClauses.push('defaultWorkingHoursEnd = ?');
+            binds.push(staffData.defaultWorkingHoursEnd || null);
+        }
+        if (staffData.accessKey !== undefined) {
+            setClauses.push('access_key = ?');
+            binds.push(staffData.accessKey || null);
+        }
+
+        const statements = [];
+
+        if (setClauses.length > 0) {
+            binds.push(id);
+            statements.push(
+                context.env.DB.prepare(
+                    `UPDATE staffs SET ${setClauses.join(', ')} WHERE id = ?`
+                ).bind(...binds)
+            );
+        }
 
         if (staffData.availableDays) {
             // Re-sync available days: Delete old and insert new
@@ -93,6 +114,8 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
+        // ON DELETE CASCADE により staff_available_days, staff_classes,
+        // shifts, shift_preferences, shift_preference_dates も連動して削除される
         await context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id).run();
 
         return Response.json({ success: true });

@@ -57,12 +57,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const roleError = validateRole(staffData.role || '');
         if (roleError) return createValidationError(roleError);
 
-        // Validate targets
-        const weeklyError = staffData.weeklyHoursTarget !== undefined ? null : null; // Validation happens in target check if we want, but let's just use it
-        // Or if we need to strictly validate:
-        // const hoursError = validateWeeklyHoursTarget(staffData.weeklyHoursTarget);
-        // if (hoursError) return createValidationError(hoursError);
-        
         const id = staffData.id || `staff_${Date.now()}`;
 
         const accessKey = staffData.accessKey || (() => {
@@ -101,8 +95,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         // Add statements for staff classes
-        if ((staffData as any).classIds && (staffData as any).classIds.length > 0) {
-            (staffData as any).classIds.forEach((classId: string) => {
+        if (staffData.classIds && staffData.classIds.length > 0) {
+            staffData.classIds.forEach((classId: string) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_classes (staffId, classId) VALUES (?, ?)"

@@ -5,6 +5,7 @@ import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, Chevron
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
+import DatePicker from '../../../components/ui/DatePicker';
 
 interface ScheduleHeaderProps {
     currentDate: Date;
@@ -71,14 +72,20 @@ const ScheduleHeader = ({
                         >
                             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                         </button>
-                        <div className="px-3 py-1.5 font-bold text-slate-800 dark:text-white min-w-[120px] text-center">
-                            {view === Views.MONTH
-                                ? format(currentDate, 'yyyy年M月', { locale: ja })
-                                : view === Views.WEEK
-                                    ? `${format(startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() }), 'M/d')} - ${format(addDays(startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() }), 6), 'M/d')}`
-                                    : format(currentDate, 'M月d日(E)', { locale: ja })
+                        <DatePicker
+                            date={currentDate}
+                            onChange={onDateChange}
+                            trigger={
+                                <div className="px-3 py-1.5 font-bold text-slate-800 dark:text-white min-w-[120px] text-center hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors cursor-pointer select-none">
+                                    {view === Views.MONTH
+                                        ? format(currentDate, 'yyyy年M月', { locale: ja })
+                                        : view === Views.WEEK
+                                            ? `${format(startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() }), 'M/d')} - ${format(addDays(startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() }), 6), 'M/d')}`
+                                            : format(currentDate, 'M月d日(E)', { locale: ja })
+                                    }
+                                </div>
                             }
-                        </div>
+                        />
                         <button
                             onClick={() => {
                                 if (view === Views.MONTH) onDateChange(addMonths(currentDate, 1));

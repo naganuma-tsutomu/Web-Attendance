@@ -363,6 +363,161 @@ const addRotationShift = (
     currentWeeklyHours[staff.id][weekKey] = (currentWeeklyHours[staff.id][weekKey] || 0) + duration;
 };
 
+// ==========================================
+// ローテーション用 内部状態型
+// ==========================================
+
+interface RotationState {
+    previousDayEarly: string[];
+    previousDayLate: string[];
+    lastEarlyShift: Record<string, string>;
+    lastLateShift: Record<string, string>;
+    earlyShiftCount: Record<string, number>;
+    lateShiftCount: Record<string, number>;
+}
+
+/**
+ * 前月の最終稼働日のシフトからローテーション状態を復元する
+ */
+const restorePreviousMonthState = (
+    existingShifts: Shift[],
+    firstDay: Date,
+    rotationStaff: Staff[],
+    earlyPattern: ShiftTimePattern,
+    latePattern: ShiftTimePattern,
+    state: RotationState
+): void => {
+    const prevMonthShifts = existingShifts.filter(s => s.date < format(firstDay, 'yyyy-MM-dd'));
+    if (prevMonthShifts.length === 0) return;
+
+    const sortedDates = [...new Set(prevMonthShifts.map(s => s.date))].sort();
+    const lastWorkingDay = sortedDates[sortedDates.length - 1];
+
+    for (const shift of prevMonthShifts) {
+        if (!rotationStaff.some(rs => rs.id === shift.staffId)) continue;
+
+        if (shift.startTime === earlyPattern.startTime && shift.endTime === earlyPattern.endTime) {
+            if (!state.lastEarlyShift[shift.staffId] || shift.date > state.lastEarlyShift[shift.staffId]) {
+                state.lastEarlyShift[shift.staffId] = shift.date;
+            }
+            if (shift.date === lastWorkingDay) {
+                state.previousDayEarly.push(shift.staffId);
+            }
+        } else if (shift.startTime === latePattern.startTime && shift.endTime === latePattern.endTime) {
+            if (!state.lastLateShift[shift.staffId] || shift.date > state.lastLateShift[shift.staffId]) {
+                state.lastLateShift[shift.staffId] = shift.date;
+            }
+            if (shift.date === lastWorkingDay) {
+                state.previousDayLate.push(shift.staffId);
+            }
+        }
+    }
+};
+
+/**
+ * 土曜日のローテーションシフトを割り当てる
+ * - saturdayPreferFridayLate が true の場合、金曜遅番スタッフを優先
+ * - 土曜出勤スタッフは次週月曜の previousDayLate に引き継ぐ
+ * - previousDayEarly はクリアしない（金曜早番は月曜遅番候補として残す）
+ */
+const assignSaturdayShifts = (
+    date: Date,
+    dateStr: string,
+    available: Staff[],
+    settings: RotationSettings,
+    latePattern: ShiftTimePattern,
+    classes: ShiftClass[],
+    generatedShifts: Shift[],
+    currentHours: Record<string, number>,
+    currentWeeklyHours: Record<string, Record<string, number>>,
+    state: RotationState,
+    breakSettings: BreakSettings | undefined,
+    sortByLatePriority: (a: Staff, b: Staff) => number
+): void => {
+    if (!settings.saturdayEnabled) return;
+
+    let candidates: Staff[];
+    if (settings.saturdayPreferFridayLate && state.previousDayLate.length > 0) {
+        const fridayLate = available.filter(s => state.previousDayLate.includes(s.id)).sort(sortByLatePriority);
+        const others = available.filter(s => !state.previousDayLate.includes(s.id)).sort(sortByLatePriority);
+        candidates = [...fridayLate, ...others];
+    } else {
+        candidates = [...available].sort(sortByLatePriority);
+    }
+
+    const saturdayAssigned: string[] = [];
+    for (let i = 0; i < settings.saturdayCount && i < candidates.length; i++) {
+        addRotationShift(generatedShifts, dateStr, date, candidates[i], latePattern, classes, currentHours, currentWeeklyHours, 'late', breakSettings);
+        saturdayAssigned.push(candidates[i].id);
+        state.lastLateShift[candidates[i].id] = dateStr;
+        state.lateShiftCount[candidates[i].id] = (state.lateShiftCount[candidates[i].id] || 0) + 1;
+    }
+    // 土曜出勤スタッフを月曜の previousDayLate に引き継ぐ（連続早番を避けるため）
+    state.previousDayLate = Array.from(new Set([...state.previousDayLate, ...saturdayAssigned]));
+    // previousDayEarly はクリアしない（金曜早番のスタッフは月曜遅番の優先に入るため）
+};
+
+/**
+ * 平日（月〜金）のローテーションシフト（早番・遅番）を割り当てる
+ * - 昨日早番のスタッフは連続早番を避けるため候補の後方に回す
+ * - 昨日遅番のスタッフは連続遅番を避けるため候補の後方に回す
+ * - 早番割当済みスタッフは遅番候補から除外する
+ */
+const assignWeekdayShifts = (
+    date: Date,
+    dateStr: string,
+    available: Staff[],
+    settings: RotationSettings,
+    earlyPattern: ShiftTimePattern,
+    latePattern: ShiftTimePattern,
+    classes: ShiftClass[],
+    generatedShifts: Shift[],
+    currentHours: Record<string, number>,
+    currentWeeklyHours: Record<string, Record<string, number>>,
+    state: RotationState,
+    breakSettings: BreakSettings | undefined,
+    sortByEarlyPriority: (a: Staff, b: Staff) => number,
+    sortByLatePriority: (a: Staff, b: Staff) => number
+): void => {
+    const earlyAssigned: string[] = [];
+    const lateAssigned: string[] = [];
+
+    // === 早番割当 ===
+    // 昨日早番のスタッフは連続になるため優先度を下げて最終候補にする
+    const normalForEarly = available.filter(s => !state.previousDayEarly.includes(s.id)).sort(sortByEarlyPriority);
+    const prevEarlyForEarly = available.filter(s => state.previousDayEarly.includes(s.id)).sort(sortByEarlyPriority);
+    const earlyCandidates = [...normalForEarly, ...prevEarlyForEarly];
+
+    for (let i = 0; i < settings.weekdayEarlyCount; i++) {
+        const candidate = earlyCandidates.find(s => !earlyAssigned.includes(s.id));
+        if (candidate) {
+            addRotationShift(generatedShifts, dateStr, date, candidate, earlyPattern, classes, currentHours, currentWeeklyHours, 'early', breakSettings);
+            earlyAssigned.push(candidate.id);
+            state.lastEarlyShift[candidate.id] = dateStr;
+            state.earlyShiftCount[candidate.id] = (state.earlyShiftCount[candidate.id] || 0) + 1;
+        }
+    }
+
+    // === 遅番割当 ===
+    // 昨日遅番のスタッフは連続になるため優先度を下げ、早番割当済みは除外する
+    const normalForLate = available.filter(s => !state.previousDayLate.includes(s.id) && !earlyAssigned.includes(s.id)).sort(sortByLatePriority);
+    const prevLateForLate = available.filter(s => state.previousDayLate.includes(s.id) && !earlyAssigned.includes(s.id)).sort(sortByLatePriority);
+    const lateCandidates = [...normalForLate, ...prevLateForLate];
+
+    for (let i = 0; i < settings.weekdayLateCount; i++) {
+        const candidate = lateCandidates.find(s => !earlyAssigned.includes(s.id) && !lateAssigned.includes(s.id));
+        if (candidate) {
+            addRotationShift(generatedShifts, dateStr, date, candidate, latePattern, classes, currentHours, currentWeeklyHours, 'late', breakSettings);
+            lateAssigned.push(candidate.id);
+            state.lastLateShift[candidate.id] = dateStr;
+            state.lateShiftCount[candidate.id] = (state.lateShiftCount[candidate.id] || 0) + 1;
+        }
+    }
+
+    state.previousDayEarly = earlyAssigned;
+    state.previousDayLate = lateAssigned;
+};
+
 /**
  * Apply rotation logic for full-time staff (正社員ローテーション)
  *
@@ -399,66 +554,37 @@ const applyRotation = (
     const latePattern = allPatterns.find(p => p.id === settings.latePatternId);
     if (!earlyPattern || !latePattern) return;
 
-    let previousDayEarly: string[] = [];
-    let previousDayLate: string[] = [];
+    const state: RotationState = {
+        previousDayEarly: [],
+        previousDayLate: [],
+        lastEarlyShift: {},
+        lastLateShift: {},
+        earlyShiftCount: Object.fromEntries(rotationStaff.map(s => [s.id, 0])),
+        lateShiftCount: Object.fromEntries(rotationStaff.map(s => [s.id, 0])),
+    };
 
-    const lastEarlyShift: Record<string, string> = {};
-    const lastLateShift: Record<string, string> = {};
-    const earlyShiftCount: Record<string, number> = {};
-    const lateShiftCount: Record<string, number> = {};
+    restorePreviousMonthState(existingShifts, days[0], rotationStaff, earlyPattern, latePattern, state);
 
-    rotationStaff.forEach(s => {
-        earlyShiftCount[s.id] = 0;
-        lateShiftCount[s.id] = 0;
-    });
-
-    // Restore previous day state from last working day of previous month
-    const firstDay = days[0];
-    const prevMonthShifts = existingShifts.filter(s => s.date < format(firstDay, 'yyyy-MM-dd'));
-    if (prevMonthShifts.length > 0) {
-        // Find the last working day's shifts
-        const sortedDates = [...new Set(prevMonthShifts.map(s => s.date))].sort();
-        const lastWorkingDay = sortedDates[sortedDates.length - 1];
-
-        for (const shift of prevMonthShifts) {
-            if (!rotationStaff.some(rs => rs.id === shift.staffId)) continue;
-            if (shift.startTime === earlyPattern.startTime && shift.endTime === earlyPattern.endTime) {
-                if (!lastEarlyShift[shift.staffId] || shift.date > lastEarlyShift[shift.staffId]) {
-                    lastEarlyShift[shift.staffId] = shift.date;
-                }
-                if (shift.date === lastWorkingDay) {
-                    previousDayEarly.push(shift.staffId);
-                }
-            } else if (shift.startTime === latePattern.startTime && shift.endTime === latePattern.endTime) {
-                if (!lastLateShift[shift.staffId] || shift.date > lastLateShift[shift.staffId]) {
-                    lastLateShift[shift.staffId] = shift.date;
-                }
-                if (shift.date === lastWorkingDay) {
-                    previousDayLate.push(shift.staffId);
-                }
-            }
-        }
-    }
-
+    // 優先度ソート関数は state を参照するためここで定義する
     const sortByEarlyPriority = (a: Staff, b: Staff) => {
-        const countA = earlyShiftCount[a.id] || 0;
-        const countB = earlyShiftCount[b.id] || 0;
+        const countA = state.earlyShiftCount[a.id] || 0;
+        const countB = state.earlyShiftCount[b.id] || 0;
         if (countA !== countB) return countA - countB; // 1. 回数が少ない人を最優先
 
-        const dateA = lastEarlyShift[a.id] || '2000-01-01';
-        const dateB = lastEarlyShift[b.id] || '2000-01-01';
+        const dateA = state.lastEarlyShift[a.id] || '2000-01-01';
+        const dateB = state.lastEarlyShift[b.id] || '2000-01-01';
         if (dateA !== dateB) return dateA.localeCompare(dateB); // 2. 久しぶりの人を優先
 
         return currentHours[a.id] - currentHours[b.id]; // 3. 労働時間
     };
 
     const sortByLatePriority = (a: Staff, b: Staff) => {
-        const countA = lateShiftCount[a.id] || 0;
-        const countB = lateShiftCount[b.id] || 0;
+        const countA = state.lateShiftCount[a.id] || 0;
+        const countB = state.lateShiftCount[b.id] || 0;
         if (countA !== countB) return countA - countB;
 
-        const dateA = lastLateShift[a.id] || '2000-01-01';
-        const dateB = lastLateShift[b.id] || '2000-01-01';
+        const dateA = state.lastLateShift[a.id] || '2000-01-01';
+        const dateB = state.lastLateShift[b.id] || '2000-01-01';
         if (dateA !== dateB) return dateA.localeCompare(dateB);
 
         return currentHours[a.id] - currentHours[b.id];
@@ -468,100 +594,22 @@ const applyRotation = (
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
 
-        // Skip closed days, holidays, and fixed dates
         if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
             continue;
         }
 
-        const available = rotationStaff.filter(s =>
-            isStaffAvailable(s, date, dateStr, preferences)
-        );
+        const available = rotationStaff.filter(s => isStaffAvailable(s, date, dateStr, preferences));
+        if (available.length === 0) continue;
 
-        if (available.length === 0) {
-            continue;
-        }
-
-        // Saturday handling
         if (dayOfWeek === 6) {
-            if (settings.saturdayEnabled) {
-                let candidates: Staff[];
-                if (settings.saturdayPreferFridayLate && previousDayLate.length > 0) {
-                    const fridayLate = available.filter(s => previousDayLate.includes(s.id))
-                        .sort(sortByLatePriority);
-                    const others = available.filter(s => !previousDayLate.includes(s.id))
-                        .sort(sortByLatePriority);
-                    candidates = [...fridayLate, ...others];
-                } else {
-                    candidates = [...available].sort(sortByLatePriority);
-                }
-
-                const saturdayAssigned: string[] = [];
-                for (let i = 0; i < settings.saturdayCount && i < candidates.length; i++) {
-                    addRotationShift(generatedShifts, dateStr, date, candidates[i], latePattern, classes, currentHours, currentWeeklyHours, 'late', breakSettings);
-                    saturdayAssigned.push(candidates[i].id);
-                    lastLateShift[candidates[i].id] = dateStr;
-                    lateShiftCount[candidates[i].id] = (lateShiftCount[candidates[i].id] || 0) + 1;
-                }
-                // 土曜に遅番として入ったスタッフも前日遅番候補に加える（金曜の遅番だったスタッフも月曜の早番候補として残すため）
-                previousDayLate = Array.from(new Set([...previousDayLate, ...saturdayAssigned]));
-                // previousDayEarlyはクリアしない（金曜早番のスタッフは月曜遅番の優先に入るため）
-            }
+            assignSaturdayShifts(date, dateStr, available, settings, latePattern, classes, generatedShifts, currentHours, currentWeeklyHours, state, breakSettings, sortByLatePriority);
             continue;
         }
 
-        // Weekday handling (Mon-Fri)
-        if (dayOfWeek < 1 || dayOfWeek > 5) {
-            // Sunday is typically a closed day, but handle gracefully
-            continue;
-        }
+        // 日曜日は通常 closedDays に含まれるが、含まれない場合もスキップ
+        if (dayOfWeek < 1 || dayOfWeek > 5) continue;
 
-        const earlyAssigned: string[] = [];
-        const lateAssigned: string[] = [];
-
-        // === Early shift assignment ===
-        // 通常の候補（昨日の早番以外）
-        const normalForEarly = available.filter(s => !previousDayEarly.includes(s.id))
-            .sort(sortByEarlyPriority);
-        // 昨日の早番（連続になるため優先度を下げて最終候補にする）
-        const prevEarlyForEarly = available.filter(s => previousDayEarly.includes(s.id))
-            .sort(sortByEarlyPriority);
-
-        const earlyCandidates = [...normalForEarly, ...prevEarlyForEarly];
-
-        for (let i = 0; i < settings.weekdayEarlyCount; i++) {
-            const candidate = earlyCandidates.find(s => !earlyAssigned.includes(s.id));
-            if (candidate) {
-                addRotationShift(generatedShifts, dateStr, date, candidate, earlyPattern, classes, currentHours, currentWeeklyHours, 'early', breakSettings);
-                earlyAssigned.push(candidate.id);
-                lastEarlyShift[candidate.id] = dateStr;
-                earlyShiftCount[candidate.id] = (earlyShiftCount[candidate.id] || 0) + 1;
-            }
-        }
-
-        // === Late shift assignment ===
-        // 通常の候補（昨日遅番以外）
-        const normalForLate = available.filter(s => !previousDayLate.includes(s.id) && !earlyAssigned.includes(s.id))
-            .sort(sortByLatePriority);
-        // 昨日の遅番（連続になるため優先度を下げて最終候補にする）
-        const prevLateForLate = available.filter(s => previousDayLate.includes(s.id) && !earlyAssigned.includes(s.id))
-            .sort(sortByLatePriority);
-
-        const lateCandidates = [...normalForLate, ...prevLateForLate];
-
-        for (let i = 0; i < settings.weekdayLateCount; i++) {
-            const candidate = lateCandidates.find(s =>
-                !earlyAssigned.includes(s.id) && !lateAssigned.includes(s.id)
-            );
-            if (candidate) {
-                addRotationShift(generatedShifts, dateStr, date, candidate, latePattern, classes, currentHours, currentWeeklyHours, 'late', breakSettings);
-                lateAssigned.push(candidate.id);
-                lastLateShift[candidate.id] = dateStr;
-                lateShiftCount[candidate.id] = (lateShiftCount[candidate.id] || 0) + 1;
-            }
-        }
-
-        previousDayEarly = earlyAssigned;
-        previousDayLate = lateAssigned;
+        assignWeekdayShifts(date, dateStr, available, settings, earlyPattern, latePattern, classes, generatedShifts, currentHours, currentWeeklyHours, state, breakSettings, sortByEarlyPriority, sortByLatePriority);
     }
 };
 

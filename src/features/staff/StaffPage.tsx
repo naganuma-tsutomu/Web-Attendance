@@ -110,7 +110,6 @@ const StaffPage = () => {
             weeklyHoursTarget: defaultRole?.weeklyHoursTarget ?? null,
             defaultWorkingHoursStart: '',
             defaultWorkingHoursEnd: '',
-            isHelpStaff: false,
             availableDays: defaultAvailableDays,
             classIds: []
         });
@@ -134,7 +133,6 @@ const StaffPage = () => {
             role: staff.role,
             hoursTarget: staff.hoursTarget ?? null,
             weeklyHoursTarget: staff.weeklyHoursTarget ?? null,
-            isHelpStaff: staff.isHelpStaff || false,
             availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
             defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',
             defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || '',

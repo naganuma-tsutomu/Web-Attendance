@@ -9,7 +9,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         const staffData = await context.request.json() as Partial<{
             name: string; role: string; hoursTarget: number | null;
-            weeklyHoursTarget: number | null; isHelpStaff: boolean;
+            weeklyHoursTarget: number | null;
             defaultWorkingHoursStart: string | null; defaultWorkingHoursEnd: string | null;
             accessKey: string | null;
             availableDays: (number | { day: number; weeks?: number[] | null })[];
@@ -35,7 +35,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     role = COALESCE(?, role),
                     hoursTarget = COALESCE(?, hoursTarget),
                     weeklyHoursTarget = COALESCE(?, weeklyHoursTarget),
-                    isHelpStaff = COALESCE(?, isHelpStaff),
                     defaultWorkingHoursStart = COALESCE(?, defaultWorkingHoursStart),
                     defaultWorkingHoursEnd = COALESCE(?, defaultWorkingHoursEnd),
                     access_key = COALESCE(?, access_key)
@@ -45,7 +44,6 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 staffData.role !== undefined ? staffData.role : null,
                 staffData.hoursTarget !== undefined ? staffData.hoursTarget : null,
                 staffData.weeklyHoursTarget !== undefined ? staffData.weeklyHoursTarget : null,
-                staffData.isHelpStaff !== undefined ? (staffData.isHelpStaff ? 1 : 0) : null,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
                 staffData.accessKey || null,

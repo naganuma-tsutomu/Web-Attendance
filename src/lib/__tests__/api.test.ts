@@ -255,15 +255,13 @@ describe('API - Preference functions', () => {
     describe('savePreference', () => {
         it('希望休を保存できる', async () => {
             const pref = { staffId: 's1', yearMonth: '2025-06', unavailableDates: ['2025-06-01'] };
-            const mockResponse = { id: 'pref-new-id' };
-            
+
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve(mockResponse)
+                json: () => Promise.resolve({})
             });
 
-            const result = await savePreference(pref);
-            expect(result).toBe('pref-new-id');
+            await expect(savePreference(pref)).resolves.toBeUndefined();
         });
     });
 });

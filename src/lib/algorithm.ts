@@ -302,6 +302,36 @@ const calcDuration = (startTime: string, endTime: string, breakSettings?: BreakS
 };
 
 /**
+ * Pick a class for a rotation shift.
+ * Uses only the classes the staff is assigned to (classIds).
+ * Falls back to all classes if the staff has no class assignment.
+ * Among eligible classes, picks the one with the fewest rotation shifts today.
+ */
+const pickClassForRotation = (
+    staff: Staff,
+    classes: ShiftClass[],
+    generatedShifts: Shift[],
+    dateStr: string
+): string => {
+    if (classes.length === 0) return '';
+
+    const eligibleClasses = staff.classIds && staff.classIds.length > 0
+        ? classes.filter(c => staff.classIds!.includes(c.id))
+        : classes;
+
+    const pool = eligibleClasses.length > 0 ? eligibleClasses : classes;
+    if (pool.length === 1) return pool[0].id;
+
+    // Among eligible classes, pick the one with the fewest shifts today
+    const counts = pool.map(c => ({
+        id: c.id,
+        count: generatedShifts.filter(s => s.date === dateStr && s.classType === c.id).length
+    }));
+    counts.sort((a, b) => a.count - b.count);
+    return counts[0].id;
+};
+
+/**
  * Add a rotation shift and update hour tracking
  */
 const addRotationShift = (
@@ -316,8 +346,7 @@ const addRotationShift = (
     shiftType: 'early' | 'late',
     breakSettings?: BreakSettings
 ): void => {
-    // 全クラス共通: 先頭のクラスIDを使用
-    const classId = classes[0]?.id || '';
+    const classId = pickClassForRotation(staff, classes, generatedShifts, dateStr);
     generatedShifts.push({
         id: `rot_${dateStr}_${shiftType}_${staff.id}`,
         date: dateStr,
@@ -357,9 +386,13 @@ const applyRotation = (
     existingShifts: Shift[],
     allPatterns: ShiftTimePattern[],
     classes: ShiftClass[],
+    roles: DynamicRole[],
     breakSettings?: BreakSettings
 ): void => {
-    const rotationStaff = staffList.filter(s => s.role === settings.roleId);
+    const selectedRole = roles.find(r => r.id === settings.roleId);
+    const rotationStaff = selectedRole
+        ? staffList.filter(s => s.role === selectedRole.name)
+        : [];
     if (rotationStaff.length === 0) return;
 
     const earlyPattern = allPatterns.find(p => p.id === settings.earlyPatternId);
@@ -591,7 +624,7 @@ export const generateShiftsForMonth = (
         applyRotation(
             days, rotationSettings, staffList, preferences,
             generatedShifts, currentHours, currentWeeklyHours,
-            closedDays, holidays, fixedDates, existingShifts, allPatterns, classes, breakSettings
+            closedDays, holidays, fixedDates, existingShifts, allPatterns, classes, roles, breakSettings
         );
     }
 
@@ -612,72 +645,83 @@ export const generateShiftsForMonth = (
         // 曜日の必要要件を取得（優先度順）
         const dayRequirements = getRequirementsForDay(requirements, dayOfWeek, classIds);
 
-        // 要件に基づいてスタッフを割り当てる
-        dayRequirements.forEach(req => {
-            // 現時点でこの時間帯・クラスに割り当て済みの人数を確認
-            const currentCount = countStaffInTimeSlot(generatedShifts, dateStr, req.startTime, req.endTime, req.classId);
-            const needed = req.minStaffCount - currentCount;
+        // 同じ時間帯の要件をグルーピングし、クラス間でインターリーブ割り当て
+        // これにより正社員が一方のクラスに固まるのを防ぐ
+        const timeSlotGroups = new Map<string, ShiftRequirement[]>();
+        for (const req of dayRequirements) {
+            const key = `${req.startTime}-${req.endTime}`;
+            if (!timeSlotGroups.has(key)) timeSlotGroups.set(key, []);
+            timeSlotGroups.get(key)!.push(req);
+        }
 
-            if (needed > 0) {
-                // 利用可能なスタッフを探す（既に別スロットに割り当て済みの人は除外される）
-                const candidates = findAvailableStaff(
-                    availableStaff,
-                    date,
-                    dateStr,
-                    req.startTime,
-                    req.endTime,
-                    preferences,
-                    generatedShifts,
-                    currentHours,
-                    currentWeeklyHours,
-                    roles,
-                    holidays,
-                    breakSettings
-                );
+        for (const reqs of timeSlotGroups.values()) {
+            // 各要件の残り必要人数を計算
+            const slots = reqs.map(req => ({
+                req,
+                needed: req.minStaffCount - countStaffInTimeSlot(generatedShifts, dateStr, req.startTime, req.endTime, req.classId)
+            })).filter(s => s.needed > 0);
 
-                for (let i = 0; i < needed; i++) {
-                    if (candidates[i]) {
-                        const { staff, pattern } = candidates[i];
-                        const shiftStart = pattern ? pattern.startTime : req.startTime;
-                        const shiftEnd = pattern ? pattern.endTime : req.endTime;
+            if (slots.length === 0) continue;
+
+            // ラウンドロビンで1人ずつ各クラスに割り当て
+            let assigned = true;
+            while (assigned) {
+                assigned = false;
+                for (const slot of slots) {
+                    if (slot.needed <= 0) continue;
+
+                    const candidates = findAvailableStaff(
+                        availableStaff,
+                        date,
+                        dateStr,
+                        slot.req.startTime,
+                        slot.req.endTime,
+                        preferences,
+                        generatedShifts,
+                        currentHours,
+                        currentWeeklyHours,
+                        roles,
+                        holidays,
+                        breakSettings
+                    );
+
+                    if (candidates.length > 0) {
+                        const { staff, pattern } = candidates[0];
+                        const shiftStart = pattern ? pattern.startTime : slot.req.startTime;
+                        const shiftEnd = pattern ? pattern.endTime : slot.req.endTime;
 
                         generatedShifts.push({
-                            id: `gen_${dateStr}_req_${req.id}_${staff.id}_${i}`,
+                            id: `gen_${dateStr}_req_${slot.req.id}_${staff.id}_${slot.needed}`,
                             date: dateStr,
                             staffId: staff.id,
                             startTime: shiftStart,
                             endTime: shiftEnd,
-                            classType: req.classId,
+                            classType: slot.req.classId,
                             isEarlyShift: true
                         });
 
-                        // 労働時間を加算
-                        // 日またぎ対応は calcDuration が処理
                         const duration = calcDuration(shiftStart, shiftEnd, breakSettings);
                         currentHours[staff.id] += duration;
-                        
                         const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
                         currentWeeklyHours[staff.id][weekKey] = (currentWeeklyHours[staff.id][weekKey] || 0) + duration;
-
-                        // 重要: パターンで割り当てた場合、このスタッフが同じ日の他の要件も
-                        // 同時に満たしている可能性があるため、ループの次の反復で
-                        // countStaffInTimeSlot が正しく機能するように既存の配列に追加済み。
                     } else {
-                        // スタッフが足りない場合はエラーシフトを作成
                         generatedShifts.push({
-                            id: `err_${dateStr}_req_${req.id}_miss_${i}`,
+                            id: `err_${dateStr}_req_${slot.req.id}_miss_${slot.needed}`,
                             date: dateStr,
                             staffId: UNASSIGNED_STAFF_ID,
-                            startTime: req.startTime,
-                            endTime: req.endTime,
-                            classType: req.classId,
+                            startTime: slot.req.startTime,
+                            endTime: slot.req.endTime,
+                            classType: slot.req.classId,
                             isError: true,
                             isEarlyShift: false
                         });
                     }
+
+                    slot.needed--;
+                    assigned = true;
                 }
             }
-        });
+        }
 
     });
 

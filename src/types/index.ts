@@ -37,9 +37,8 @@ export type AvailableDayConfig = _AvailableDayConfig;
 // ==========================================
 
 /** スタッフ */
-export interface Staff extends Omit<StaffInferred, 'isHelpStaff' | 'hoursTarget' | 'display_order'> {
+export interface Staff extends Omit<StaffInferred, 'hoursTarget' | 'display_order'> {
     hoursTarget: number | null;
-    isHelpStaff?: boolean;
     display_order?: number;
 }
 

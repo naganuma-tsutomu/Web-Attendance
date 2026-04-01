@@ -16,7 +16,6 @@ export const StaffSchema = z.object({
   role: z.string(),
   hoursTarget: z.number().nullable().optional(),
   weeklyHoursTarget: z.number().nullable().optional(),
-  isHelpStaff: z.union([z.boolean(), z.number()]).optional().nullable(),
   classIds: z.array(z.string()).optional(),
   availableDays: z.array(z.union([z.number(), AvailableDayConfigSchema])).optional(),
   defaultWorkingHoursStart: z.string().optional().nullable(),

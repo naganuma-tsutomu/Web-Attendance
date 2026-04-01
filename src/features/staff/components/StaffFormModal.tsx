@@ -313,17 +313,6 @@ const StaffFormModal = ({
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <input
-                            type="checkbox"
-                            id="isHelpStaff"
-                            checked={formData.isHelpStaff || false}
-                            onChange={e => setFormData({ ...formData, isHelpStaff: e.target.checked })}
-                            className="rounded-lg border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500 h-5 w-5 bg-white dark:bg-slate-800"
-                        />
-                        <label htmlFor="isHelpStaff" className="text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer">ヘルプ要員（不足時の補完に使用）</label>
-                    </div>
-
                     <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
                         <button
                             type="button"

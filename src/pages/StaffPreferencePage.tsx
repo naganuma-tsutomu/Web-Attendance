@@ -241,7 +241,7 @@ const StaffPreferencePage = () => {
 
             {/* Month Selector (sticky below header) */}
             {activeTab !== 'settings' && (
-                <div className="sticky top-[68px] z-20 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="sticky top-[68px] z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-800/50 px-4 sm:px-6 py-3">
                     <div className="max-w-4xl mx-auto">
                         <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
                             <button

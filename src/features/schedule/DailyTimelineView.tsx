@@ -261,7 +261,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
                 {/* Simplified readOnly header */}
                 {readOnly && (
-                    <div className="flex bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 sticky top-0 z-20">
+                    <div className="flex bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 text-[10px] font-bold text-slate-500 sticky top-0 z-10">
                         <div className="w-[110px] sm:w-44 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center flex flex-col justify-center leading-tight"><span>名前</span><span className="hidden sm:inline"> / 時間</span></div>
                         <div className="flex-1 relative h-6">
                             {hourLabels.map((h) => {

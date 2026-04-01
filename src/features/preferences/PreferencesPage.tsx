@@ -5,6 +5,7 @@ import { useStaffList, usePreferencesByMonth, useSavePreference, useHolidays, us
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
+import { isStaffFixedHoliday } from '../../lib/availabilityUtils';
 
 interface DayStatus {
     dateStr: string;
@@ -110,27 +111,10 @@ const PreferencesPage = () => {
             const unavailable = allPrefsForMonth[selectedStaffId] || [];
 
             setPreferences(baseDays.map(day => {
-                // 固定休日判定
-                const dayOfWeek = getDay(new Date(day.dateStr));
-                const config = staff?.availableDays?.find(ad =>
-                    (typeof ad === 'number' ? ad : ad.day) === dayOfWeek
-                );
-
-                // 固定休日（availableDays に含まれない、または特定週のみ）の判定
+                // 固定休日の判定 (外部関数に移管)
                 let isFixedHoliday = false;
-                if (!config && dayOfWeek !== 0) { // 日曜以外で config がない = 毎週休み
-                    isFixedHoliday = true;
-                } else if (typeof config === 'object' && config.weeks) {
-                    // 何週目か取得
-                    const dateObj = new Date(day.dateStr);
-                    const weekNum = Math.ceil(dateObj.getDate() / 7);
-                    if (!config.weeks.includes(weekNum)) {
-                        isFixedHoliday = true;
-                    }
-                }
-
-                if (day.isNationalHoliday && closedDays.includes(7)) {
-                    isFixedHoliday = true;
+                if (staff) {
+                     isFixedHoliday = isStaffFixedHoliday(staff, new Date(day.dateStr), closedDays, !!day.isNationalHoliday);
                 }
 
                 if (isFixedHoliday) return { ...day, status: 'fixed' };

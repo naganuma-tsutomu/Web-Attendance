@@ -65,7 +65,9 @@ const StaffPage = () => {
 
     const shiftTotals = useMemo(() => calculateTotalHours(shifts, breakSettings), [shifts, breakSettings]);
 
-    const loading = isStaffLoading || isRolesLoading || isClassesLoading;
+    const loading = (isStaffLoading && staffList.length === 0) || 
+                    (isRolesLoading && roles.length === 0) || 
+                    (isClassesLoading && classes.length === 0);
     const error = (isStaffError || isRolesError || isClassesError) ? 'データの読み込みに失敗しました。' : '';
     const isSubmitting = createStaffMut.isPending || updateStaffMut.isPending;
 
@@ -318,13 +320,41 @@ const StaffPage = () => {
                                     </thead>
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                                     {loading ? (
-                                        <tr>
-                                            <td colSpan={8} className="px-6 py-12 text-center">
-                                                <div className="flex justify-center">
-                                                    <Loader2 className="w-8 h-8 animate-spin text-indigo-300" />
-                                                </div>
-                                            </td>
-                                        </tr>
+                                        Array.from({ length: 5 }).map((_, i) => (
+                                            <tr key={i} className="animate-pulse border-b border-slate-50 dark:border-slate-700">
+                                                <td className="pl-4 pr-2 py-4 w-10">
+                                                    <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded-md" />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="h-5 w-24 sm:w-32 bg-slate-200 dark:bg-slate-700 rounded-md" />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="h-6 w-20 sm:w-24 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="h-5 w-16 sm:w-20 bg-slate-200 dark:bg-slate-700 rounded-md" />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex gap-1">
+                                                        <div className="h-5 w-12 bg-slate-200 dark:bg-slate-700 rounded-sm" />
+                                                        <div className="h-5 w-12 bg-slate-200 dark:bg-slate-700 rounded-sm" />
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="h-4 w-12 sm:w-16 bg-slate-200 dark:bg-slate-700 rounded-md mb-2" />
+                                                    <div className="h-1.5 w-20 sm:w-24 bg-slate-200 dark:bg-slate-700 rounded-full" />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="h-6 w-12 sm:w-16 bg-slate-200 dark:bg-slate-700 rounded-md" />
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-200 dark:bg-slate-700 rounded-xl" />
+                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-200 dark:bg-slate-700 rounded-xl" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
                                     ) : filteredStaff.length === 0 ? (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-medium">

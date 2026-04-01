@@ -157,6 +157,7 @@ const SchedulePage = () => {
                 generating={schedule.generating}
                 errorCount={schedule.errorCount}
                 loadError={schedule.loadError}
+                isFetching={schedule.isFetching}
                 isSummaryOpen={isSummaryOpen}
                 targetYearMonth={schedule.targetYearMonth}
                 staffList={schedule.staffList}

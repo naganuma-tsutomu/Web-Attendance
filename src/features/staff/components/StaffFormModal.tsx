@@ -7,8 +7,8 @@ interface StaffFormModalProps {
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => Promise<void>;
     editingStaff: Staff | null;
-    formData: any; // We'll just define it as any or extend Omit<Staff, 'id'> locally. Actually it was any
-    setFormData: React.Dispatch<React.SetStateAction<any>>;
+    formData: Partial<Staff> & Omit<Staff, 'id'>;
+    setFormData: React.Dispatch<React.SetStateAction<Partial<Staff> & Omit<Staff, 'id'>>>;
     roles: DynamicRole[];
     classes: ShiftClass[];
     isSubmitting: boolean;
@@ -205,9 +205,9 @@ const StaffFormModal = ({
                                                             const checked = e.target.checked;
                                                             let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
                                                             if (checked) {
-                                                                newAvailableDays = newAvailableDays.filter((d: any) => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                             } else {
-                                                                newAvailableDays = newAvailableDays.filter((d: any) => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                                 newAvailableDays.push(dayNum);
                                                             }
                                                             setFormData({ ...formData, availableDays: newAvailableDays });
@@ -235,7 +235,7 @@ const StaffFormModal = ({
                                                                 type="button"
                                                                 onClick={() => {
                                                                     let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
-                                                                    const currentConfig = newAvailableDays.find((d: any) => d && (typeof d === 'number' ? d : d.day) === dayNum);
+                                                                    const currentConfig = newAvailableDays.find((d: number | AvailableDayConfig) => d && (typeof d === 'number' ? d : d.day) === dayNum);
                                                                     let availableWeeks = [1, 2, 3, 4, 5];
                                                                     if (typeof currentConfig === 'object') {
                                                                         availableWeeks = [...(currentConfig.weeks || [])];
@@ -248,7 +248,7 @@ const StaffFormModal = ({
                                                                         availableWeeks = availableWeeks.filter(w => w !== week);
                                                                     }
                                                                     availableWeeks.sort();
-                                                                    newAvailableDays = newAvailableDays.filter((d: any) => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                    newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                                     if (availableWeeks.length === 5) {
                                                                         newAvailableDays.push(dayNum);
                                                                     } else if (availableWeeks.length > 0) {

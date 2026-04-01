@@ -80,7 +80,7 @@ export const useScheduleData = () => {
     };
 
     // Loading & Error States
-    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays || isFetching;
+    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays;
     const loadError = isError ? 'データの読み込みに失敗しました。' : null;
 
     // Mutations
@@ -246,6 +246,7 @@ export const useScheduleData = () => {
 
         // UI状態
         loading,
+        isFetching,
         generating,
         errorCount,
         loadError,

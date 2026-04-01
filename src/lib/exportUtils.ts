@@ -27,7 +27,7 @@ export const exportToExcel = (yearMonth: string, staffs: Staff[], shifts: Shift[
 
     // データ行作成
     const rows = staffs.map(staff => {
-        const rowData: any[] = [staff.name];
+        const rowData: (string | number)[] = [staff.name];
         let totalMinutes = 0;
 
         days.forEach(day => {

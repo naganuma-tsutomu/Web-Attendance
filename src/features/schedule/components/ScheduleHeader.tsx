@@ -13,6 +13,7 @@ interface ScheduleHeaderProps {
     generating: boolean;
     errorCount: number;
     loadError: string | null;
+    isFetching: boolean;
     isSummaryOpen: boolean;
     targetYearMonth: string;
     staffList: Staff[];
@@ -38,6 +39,7 @@ const ScheduleHeader = ({
     generating,
     errorCount,
     loadError,
+    isFetching,
     isSummaryOpen,
     targetYearMonth,
     staffList,
@@ -81,8 +83,9 @@ const ScheduleHeader = ({
                                         ? format(currentDate, 'yyyy年M月', { locale: ja })
                                         : view === Views.WEEK
                                             ? `${format(startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() }), 'M/d')} - ${format(addDays(startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() }), 6), 'M/d')}`
-                                            : format(currentDate, 'M月d日(E)', { locale: ja })
+                                        : format(currentDate, 'M月d日(E)', { locale: ja })
                                     }
+                                    {isFetching && <Loader2 className="w-3 h-3 text-indigo-400 animate-spin inline-block ml-2 mb-0.5" />}
                                 </div>
                             }
                         />

@@ -7,7 +7,6 @@ import { getShiftsByMonth, getPreferencesByMonth, updatePreferences, getStaffLis
 import { handleApiError } from '../lib/errorHandler';
 import type { Shift, ShiftClass, ShiftPreferenceDetail, Staff, ShiftTimePattern, DynamicRole, Holiday } from '../types';
 import DailyTimelineView from '../features/schedule/DailyTimelineView';
-import { getStaffSession, clearStaffSession } from '../utils/dateUtils';
 
 type TabType = 'preference' | 'shifts' | 'settings';
 
@@ -35,12 +34,24 @@ const StaffPreferencePage = () => {
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     useEffect(() => {
-        const session = getStaffSession<{ id: string; name: string }>();
-        if (!session) {
-            navigate('/staff/login');
-            return;
-        }
-        setStaff(session);
+        const checkSession = async () => {
+            try {
+                const res = await fetch('/api/auth/staff-me');
+                if (!res.ok) {
+                    navigate('/staff/login');
+                    return;
+                }
+                const data = await res.json() as { authenticated: boolean; staff?: { id: string; name: string } };
+                if (!data.authenticated || !data.staff) {
+                    navigate('/staff/login');
+                    return;
+                }
+                setStaff(data.staff);
+            } catch {
+                navigate('/staff/login');
+            }
+        };
+        checkSession();
     }, [navigate]);
 
     useEffect(() => {
@@ -86,7 +97,6 @@ const StaffPreferencePage = () => {
     }, [staff, currentMonth]);
 
     const handleLogout = async () => {
-        clearStaffSession();
         await fetch('/api/auth/staff-logout', { method: 'POST' }).catch(() => {});
         navigate('/staff/login');
     };

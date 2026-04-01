@@ -3,9 +3,6 @@ import {
     STORAGE_KEYS,
     getWeekStartsOn,
     setWeekStartsOn,
-    getStaffSession,
-    setStaffSession,
-    clearStaffSession,
     getLastHolidaySyncDate,
     setLastHolidaySyncDate,
     saveActiveMonth,
@@ -18,7 +15,6 @@ describe('dateUtils - STORAGE_KEYS', () => {
         expect(STORAGE_KEYS.WEEK_STARTS_ON).toBe('weekStartsOn');
         expect(STORAGE_KEYS.ACTIVE_MONTH).toBe('active_working_month');
         expect(STORAGE_KEYS.THEME).toBe('theme');
-        expect(STORAGE_KEYS.STAFF_SESSION).toBe('staff_session');
         expect(STORAGE_KEYS.LAST_HOLIDAY_SYNC).toBe('lastHolidaySyncDate');
     });
 });
@@ -60,31 +56,6 @@ describe('dateUtils - saveActiveMonth / loadActiveMonth', () => {
         localStorage.setItem(STORAGE_KEYS.ACTIVE_MONTH, 'invalid');
         const date = loadActiveMonth();
         expect(format(date, 'yyyy-MM')).toBe(format(new Date(), 'yyyy-MM'));
-    });
-});
-
-describe('dateUtils - staffSession', () => {
-    beforeEach(() => localStorage.clear());
-
-    it('セッションがない場合は null を返す', () => {
-        expect(getStaffSession()).toBeNull();
-    });
-
-    it('セッションを保存・取得できる', () => {
-        const staff = { id: 's1', name: '田中太郎' };
-        setStaffSession(staff);
-        expect(getStaffSession<{ id: string; name: string }>()).toEqual(staff);
-    });
-
-    it('セッションをクリアできる', () => {
-        setStaffSession({ id: 's1', name: '田中太郎' });
-        clearStaffSession();
-        expect(getStaffSession()).toBeNull();
-    });
-
-    it('不正な JSON の場合は null を返す', () => {
-        localStorage.setItem(STORAGE_KEYS.STAFF_SESSION, 'not-json');
-        expect(getStaffSession()).toBeNull();
     });
 });
 

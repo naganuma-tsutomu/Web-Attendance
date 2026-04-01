@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock, User, ArrowLeft, ChevronDown } from 'lucide-react';
 import { getStaffNameList } from '../lib/api';
-import { setStaffSession } from '../utils/dateUtils';
 
 const StaffLoginPage = () => {
     const [name, setName] = useState('');
@@ -45,8 +44,6 @@ const StaffLoginPage = () => {
                 throw new Error(msg || 'ログインに失敗しました');
             }
 
-            const staff = await response.json();
-            setStaffSession(staff);
             navigate('/staff/preference');
         } catch (err: any) {
             setError(err.message);

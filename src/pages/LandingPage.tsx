@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useEffect } from 'react';
 import { ShieldCheck, UserCircle2, ArrowRight } from 'lucide-react';
-import { getStaffSession } from '../utils/dateUtils';
 
 const Logo = () => (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -19,15 +18,20 @@ const LandingPage = () => {
 
     useEffect(() => {
         if (loading) return;
-        // admin セッションを優先（Firebase 認証済みなら /admin へ）
+        // admin セッションを優先
         if (currentUser) {
             navigate('/admin');
             return;
         }
         // admin セッションがない場合のみ staff セッションをチェック
-        if (getStaffSession()) {
-            navigate('/staff/preference');
-        }
+        fetch('/api/auth/staff-me')
+            .then(res => res.ok ? res.json() : null)
+            .then((data: { authenticated: boolean } | null) => {
+                if (data?.authenticated) {
+                    navigate('/staff/preference');
+                }
+            })
+            .catch(() => {});
     }, [currentUser, loading, navigate]);
 
     if (loading) return null;

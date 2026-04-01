@@ -7,7 +7,6 @@ export const STORAGE_KEYS = {
     WEEK_STARTS_ON: 'weekStartsOn',
     ACTIVE_MONTH: 'active_working_month',
     THEME: 'theme',
-    STAFF_SESSION: 'staff_session',
     LAST_HOLIDAY_SYNC: 'lastHolidaySyncDate',
 } as const;
 
@@ -46,23 +45,6 @@ export const loadActiveMonth = (): Date => {
         console.error('Failed to parse saved month', e);
         return new Date();
     }
-};
-
-// ==========================================
-// スタッフセッション
-// ==========================================
-export const getStaffSession = <T = unknown>(): T | null => {
-    const data = localStorage.getItem(STORAGE_KEYS.STAFF_SESSION);
-    if (!data) return null;
-    try { return JSON.parse(data) as T; } catch { return null; }
-};
-
-export const setStaffSession = (staff: unknown): void => {
-    localStorage.setItem(STORAGE_KEYS.STAFF_SESSION, JSON.stringify(staff));
-};
-
-export const clearStaffSession = (): void => {
-    localStorage.removeItem(STORAGE_KEYS.STAFF_SESSION);
 };
 
 // ==========================================

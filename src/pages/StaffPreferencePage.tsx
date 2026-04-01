@@ -25,7 +25,7 @@ const StaffPreferencePage = () => {
     const [selectedStartTime, setSelectedStartTime] = useState<string>('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-    const [activeDateStr, setActiveDateStr] = useState<string | null>(null);
+
 
     const monthStr = format(currentMonth, 'yyyy-MM');
     const currentYear = currentMonth.getFullYear();
@@ -106,26 +106,6 @@ const StaffPreferencePage = () => {
 
     const myAvailableDays = staffList.find(s => s.id === staff?.id)?.availableDays;
 
-    // シフト確認タブで現在表示中の日付を追跡
-    useEffect(() => {
-        if (activeTab !== 'shifts') return;
-        let rafId: number;
-        const onScroll = () => {
-            cancelAnimationFrame(rafId);
-            rafId = requestAnimationFrame(() => {
-                const els = Array.from(document.querySelectorAll('[id^="shift-date-"]'));
-                let current = '';
-                for (const el of els) {
-                    if (el.getBoundingClientRect().top <= 160) current = el.id.replace('shift-date-', '');
-                    else break;
-                }
-                if (current) setActiveDateStr(prev => prev === current ? prev : current);
-            });
-        };
-        window.addEventListener('scroll', onScroll, { passive: true });
-        onScroll();
-        return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafId); };
-    }, [activeTab]);
 
 
     const handleLogout = async () => {
@@ -542,7 +522,7 @@ const StaffPreferencePage = () => {
                                         const hasShifts = allShifts.some(s => s.date === dateStr);
                                         if (!hasShifts) return null;
                                         
-                                        const isActive = activeDateStr === dateStr;
+                                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
                                         const dow = d.getDay();
 
                                         return (
@@ -550,13 +530,10 @@ const StaffPreferencePage = () => {
                                                 key={dateStr}
                                                 onClick={() => {
                                                     const el = document.getElementById(`shift-date-${dateStr}`);
-                                                    if (el) {
-                                                        el.scrollIntoView({ behavior: "smooth", block: "start" });
-                                                        setActiveDateStr(dateStr);
-                                                    }
+                                                    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                                                 }}
                                                 className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-bold transition-all mb-1 last:mb-0 ${
-                                                    isActive
+                                                    isToday
                                                         ? 'bg-indigo-600 text-white shadow-sm'
                                                         : dow === 0 ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
                                                         : dow === 6 ? 'text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'

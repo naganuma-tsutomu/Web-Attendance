@@ -25,6 +25,7 @@ const StaffPreferencePage = () => {
     const [selectedStartTime, setSelectedStartTime] = useState<string>('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [activeDateStr, setActiveDateStr] = useState<string | null>(null);
 
     const monthStr = format(currentMonth, 'yyyy-MM');
     const currentYear = currentMonth.getFullYear();
@@ -104,6 +105,27 @@ const StaffPreferencePage = () => {
     }, [prefsData, staff]);
 
     const myAvailableDays = staffList.find(s => s.id === staff?.id)?.availableDays;
+
+    // シフト確認タブで現在表示中の日付を追跡
+    useEffect(() => {
+        if (activeTab !== 'shifts') return;
+        let rafId: number;
+        const onScroll = () => {
+            cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                const els = Array.from(document.querySelectorAll('[id^="shift-date-"]'));
+                let current = '';
+                for (const el of els) {
+                    if (el.getBoundingClientRect().top <= 160) current = el.id.replace('shift-date-', '');
+                    else break;
+                }
+                if (current) setActiveDateStr(prev => prev === current ? prev : current);
+            });
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+        return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(rafId); };
+    }, [activeTab]);
 
 
     const handleLogout = async () => {
@@ -513,16 +535,16 @@ const StaffPreferencePage = () => {
                             </div>
 
                             {/* Date Navigation Sidebar */}
-                            <div className="hidden md:flex flex-col sticky top-24 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm max-h-[calc(100vh-8rem)] overflow-y-auto hidden-scrollbar">
+                            <div className="flex flex-col sticky top-24 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm max-h-[calc(100vh-8rem)] overflow-y-auto hidden-scrollbar">
                                 <div className="flex flex-col items-center">
                                     {days.map(d => {
                                         const dateStr = format(d, 'yyyy-MM-dd');
                                         const hasShifts = allShifts.some(s => s.date === dateStr);
                                         if (!hasShifts) return null;
                                         
-                                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+                                        const isActive = activeDateStr === dateStr;
                                         const dow = d.getDay();
-                                        
+
                                         return (
                                             <button
                                                 key={dateStr}
@@ -530,12 +552,13 @@ const StaffPreferencePage = () => {
                                                     const el = document.getElementById(`shift-date-${dateStr}`);
                                                     if (el) {
                                                         el.scrollIntoView({ behavior: "smooth", block: "start" });
+                                                        setActiveDateStr(dateStr);
                                                     }
                                                 }}
                                                 className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-bold transition-all mb-1 last:mb-0 ${
-                                                    isToday 
-                                                        ? 'bg-indigo-600 text-white shadow-sm' 
-                                                        : dow === 0 ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30' 
+                                                    isActive
+                                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                                        : dow === 0 ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
                                                         : dow === 6 ? 'text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'
                                                         : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
                                                 }`}
@@ -590,7 +613,7 @@ const StaffPreferencePage = () => {
             <nav className="md:hidden fixed bottom-6 left-4 right-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 dark:border-slate-800/50 rounded-2xl shadow-2xl z-50 p-2 flex items-center justify-around">
                 <button
                     onClick={() => setActiveTab('preference')}
-                    className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+                    className={`flex flex-col items-center px-6 py-3 rounded-xl transition-all ${
                         activeTab === 'preference' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'text-slate-400'
                     }`}
                 >
@@ -599,7 +622,7 @@ const StaffPreferencePage = () => {
                 </button>
                 <button
                     onClick={() => setActiveTab('shifts')}
-                    className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+                    className={`flex flex-col items-center px-6 py-3 rounded-xl transition-all ${
                         activeTab === 'shifts' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'text-slate-400'
                     }`}
                 >
@@ -608,7 +631,7 @@ const StaffPreferencePage = () => {
                 </button>
                 <button
                     onClick={() => setActiveTab('settings')}
-                    className={`flex flex-col items-center p-3 rounded-xl transition-all ${
+                    className={`flex flex-col items-center px-6 py-3 rounded-xl transition-all ${
                         activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'text-slate-400'
                     }`}
                 >

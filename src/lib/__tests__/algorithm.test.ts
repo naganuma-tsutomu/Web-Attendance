@@ -250,6 +250,86 @@ describe('generateShiftsForMonth', () => {
         // 9時間/日 x 2日 = 18時間。3日目は27時間になりNG。なので週に最大2日まで。
         expect(week1Shifts.length).toBeLessThanOrEqual(2);
     });
+
+    describe('ローテーション処理', () => {
+        const rotationSettings = {
+            enabled: true,
+            roleId: 'role1',
+            earlyPatternId: 'p_early',
+            latePatternId: 'p_late',
+            weekdayEarlyCount: 1,
+            weekdayLateCount: 1,
+            saturdayEnabled: true,
+            saturdayCount: 1,
+            saturdayPreferFridayLate: true
+        };
+
+        const rotationPatterns = [
+            { id: 'p_early', name: '早番', startTime: '07:00', endTime: '16:00', sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 0 },
+            { id: 'p_late', name: '遅番', startTime: '10:00', endTime: '19:00', sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 0 }
+        ] as any[];
+
+        const rotationRoles = [
+            { id: 'role1', name: '正社員', targetHours: 160, display_order: 1, patterns: rotationPatterns }
+        ] as any[];
+
+        it('設定が有効な場合、要求とは独立してローテーションシフトが生成される', () => {
+            const staff = [
+                makeStaff({ id: 'rs1', name: '正社員A', role: '正社員' }),
+                makeStaff({ id: 'rs2', name: '正社員B', role: '正社員' })
+            ];
+            // 要件は空にする
+            const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], [], [], [], rotationSettings, rotationPatterns);
+
+            // 6月2日(月)は平日なので早番と遅番が1つずつ生成されるはず
+            const weekdayShifts = shifts.filter(s => s.date === '2025-06-02' && s.id.startsWith('rot_'));
+            expect(weekdayShifts).toHaveLength(2);
+            expect(weekdayShifts.some(s => s.startTime === '07:00')).toBe(true);
+            expect(weekdayShifts.some(s => s.startTime === '10:00')).toBe(true);
+        });
+
+        it('前月末のシフト状態が引き継がれ、連続早番・遅番を避ける', () => {
+            const staff = [
+                makeStaff({ id: 'rs1', name: '正社員A', role: '正社員' }), // 先月末遅番
+                makeStaff({ id: 'rs2', name: '正社員B', role: '正社員' })  // 先月末早番
+            ];
+            
+            const existingShifts = [
+                { id: 'ex1', date: '2025-05-30', staffId: 'rs1', startTime: '10:00', endTime: '19:00', classType: 'class_niji', isEarlyShift: false }, // 遅番
+                { id: 'ex2', date: '2025-05-30', staffId: 'rs2', startTime: '07:00', endTime: '16:00', classType: 'class_niji', isEarlyShift: true }  // 早番
+            ] as any[];
+
+            const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], existingShifts, [], [], rotationSettings, rotationPatterns);
+
+            // 6月2日(月)の割り当て: rs1(前回遅番)は連続遅番を避けるため早番になるはず
+            // rs2(前回早番)は連続早番を避けるため遅番になるはず
+            const jun2Early = shifts.find(s => s.date === '2025-06-02' && s.startTime === '07:00');
+            const jun2Late = shifts.find(s => s.date === '2025-06-02' && s.startTime === '10:00');
+
+            expect(jun2Early?.staffId).toBe('rs1');
+            expect(jun2Late?.staffId).toBe('rs2');
+        });
+
+        it('saturdayPreferFridayLate が有効な場合、金曜遅番のスタッフが土曜に優先して割り当てられる', () => {
+            const staff = [
+                makeStaff({ id: 'rs1', name: '正社員A', role: '正社員' }),
+                makeStaff({ id: 'rs2', name: '正社員B', role: '正社員' })
+            ];
+            
+            const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], [], [], [], rotationSettings, rotationPatterns);
+
+            // 6/6(金)の遅番になった人が誰か特定する
+            const fridayLate = shifts.find(s => s.date === '2025-06-06' && s.startTime === '10:00');
+            expect(fridayLate).toBeDefined();
+
+            // 6/7(土)のシフトには遅番が1枠だけ生成される (saturdayCount: 1)
+            const saturdayShift = shifts.find(s => s.date === '2025-06-07' && s.startTime === '10:00');
+            expect(saturdayShift).toBeDefined();
+
+            // 金曜遅番の人が土曜に出勤しているはず
+            expect(saturdayShift?.staffId).toBe(fridayLate?.staffId);
+        });
+    });
 });
 
 describe('isStaffAvailable', () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, CheckCircle, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
-import type { Staff, DynamicRole, ShiftClass } from '../../../types';
+import type { Staff, DynamicRole, ShiftClass, AvailableDayConfig } from '../../../types';
 
 interface StaffFormModalProps {
     isOpen: boolean;
@@ -184,10 +184,10 @@ const StaffFormModal = ({
                         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-4">
                             {['月', '火', '水', '木', '金', '土'].map((label, idx) => {
                                 const dayNum = idx + 1;
-                                const config = formData.availableDays?.find((d: any) =>
-                                    d && (typeof d === 'number' ? d : d.day) === dayNum
+                                const config = formData.availableDays?.find((d: number | AvailableDayConfig) =>
+                                    d != null && (typeof d === 'number' ? d : d.day) === dayNum
                                 );
-                                const isPartialWorking = typeof config === 'object' && Array.isArray((config as any).weeks);
+                                const isPartialWorking = typeof config === 'object' && Array.isArray(config.weeks);
                                 const isHolidayEveryWeek = !config;
                                 const isHoliday = isHolidayEveryWeek || isPartialWorking;
 
@@ -205,9 +205,9 @@ const StaffFormModal = ({
                                                             const checked = e.target.checked;
                                                             let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
                                                             if (checked) {
-                                                                newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                newAvailableDays = newAvailableDays.filter((d: any) => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                             } else {
-                                                                newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                newAvailableDays = newAvailableDays.filter((d: any) => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                                 newAvailableDays.push(dayNum);
                                                             }
                                                             setFormData({ ...formData, availableDays: newAvailableDays });
@@ -224,8 +224,8 @@ const StaffFormModal = ({
                                                         let isWeekHoliday = false;
                                                         if (isHolidayEveryWeek) {
                                                             isWeekHoliday = true;
-                                                        } else if (isPartialWorking) {
-                                                            const weeksAvailable = (config as any).weeks || [];
+                                                        } else if (isPartialWorking && typeof config === 'object') {
+                                                            const weeksAvailable = config.weeks ?? [];
                                                             isWeekHoliday = !weeksAvailable.includes(week);
                                                         }
 
@@ -235,7 +235,7 @@ const StaffFormModal = ({
                                                                 type="button"
                                                                 onClick={() => {
                                                                     let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
-                                                                    const currentConfig = newAvailableDays.find(d => d && (typeof d === 'number' ? d : d.day) === dayNum);
+                                                                    const currentConfig = newAvailableDays.find((d: any) => d && (typeof d === 'number' ? d : d.day) === dayNum);
                                                                     let availableWeeks = [1, 2, 3, 4, 5];
                                                                     if (typeof currentConfig === 'object') {
                                                                         availableWeeks = [...(currentConfig.weeks || [])];
@@ -248,7 +248,7 @@ const StaffFormModal = ({
                                                                         availableWeeks = availableWeeks.filter(w => w !== week);
                                                                     }
                                                                     availableWeeks.sort();
-                                                                    newAvailableDays = newAvailableDays.filter(d => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                    newAvailableDays = newAvailableDays.filter((d: any) => (typeof d === 'number' ? d : d.day) !== dayNum);
                                                                     if (availableWeeks.length === 5) {
                                                                         newAvailableDays.push(dayNum);
                                                                     } else if (availableWeeks.length > 0) {

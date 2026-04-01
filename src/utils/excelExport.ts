@@ -64,7 +64,7 @@ export const exportToExcelAdvanced = async (
         // 固定休の判定
         const dayOfWeek = getDay(date);
         const nthWeek = Math.ceil(date.getDate() / 7);
-        const hasAvailableConfig = (staff as any).availableDays?.some((d: any) => {
+        const hasAvailableConfig = staff.availableDays?.some((d) => {
             const dayNum = typeof d === 'number' ? d : d.day;
             const weekMatch = typeof d === 'number' || !d.weeks || d.weeks.includes(nthWeek);
             return dayNum === dayOfWeek && weekMatch;
@@ -96,7 +96,8 @@ export const exportToExcelAdvanced = async (
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
     // --- カラム定義 ---
-    const columns: any[] = [
+    type ColumnDef = { header: string; key: string; width: number };
+    const columns: ColumnDef[] = [
         { header: '日', key: 'day', width: 4 },
         { header: '曜', key: 'dow', width: 4 },
         { header: '休み', key: 'holiday_name', width: 12 },
@@ -128,7 +129,7 @@ export const exportToExcelAdvanced = async (
     titleRow.height = 24;
 
     // 2行目: 列ヘッダー行を挿入
-    worksheet.insertRow(2, columns.map((c: any) => c.header));
+    worksheet.insertRow(2, columns.map((c) => c.header));
 
     // ヘッダー行(2行目)の時刻セルを1時間単位で結合
     for (let h = 0; h < END_HOUR - START_HOUR; h++) {
@@ -172,7 +173,7 @@ export const exportToExcelAdvanced = async (
             const staff = shift ? staffs.find(s => s.id === shift.staffId) : null;
             const shiftClass = shift ? classes.find(c => c.id === shift.classType) : null;
 
-            const rowData: any = {
+            const rowData: Record<string, unknown> = {
                 day: format(day, 'd'),
                 dow: format(day, 'E', { locale: ja }),
             };

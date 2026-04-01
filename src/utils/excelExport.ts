@@ -200,7 +200,19 @@ export const exportToExcelAdvanced = async (
 
             const row = worksheet.addRow(rowData);
 
-            // 背景色の適用 (データ列 A-H)
+            // 土日の背景色を直接適用（セル結合時も全行に適用するため条件付き書式は使わない）
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                const dayBgColor = dayOfWeek === 6 ? 'FFCCE5FF' : 'FFFFCCCC';
+                for (let colIdx = 1; colIdx <= 8; colIdx++) {
+                    row.getCell(colIdx).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: dayBgColor }
+                    };
+                }
+            }
+
+            // 背景色の適用 (データ列 A-H) - ハイライトルールは土日色より優先
             if (rowHighlightColor) {
                 for (let colIdx = 1; colIdx <= 8; colIdx++) {
                     const cell = row.getCell(colIdx);
@@ -261,15 +273,6 @@ export const exportToExcelAdvanced = async (
     });
 
     const lastRow = currentRow - 1;
-
-    // --- 条件付き書式 (土日) ---
-    worksheet.addConditionalFormatting({
-        ref: `A3:H${lastRow}`,
-        rules: [
-            { type: 'expression', formulae: ['$B3="日"'], priority: 1, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFFCCCC' } } } },
-            { type: 'expression', formulae: ['$B3="土"'], priority: 2, style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFCCE5FF' } } } },
-        ]
-    });
 
     // --- 条件付き書式 (タイムラインの動的色付け) ---
     const firstTimelineCol = worksheet.getColumn(9).letter;

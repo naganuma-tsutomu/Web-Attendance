@@ -478,7 +478,7 @@ const StaffPreferencePage = () => {
                                         if (dayShifts.length === 0) return null;
 
                                         return (
-                                            <div key={dateStr} id={`shift-date-${dateStr}`} className="flex-shrink-0 flex flex-col space-y-0 border-b border-slate-100 dark:border-slate-800 last:border-0 scroll-mt-24 lg:scroll-mt-28">
+                                            <div key={dateStr} id={`shift-date-${dateStr}`} className="flex-shrink-0 flex flex-col space-y-0 border-b border-slate-100 dark:border-slate-800 last:border-0 scroll-mt-40 lg:scroll-mt-44">
                                                 <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900/50">
                                                     <div className="flex items-center gap-3">
                                                         <span className={`text-sm font-bold ${

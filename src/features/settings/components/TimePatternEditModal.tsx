@@ -103,7 +103,7 @@ const TimePatternEditModal = ({
                                             required
                                             value={formData.startTime}
                                             onChange={e => setFormData({ ...formData, startTime: e.target.value })}
-                                            className="w-full pl-11 pr-4 py-3.5 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-mono text-slate-700 dark:text-white outline-none"
+                                            className="w-full pl-11 pr-4 py-3.5 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white outline-none appearance-none"
                                         />
                                     </div>
                                 </div>
@@ -116,7 +116,7 @@ const TimePatternEditModal = ({
                                             required
                                             value={formData.endTime}
                                             onChange={e => setFormData({ ...formData, endTime: e.target.value })}
-                                            className="w-full pl-11 pr-4 py-3.5 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-mono text-slate-700 dark:text-white outline-none"
+                                            className="w-full pl-11 pr-4 py-3.5 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white outline-none appearance-none"
                                         />
                                     </div>
                                 </div>

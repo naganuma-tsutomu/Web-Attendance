@@ -7,6 +7,16 @@ export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
 import { isStaffAvailable } from './availabilityUtils';
 import { applyRotation } from './rotationAlgorithm';
 
+/** roles 配列から name と id 両方で引ける Map を構築する（O(1) ルックアップ用） */
+const buildRoleMap = (roles: DynamicRole[]): Map<string, DynamicRole> => {
+    const map = new Map<string, DynamicRole>();
+    for (const r of roles) {
+        map.set(r.id, r);
+        map.set(r.name, r);
+    }
+    return map;
+};
+
 /**
  * Check if a staff member is available for a specific time slot
  * This checks both the day availability and overlapping shifts
@@ -48,7 +58,8 @@ const isStaffAvailableForTimeSlot = (
         }
     }
 
-    const roleRecord = roles.find(r => r.name === staff.role || r.id === staff.role);
+    const roleMap = buildRoleMap(roles);
+    const roleRecord = roleMap.get(staff.role);
     const dayOfWeek = getDay(date);
     const dayKey = (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const)[dayOfWeek];
     const isHolidayDate = holidays.includes(dateStr);
@@ -173,6 +184,8 @@ const findAvailableStaff = (
         }
     }
 
+    const roleMap = buildRoleMap(roles);
+
     return staffList
         .map(staff => ({
             staff,
@@ -182,8 +195,8 @@ const findAvailableStaff = (
         .map(({ staff, result }) => ({ staff, pattern: result.matchingPattern }))
         .sort((a, b) => {
             // Priority 1: Role display_order
-            const roleA = roles.find(r => r.name === a.staff.role || r.id === a.staff.role);
-            const roleB = roles.find(r => r.name === b.staff.role || r.id === b.staff.role);
+            const roleA = roleMap.get(a.staff.role);
+            const roleB = roleMap.get(b.staff.role);
             const orderA = roleA ? roleA.display_order : 999;
             const orderB = roleB ? roleB.display_order : 999;
 

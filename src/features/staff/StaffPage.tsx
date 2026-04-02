@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { handleApiError } from '../../lib/errorHandler';
 import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
@@ -79,7 +79,7 @@ const StaffPage = () => {
     };
 
     // Update active month when currentMonth changes
-    useMemo(() => saveActiveMonth(currentMonth), [currentMonth]);
+    useEffect(() => { saveActiveMonth(currentMonth); }, [currentMonth]);
 
     const handleDeleteClick = (id: string, name: string) => {
         setDeleteConfirm({ id, name });

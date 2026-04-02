@@ -25,8 +25,7 @@ const StaffPreferencePage = () => {
     const [selectedStartTime, setSelectedStartTime] = useState<string>('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-    const [activeSidebarDate, setActiveSidebarDate] = useState<string | null>(null);
-    const observerRef = useRef<IntersectionObserver | null>(null);
+    const activeSidebarDateRef = useRef<string | null>(null);
 
 
     const monthStr = format(currentMonth, 'yyyy-MM');
@@ -108,57 +107,77 @@ const StaffPreferencePage = () => {
 
     const myAvailableDays = staffList.find(s => s.id === staff?.id)?.availableDays;
 
-    // IntersectionObserverでスクロール中の表示日付を追跡
+    // サイドバーのハイライトをDOM直接操作で切り替え（再レンダリング回避）
+    const updateSidebarHighlight = (dateStr: string) => {
+        if (activeSidebarDateRef.current === dateStr) return;
+        // 前のアクティブボタンのクラスを元に戻す
+        if (activeSidebarDateRef.current) {
+            const prevBtn = document.getElementById(`sidebar-date-${activeSidebarDateRef.current}`);
+            if (prevBtn) {
+                prevBtn.className = prevBtn.dataset.defaultClass || '';
+            }
+        }
+        // 新しいアクティブボタンをハイライト
+        const newBtn = document.getElementById(`sidebar-date-${dateStr}`);
+        if (newBtn) {
+            newBtn.className = 'w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-bold transition-all mb-1 last:mb-0 bg-indigo-600 text-white shadow-sm';
+        }
+        activeSidebarDateRef.current = dateStr;
+    };
+
+    // スクロール位置から表示中の日付を検出（再レンダリングなしのDOM直接操作）
     useEffect(() => {
         if (activeTab !== 'shifts') return;
 
-        // 少し遅延させてDOM要素が揃うのを待つ
-        const timer = setTimeout(() => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
+        let rafId = 0;
+        const handleScroll = () => {
+            cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                const elements = document.querySelectorAll('[id^="shift-date-"]');
+                if (elements.length === 0) return;
 
-            const visibleDates = new Map<string, number>();
+                // スクロール判定の基準線（画面の上から35% または 250px の位置）
+                // これにより、要素が画面に少し大きめに入ってきた時点で早めに切り替わります
+                const triggerLine = Math.max(window.innerHeight * 0.35, 250);
+                let activeDate: string | null = null;
+                let closestDate: string | null = null;
+                let minDistance = Infinity;
 
-            observerRef.current = new IntersectionObserver(
-                (entries) => {
-                    entries.forEach(entry => {
-                        const id = entry.target.id;
-                        const dateStr = id.replace('shift-date-', '');
-                        if (entry.isIntersecting) {
-                            visibleDates.set(dateStr, entry.intersectionRatio);
-                        } else {
-                            visibleDates.delete(dateStr);
-                        }
-                    });
-
-                    // 表示されている日付の中で最も上にあるものを選択
-                    if (visibleDates.size > 0) {
-                        const sortedDates = Array.from(visibleDates.keys()).sort();
-                        setActiveSidebarDate(sortedDates[0]);
+                elements.forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    
+                    // 基準線をまたいでいる（表示領域にある）要素を探す
+                    if (rect.top <= triggerLine && rect.bottom > triggerLine) {
+                        activeDate = el.id.replace('shift-date-', '');
                     }
-                },
-                {
-                    rootMargin: '-120px 0px -50% 0px',
-                    threshold: [0, 0.1, 0.5]
+                    
+                    // 保険として、基準線に最も近い要素も記録しておく（すき間がある場合など）
+                    const dist = Math.min(Math.abs(rect.top - triggerLine), Math.abs(rect.bottom - triggerLine));
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestDate = el.id.replace('shift-date-', '');
+                    }
+                });
+
+                // 線をまたいでいる要素を優先、見つからなければ一番近い要素を選ぶ
+                const targetDate = activeDate || closestDate;
+
+                if (targetDate) {
+                    updateSidebarHighlight(targetDate);
                 }
-            );
+            });
+        };
 
-            const elements = document.querySelectorAll('[id^="shift-date-"]');
-            elements.forEach(el => observerRef.current?.observe(el));
-
-            // 初期値として最初の要素をセット
-            if (elements.length > 0 && !activeSidebarDate) {
-                const firstDateStr = elements[0].id.replace('shift-date-', '');
-                setActiveSidebarDate(firstDateStr);
-            }
+        // 初期化を遅延
+        const timer = setTimeout(() => {
+            handleScroll();
+            window.addEventListener('scroll', handleScroll, { passive: true });
         }, 100);
 
         return () => {
             clearTimeout(timer);
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
+            cancelAnimationFrame(rafId);
+            window.removeEventListener('scroll', handleScroll);
         };
     }, [activeTab, allShifts, monthStr]);
 
@@ -591,24 +610,22 @@ const StaffPreferencePage = () => {
                                         if (!hasShifts) return null;
                                         
                                         const dow = d.getDay();
-
-                                        const isActive = activeSidebarDate === dateStr;
+                                        const defaultClass = `w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-bold transition-all mb-1 last:mb-0 ${
+                                            dow === 0 ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
+                                            : dow === 6 ? 'text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        }`;
 
                                         return (
                                             <button
                                                 key={dateStr}
+                                                id={`sidebar-date-${dateStr}`}
+                                                data-default-class={defaultClass}
                                                 onClick={() => {
-                                                    setActiveSidebarDate(dateStr);
                                                     const el = document.getElementById(`shift-date-${dateStr}`);
                                                     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                                                 }}
-                                                className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-bold transition-all mb-1 last:mb-0 ${
-                                                    isActive
-                                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                                        : dow === 0 ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
-                                                        : dow === 6 ? 'text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                                                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                                }`}
+                                                className={defaultClass}
                                                 title={format(d, 'M/d (E)', { locale: ja })}
                                             >
                                                 {format(d, 'd')}

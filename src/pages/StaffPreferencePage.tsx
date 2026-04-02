@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
@@ -25,6 +25,8 @@ const StaffPreferencePage = () => {
     const [selectedStartTime, setSelectedStartTime] = useState<string>('09:00');
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [activeSidebarDate, setActiveSidebarDate] = useState<string | null>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
 
 
     const monthStr = format(currentMonth, 'yyyy-MM');
@@ -105,6 +107,60 @@ const StaffPreferencePage = () => {
     }, [prefsData, staff]);
 
     const myAvailableDays = staffList.find(s => s.id === staff?.id)?.availableDays;
+
+    // IntersectionObserverでスクロール中の表示日付を追跡
+    useEffect(() => {
+        if (activeTab !== 'shifts') return;
+
+        // 少し遅延させてDOM要素が揃うのを待つ
+        const timer = setTimeout(() => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+
+            const visibleDates = new Map<string, number>();
+
+            observerRef.current = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        const id = entry.target.id;
+                        const dateStr = id.replace('shift-date-', '');
+                        if (entry.isIntersecting) {
+                            visibleDates.set(dateStr, entry.intersectionRatio);
+                        } else {
+                            visibleDates.delete(dateStr);
+                        }
+                    });
+
+                    // 表示されている日付の中で最も上にあるものを選択
+                    if (visibleDates.size > 0) {
+                        const sortedDates = Array.from(visibleDates.keys()).sort();
+                        setActiveSidebarDate(sortedDates[0]);
+                    }
+                },
+                {
+                    rootMargin: '-120px 0px -50% 0px',
+                    threshold: [0, 0.1, 0.5]
+                }
+            );
+
+            const elements = document.querySelectorAll('[id^="shift-date-"]');
+            elements.forEach(el => observerRef.current?.observe(el));
+
+            // 初期値として最初の要素をセット
+            if (elements.length > 0 && !activeSidebarDate) {
+                const firstDateStr = elements[0].id.replace('shift-date-', '');
+                setActiveSidebarDate(firstDateStr);
+            }
+        }, 100);
+
+        return () => {
+            clearTimeout(timer);
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [activeTab, allShifts, monthStr]);
 
 
 
@@ -270,6 +326,24 @@ const StaffPreferencePage = () => {
             )}
 
             <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+                {/* Global Message Banner (Fixed Toast) */}
+                {message && (
+                    <div className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-md pointer-events-none">
+                        <div className={`flex items-center gap-3 p-4 rounded-xl border animate-in fade-in slide-in-from-top-4 duration-300 shadow-lg backdrop-blur-md ${
+                            message.type === 'success' 
+                                ? 'bg-[#ebfbf1]/95 border-[#bbf0ce] text-[#1b8044] dark:bg-green-900/90 dark:border-green-800 dark:text-green-400' 
+                                : 'bg-red-50/95 border-red-200 text-red-700 dark:bg-red-900/90 dark:border-red-800 dark:text-red-400'
+                        }`}>
+                            {message.type === 'success' ? (
+                                <CheckCircle2 className="w-6 h-6 shrink-0 text-white fill-[#1b8044] dark:fill-green-500" />
+                            ) : (
+                                <AlertCircle className="w-6 h-6 shrink-0" />
+                            )}
+                            <span className="font-bold text-sm sm:text-base pointer-events-auto">{message.text}</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Tab Content */}
                 {activeTab === 'preference' && (
                     <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -346,29 +420,23 @@ const StaffPreferencePage = () => {
                                 </div>
                             </div>
                             
-                            <div className="flex items-center justify-end gap-3 pt-2">
-                                {message && (
-                                    <div className={`flex items-center space-x-2 text-sm font-bold animate-in fade-in duration-300 ${
-                                        message.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                                    }`}>
-                                        {message.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                                        <span>{message.text}</span>
-                                    </div>
-                                )}
-                                <button
-                                    onClick={() => setShowCancelConfirm(true)}
-                                    disabled={saving || !hasChanges}
-                                    className="w-full md:w-auto px-8 py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 rounded-2xl transition-all font-black uppercase tracking-widest flex items-center justify-center"
-                                >
-                                    キャンセル
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving || !hasChanges}
-                                    className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white rounded-2xl shadow-xl shadow-indigo-100 dark:shadow-none transition-all font-black uppercase tracking-widest flex items-center justify-center space-x-2"
-                                >
-                                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>希望を保存</span>}
-                                </button>
+                            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 w-full">
+                                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                                    <button
+                                        onClick={() => setShowCancelConfirm(true)}
+                                        disabled={saving || !hasChanges}
+                                        className="flex-1 sm:flex-none px-2 sm:px-8 py-3.5 sm:py-4 bg-slate-100/80 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 rounded-2xl transition-all font-black uppercase tracking-widest flex items-center justify-center text-[11px] sm:text-base whitespace-nowrap"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving || !hasChanges}
+                                        className="flex-1 sm:flex-none px-2 sm:px-8 py-3.5 sm:py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white rounded-2xl shadow-lg shadow-indigo-200/50 dark:shadow-none transition-all font-black uppercase tracking-widest flex items-center justify-center space-x-1.5 sm:space-x-2 text-[11px] sm:text-base whitespace-nowrap"
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <span>希望を保存</span>}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -522,18 +590,20 @@ const StaffPreferencePage = () => {
                                         const hasShifts = allShifts.some(s => s.date === dateStr);
                                         if (!hasShifts) return null;
                                         
-                                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
                                         const dow = d.getDay();
+
+                                        const isActive = activeSidebarDate === dateStr;
 
                                         return (
                                             <button
                                                 key={dateStr}
                                                 onClick={() => {
+                                                    setActiveSidebarDate(dateStr);
                                                     const el = document.getElementById(`shift-date-${dateStr}`);
                                                     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                                                 }}
                                                 className={`w-8 h-8 flex items-center justify-center rounded-full text-[10px] font-bold transition-all mb-1 last:mb-0 ${
-                                                    isToday
+                                                    isActive
                                                         ? 'bg-indigo-600 text-white shadow-sm'
                                                         : dow === 0 ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'
                                                         : dow === 6 ? 'text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'

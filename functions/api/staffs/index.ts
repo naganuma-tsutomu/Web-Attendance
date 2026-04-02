@@ -57,7 +57,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const roleError = validateRole(staffData.role || '');
         if (roleError) return createValidationError(roleError);
 
-        const id = staffData.id || `staff_${Date.now()}`;
+        const id = staffData.id || crypto.randomUUID();
 
         const accessKey = staffData.accessKey || (() => {
             const buf = new Uint32Array(1);
@@ -89,7 +89,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
-                    ).bind(`${id}_available_${idx}`, id, day, weeks)
+                    ).bind(crypto.randomUUID(), id, day, weeks)
                 );
             });
         }

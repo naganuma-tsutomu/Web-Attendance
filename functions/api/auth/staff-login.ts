@@ -20,7 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         ).bind(name.trim(), accessKey.trim()).first() as { id: string, name: string } | null;
 
         if (!staff) {
-            return Response.json({ error: '名前またはアクセスキーが正しくありません' }, { status: 401 });
+            return Response.json({ error: 'アクセスキーが正しくありません' }, { status: 401 });
         }
 
         const token = await signStaffCookie(staff.id, ADMIN_PASSWORD);

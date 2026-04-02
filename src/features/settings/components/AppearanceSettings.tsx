@@ -401,7 +401,7 @@ const BreakSettingsSection = () => {
                                 </div>
                                 <button
                                     onClick={() => handleBreakChange({ exceptionEnabled: !breakSettings.exceptionEnabled })}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                                         breakSettings.exceptionEnabled
                                             ? 'bg-indigo-600'
                                             : 'bg-slate-300 dark:bg-slate-600'
@@ -464,7 +464,7 @@ const BreakSettingsSection = () => {
                                     </div>
                                     <button
                                         onClick={() => handleBreakChange({ displayActualHoursInModal: !breakSettings.displayActualHoursInModal })}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                                             breakSettings.displayActualHoursInModal
                                                 ? 'bg-indigo-600'
                                                 : 'bg-slate-300 dark:bg-slate-600'
@@ -484,7 +484,7 @@ const BreakSettingsSection = () => {
                                     </div>
                                     <button
                                         onClick={() => handleBreakChange({ displayActualHoursInExcel: !breakSettings.displayActualHoursInExcel })}
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                                             breakSettings.displayActualHoursInExcel
                                                 ? 'bg-indigo-600'
                                                 : 'bg-slate-300 dark:bg-slate-600'

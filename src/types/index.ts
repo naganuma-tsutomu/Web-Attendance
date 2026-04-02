@@ -122,4 +122,5 @@ export interface RotationSettings {
     saturdayEnabled: boolean;
     saturdayCount: number;
     saturdayPreferFridayLate: boolean;
+    saturdayPatternId?: string;
 }

@@ -376,43 +376,43 @@ const StaffPreferencePage = () => {
                         {selectedDateAction && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateAction(null)}>
                                 <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
-                                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                                        <h3 className="text-lg font-black text-slate-800 dark:text-white">
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                        <h3 className="text-base font-black text-slate-800 dark:text-white">
                                             {format(new Date(selectedDateAction), 'M月d日 (E)', { locale: ja })} の希望
                                         </h3>
-                                        <button onClick={() => setSelectedDateAction(null)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
-                                            <X className="w-5 h-5" />
+                                        <button onClick={() => setSelectedDateAction(null)} className="bg-white dark:bg-slate-700 p-1.5 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                                            <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="p-6 space-y-4">
+                                    <div className="p-4 space-y-3">
                                         <button
                                             onClick={() => applyPreference('full')}
-                                            className="w-full p-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50 flex flex-col items-center justify-center"
+                                            className="w-full px-4 py-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50 flex items-center justify-center gap-2"
                                         >
-                                            <span className="text-lg mb-1">終日お休み</span>
-                                            <span className="text-xs font-medium opacity-80">1日中働くことができません</span>
+                                            <span>終日お休み</span>
+                                            <span className="text-xs font-medium opacity-70">1日中働くことができません</span>
                                         </button>
-                                        
-                                        <div className="p-4 bg-indigo-50 hover:bg-indigo-100/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl transition-colors">
-                                            <div className="text-center font-bold text-indigo-700 dark:text-indigo-400 mb-3 block">一部の時間だけ不可</div>
-                                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-slate-700 dark:text-slate-300 mb-4">
+
+                                        <div className="p-3 bg-indigo-50 hover:bg-indigo-100/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl transition-colors">
+                                            <div className="text-center font-bold text-indigo-700 dark:text-indigo-400 mb-2 text-sm">一部の時間だけ不可</div>
+                                            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 mb-3">
                                                 <input
                                                     type="time"
                                                     value={selectedStartTime}
                                                     onChange={e => setSelectedStartTime(e.target.value)}
-                                                    className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    className="flex-1 min-w-0 px-2 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-base text-center focus:ring-2 focus:ring-indigo-500 outline-none"
                                                 />
-                                                <span className="font-bold text-slate-400 text-sm">〜</span>
+                                                <span className="font-bold text-slate-400 text-xs shrink-0">〜</span>
                                                 <input
                                                     type="time"
                                                     value={selectedEndTime}
                                                     onChange={e => setSelectedEndTime(e.target.value)}
-                                                    className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    className="flex-1 min-w-0 px-2 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-base text-center focus:ring-2 focus:ring-indigo-500 outline-none"
                                                 />
                                             </div>
                                             <button
                                                 onClick={() => applyPreference('partial')}
-                                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+                                                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm"
                                             >
                                                 この時間帯を不可にする
                                             </button>
@@ -420,7 +420,7 @@ const StaffPreferencePage = () => {
 
                                         <button
                                             onClick={() => applyPreference('clear')}
-                                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                                            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
                                         >
                                             就業可能（クリア）
                                         </button>
@@ -433,23 +433,23 @@ const StaffPreferencePage = () => {
                         {showCancelConfirm && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowCancelConfirm(false)}>
                                 <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
-                                    <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                                        <h3 className="text-lg font-black text-slate-800 dark:text-white">変更を破棄しますか？</h3>
-                                        <button onClick={() => setShowCancelConfirm(false)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
-                                            <X className="w-5 h-5" />
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                                        <h3 className="text-base font-black text-slate-800 dark:text-white">変更を破棄しますか？</h3>
+                                        <button onClick={() => setShowCancelConfirm(false)} className="bg-white dark:bg-slate-700 p-1.5 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                                            <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="p-6 space-y-3">
+                                    <div className="p-4 space-y-3">
                                         <p className="text-sm font-bold text-slate-500 dark:text-slate-400 text-center">保存していない変更はすべて元に戻ります。</p>
                                         <button
                                             onClick={() => { setPreferences(savedPreferences); setShowCancelConfirm(false); }}
-                                            className="w-full p-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50"
+                                            className="w-full px-4 py-3 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 font-bold rounded-2xl transition-colors border border-red-200 dark:border-red-800/50"
                                         >
                                             破棄する
                                         </button>
                                         <button
                                             onClick={() => setShowCancelConfirm(false)}
-                                            className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
+                                            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors"
                                         >
                                             戻る
                                         </button>

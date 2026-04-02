@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS: RotationSettingsType = {
     saturdayEnabled: true,
     saturdayCount: 1,
     saturdayPreferFridayLate: true,
+    saturdayPatternId: '',
 };
 
 const RotationSettings = () => {
@@ -45,6 +46,10 @@ const RotationSettings = () => {
             }
             if (settings.earlyPatternId === settings.latePatternId) {
                 toast.error('早番と遅番には異なるパターンを選択してください');
+                return;
+            }
+            if (settings.saturdayEnabled && !settings.saturdayPatternId) {
+                toast.error('土曜日が有効な場合、土曜日のパターンを選択してください');
                 return;
             }
         }
@@ -230,6 +235,22 @@ const RotationSettings = () => {
                                         onChange={e => update({ saturdayCount: Math.max(1, parseInt(e.target.value) || 1) })}
                                         className="w-full max-w-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        土曜日のパターン
+                                    </label>
+                                    <select
+                                        value={settings.saturdayPatternId ?? ''}
+                                        onChange={e => update({ saturdayPatternId: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
+                                    >
+                                        <option value="">選択してください</option>
+                                        {rolePatterns.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} ({p.startTime}〜{p.endTime})</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="flex items-start gap-3">

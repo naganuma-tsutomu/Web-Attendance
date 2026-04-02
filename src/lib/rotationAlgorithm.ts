@@ -284,7 +284,10 @@ export const applyRotation = (
         if (available.length === 0) continue;
 
         if (dayOfWeek === 6) {
-            assignSaturdayShifts(date, dateStr, available, settings, latePattern, classes, generatedShifts, currentHours, currentWeeklyHours, state, breakSettings, sortByLatePriority);
+            const saturdayPattern = settings.saturdayPatternId
+                ? allPatterns.find(p => p.id === settings.saturdayPatternId) ?? latePattern
+                : latePattern;
+            assignSaturdayShifts(date, dateStr, available, settings, saturdayPattern, classes, generatedShifts, currentHours, currentWeeklyHours, state, breakSettings, sortByLatePriority);
             continue;
         }
 

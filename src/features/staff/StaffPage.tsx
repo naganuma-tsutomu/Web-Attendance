@@ -309,13 +309,13 @@ const StaffPage = () => {
                                     <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                                         <tr>
                                             <th className="w-8 sm:w-12 px-2 sm:px-4 py-3 sm:py-4"></th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">名前</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">スタッフ区分</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">アクセスキー</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">所属クラス</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月間労働時間</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">固定休日</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">操作</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">名前</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">スタッフ区分</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">アクセスキー</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">所属クラス</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">月間労働時間</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">固定休日</th>
+                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right whitespace-nowrap">操作</th>
                                         </tr>
                                     </thead>
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">

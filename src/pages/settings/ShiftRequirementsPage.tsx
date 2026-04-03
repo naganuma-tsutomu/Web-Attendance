@@ -138,8 +138,8 @@ const SortableRequirementRow = ({
                 </div>
 
                 {/* 時間範囲 */}
-                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 flex-1 min-w-0">
-                    <div className="min-w-0">
+                <div className="flex items-end gap-2 flex-1 min-w-0">
+                    <div className="flex-1 min-w-0">
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
                             開始時間
                         </label>
@@ -150,8 +150,8 @@ const SortableRequirementRow = ({
                             className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
-                    <span className="text-slate-400 pb-2 text-sm">〜</span>
-                    <div className="min-w-0">
+                    <span className="text-slate-400 pb-2 text-sm shrink-0">〜</span>
+                    <div className="flex-1 min-w-0">
                         <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
                             終了時間
                         </label>

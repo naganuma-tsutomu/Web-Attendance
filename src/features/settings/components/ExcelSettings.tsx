@@ -139,19 +139,19 @@ const ExcelSettings = () => {
                                 </div>
                                 <div className="flex-1 w-full sm:w-auto">
                                     <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">通常の勤務時間</label>
-                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                    <div className="flex items-center gap-2">
                                         <input
                                             type="time"
                                             value={rule.regularStartTime}
                                             onChange={(e) => updateRule(idx, { regularStartTime: e.target.value })}
-                                            className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-base font-mono text-center text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-base font-mono text-center text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
-                                        <span className="text-slate-400 text-sm">〜</span>
+                                        <span className="text-slate-400 text-sm shrink-0">〜</span>
                                         <input
                                             type="time"
                                             value={rule.regularEndTime}
                                             onChange={(e) => updateRule(idx, { regularEndTime: e.target.value })}
-                                            className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-base font-mono text-center text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            className="flex-1 min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-base font-mono text-center text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
                                     </div>
                                 </div>

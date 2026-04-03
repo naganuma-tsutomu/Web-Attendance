@@ -1,4 +1,6 @@
-import { Users, LogOut, MapPin, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { Users, LogOut, MapPin, ChevronRight, Sun, Moon } from 'lucide-react';
+import { STORAGE_KEYS } from '../../../utils/dateUtils';
 
 interface StaffSettingsTabProps {
     staff: { id: string; name: string };
@@ -6,6 +8,20 @@ interface StaffSettingsTabProps {
 }
 
 export default function StaffSettingsTab({ staff, handleLogout }: StaffSettingsTabProps) {
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        return (localStorage.getItem(STORAGE_KEYS.THEME) as 'light' | 'dark') || 'light';
+    });
+
+    const handleThemeChange = (newTheme: 'light' | 'dark') => {
+        setTheme(newTheme);
+        if (newTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        localStorage.setItem(STORAGE_KEYS.THEME, newTheme);
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-lg mx-auto">
             <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 p-8 text-center space-y-4">
@@ -22,6 +38,26 @@ export default function StaffSettingsTab({ staff, handleLogout }: StaffSettingsT
                         <MapPin className="w-4 h-4" />
                         <span className="text-xs font-bold font-mono">ID: {staff.id}</span>
                     </div>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-6 space-y-4">
+                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">テーマ設定</h3>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    <button
+                        onClick={() => handleThemeChange('light')}
+                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center space-x-2 ${theme === 'light' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        <Sun className="w-4 h-4" />
+                        <span>ライト</span>
+                    </button>
+                    <button
+                        onClick={() => handleThemeChange('dark')}
+                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center space-x-2 ${theme === 'dark' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >
+                        <Moon className="w-4 h-4" />
+                        <span>ダーク</span>
+                    </button>
                 </div>
             </div>
 

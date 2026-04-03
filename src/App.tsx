@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import AuthPage from './features/auth/AuthPage';
 import StaffPage from './features/staff/StaffPage';
 import PreferencesPage from './features/preferences/PreferencesPage';
@@ -63,6 +64,7 @@ function App() {
   return (
     <AuthProvider>
       <AppRoutes />
+      <PwaInstallPrompt />
     </AuthProvider>
   );
 }

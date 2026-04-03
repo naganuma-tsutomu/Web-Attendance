@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { format, getDay, startOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { X, Loader2 } from 'lucide-react';
-import { updatePreferences } from '../../../lib/api';
+import { savePreference } from '../../../lib/api';
 import { CLOSED_DAY_HOLIDAY } from '../../../constants';
 import type { ShiftPreferenceDetail, Shift, Holiday } from '../../../types';
 
@@ -93,7 +93,7 @@ export default function PreferenceTab({
         setSaving(true);
         setMessage(null);
         try {
-            await updatePreferences({
+            await savePreference({
                 staffId: staff.id,
                 yearMonth: format(currentMonth, 'yyyy-MM'),
                 submitted: true,

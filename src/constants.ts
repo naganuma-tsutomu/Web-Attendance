@@ -47,3 +47,11 @@ export const CALENDAR_COLORS = {
     /** クラス（フォールバック） */
     classFallback: '#6366f1',
 } as const;
+
+// ── シフト時間区分 ──
+
+/**
+ * 早番 / 遅番の境界時刻（HH:mm形式）
+ * この時刻より前の開始時間を「早番」と判定する
+ */
+export const EARLY_SHIFT_BOUNDARY = '12:00';

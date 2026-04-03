@@ -1,6 +1,6 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek, subDays } from 'date-fns';
 import { timeToMinutes, calculateActualWorkingHours } from '../utils/timeUtils';
-import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS } from '../constants';
+import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS, EARLY_SHIFT_BOUNDARY } from '../constants';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
 
 export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
@@ -206,7 +206,7 @@ const findAvailableStaff = (
             const yesterdayShiftA = yesterdayShiftsByStaff.get(a.staff.id);
             const yesterdayShiftB = yesterdayShiftsByStaff.get(b.staff.id);
             
-            const isEarly = (time: string) => time < '12:00';
+            const isEarly = (time: string) => time < EARLY_SHIFT_BOUNDARY;
             const reqIsEarly = isEarly(startTime);
             const aGotSame = yesterdayShiftA && isEarly(yesterdayShiftA.startTime) === reqIsEarly ? 1 : 0;
             const bGotSame = yesterdayShiftB && isEarly(yesterdayShiftB.startTime) === reqIsEarly ? 1 : 0;

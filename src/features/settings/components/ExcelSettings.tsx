@@ -144,14 +144,14 @@ const ExcelSettings = () => {
                                             type="time"
                                             value={rule.regularStartTime}
                                             onChange={(e) => updateRule(idx, { regularStartTime: e.target.value })}
-                                            className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-base font-mono text-center text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
                                         <span className="text-slate-400 text-sm">〜</span>
                                         <input
                                             type="time"
                                             value={rule.regularEndTime}
                                             onChange={(e) => updateRule(idx, { regularEndTime: e.target.value })}
-                                            className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            className="w-full min-w-0 px-2 sm:px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-base font-mono text-center text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
                                     </div>
                                 </div>

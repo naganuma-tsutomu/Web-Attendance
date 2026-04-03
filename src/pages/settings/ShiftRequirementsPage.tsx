@@ -147,7 +147,7 @@ const SortableRequirementRow = ({
                             type="time"
                             value={req.startTime}
                             onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
-                            className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
                     <span className="text-slate-400 pb-2 text-sm">〜</span>
@@ -159,7 +159,7 @@ const SortableRequirementRow = ({
                             type="time"
                             value={req.endTime}
                             onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
-                            className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
                 </div>

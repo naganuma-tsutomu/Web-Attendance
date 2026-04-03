@@ -57,8 +57,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     const cookieHeader = context.request.headers.get('Cookie') || '';
 
     const extractToken = (name: string): string | null => {
-        const match = cookieHeader.match(new RegExp(`${name}=([^;]+)`));
-        return match ? match[1] : null;
+        const prefix = `${name}=`;
+        const startIdx = cookieHeader.indexOf(prefix);
+        if (startIdx === -1) return null;
+        const valueStart = startIdx + prefix.length;
+        const endIdx = cookieHeader.indexOf(';', valueStart);
+        return cookieHeader.slice(valueStart, endIdx === -1 ? undefined : endIdx);
     };
 
     // ── 6. 管理者認証 ──

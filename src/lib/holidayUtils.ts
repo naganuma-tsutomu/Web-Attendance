@@ -51,3 +51,27 @@ export const getHolidayName = (dateStr: string, holidayMap: Map<string, Holiday>
     const holiday = holidayMap.get(dateStr);
     return holiday?.name || '';
 };
+
+/**
+ * 固定休日かどうかを判定
+ * 祝日（非稼働日）かつ閉店日設定に含まれる場合、または勤務可能曜日に含まれない場合に true
+ */
+export const isFixedHoliday = (
+    date: Date,
+    holidays: Holiday[],
+    closedDays: number[],
+    closedDayHoliday: number,
+    availableDays: any[]
+): boolean => {
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const holiday = holidays.find(h => h.date === dateStr);
+    if (holiday && !holiday.isWorkday && closedDays.includes(closedDayHoliday)) return true;
+
+    if (!availableDays || availableDays.length === 0) return false;
+    const dow = date.getDay();
+    const nthWeek = Math.ceil(date.getDate() / 7);
+    const config = availableDays.find((d: any) => (typeof d === 'number' ? d : d.day) === dow);
+    if (!config) return true;
+    if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return true;
+    return false;
+};

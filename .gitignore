@@ -29,6 +29,9 @@ dist-ssr
 .wrangler
 test-algo.mjs
 
+# Local environment variables (secrets)
+.dev.vars
+
 # Test coverage
 coverage/
 

@@ -6,6 +6,7 @@ import {
     getDayOfWeek,
     isWeekendOrHoliday,
     getHolidayName,
+    isFixedHoliday,
 } from '../holidayUtils';
 import type { Holiday } from '../../types';
 
@@ -117,6 +118,48 @@ describe('holidayUtils', () => {
         it('祝日でない日は空文字を返す', () => {
             const map = createHolidayMap(mockHolidays);
             expect(getHolidayName('2025-01-02', map)).toBe('');
+        });
+    });
+
+    describe('isFixedHoliday', () => {
+        const CLOSED_DAY_HOLIDAY = 99;
+
+        it('祝日かつ閉店日設定に含まれる場合はtrueを返す', () => {
+            const holidays: Holiday[] = [
+                { id: '1', date: '2025-01-01', name: '元日', type: 'national', isWorkday: false },
+            ];
+            expect(isFixedHoliday(new Date(2025, 0, 1), holidays, [CLOSED_DAY_HOLIDAY], CLOSED_DAY_HOLIDAY, [1, 2, 3, 4, 5])).toBe(true);
+        });
+
+        it('isWorkday=trueの祝日は固定休にならない', () => {
+            const holidays: Holiday[] = [
+                { id: '1', date: '2025-01-01', name: '振替出勤', type: 'company', isWorkday: true },
+            ];
+            expect(isFixedHoliday(new Date(2025, 0, 1), holidays, [CLOSED_DAY_HOLIDAY], CLOSED_DAY_HOLIDAY, [1, 2, 3])).toBe(false);
+        });
+
+        it('勤務可能曜日に含まれない場合はtrueを返す', () => {
+            // 2025-01-06 は月曜(1)、availableDaysに1がない
+            expect(isFixedHoliday(new Date(2025, 0, 6), [], [], CLOSED_DAY_HOLIDAY, [2, 3, 4, 5])).toBe(true);
+        });
+
+        it('勤務可能曜日に含まれる場合はfalseを返す', () => {
+            // 2025-01-06 は月曜(1)
+            expect(isFixedHoliday(new Date(2025, 0, 6), [], [], CLOSED_DAY_HOLIDAY, [1, 2, 3, 4, 5])).toBe(false);
+        });
+
+        it('週指定で該当週でない場合はtrueを返す', () => {
+            // 2025-01-13 は月曜(1)、第2週
+            expect(isFixedHoliday(new Date(2025, 0, 13), [], [], CLOSED_DAY_HOLIDAY, [{ day: 1, weeks: [1, 3] }])).toBe(true);
+        });
+
+        it('週指定で該当週の場合はfalseを返す', () => {
+            // 2025-01-13 は月曜(1)、第2週
+            expect(isFixedHoliday(new Date(2025, 0, 13), [], [], CLOSED_DAY_HOLIDAY, [{ day: 1, weeks: [1, 2, 3] }])).toBe(false);
+        });
+
+        it('availableDaysが空の場合はfalseを返す', () => {
+            expect(isFixedHoliday(new Date(2025, 0, 6), [], [], CLOSED_DAY_HOLIDAY, [])).toBe(false);
         });
     });
 });

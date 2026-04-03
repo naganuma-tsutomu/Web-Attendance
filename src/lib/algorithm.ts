@@ -235,6 +235,9 @@ const findAvailableStaff = (
 
             if (staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) {
                 const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+                if (!currentWeeklyHours[staff.id]) {
+                    currentWeeklyHours[staff.id] = {};
+                }
                 const currentWeekHrs = currentWeeklyHours[staff.id][weekKey] || 0;
                 if (currentWeekHrs + duration > staff.weeklyHoursTarget) {
                     return false;
@@ -453,41 +456,4 @@ export const generateShiftsForMonth = (
     });
 
     return generatedShifts;
-};
-
-/**
- * Generate shifts with requirements fetched from API
- * This is a convenience wrapper that can be used when requirements are fetched separately
- */
-export const generateShiftsForMonthWithRequirements = async (
-    yearMonth: string,
-    staffList: Staff[],
-    preferences: ShiftPreference[],
-    roles: DynamicRole[],
-    classes: ShiftClass[],
-    holidays: string[] = [],
-    fetchRequirements: () => Promise<ShiftRequirement[]>,
-    existingShifts: Shift[] = [],
-    fixedDates: string[] = [],
-    closedDays: number[] = DEFAULT_CLOSED_DAYS,
-    rotationSettings?: RotationSettings,
-    timePatterns?: ShiftTimePattern[],
-    breakSettings?: BreakSettings
-): Promise<Shift[]> => {
-    const requirements = await fetchRequirements();
-    return generateShiftsForMonth(
-        yearMonth,
-        staffList,
-        preferences,
-        roles,
-        classes,
-        holidays,
-        requirements,
-        existingShifts,
-        fixedDates,
-        closedDays,
-        rotationSettings,
-        timePatterns,
-        breakSettings
-    );
 };

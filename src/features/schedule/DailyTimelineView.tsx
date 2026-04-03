@@ -233,7 +233,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 </div>
             )}
 
-            <div className="min-w-full md:min-w-[800px] overflow-visible flex flex-col bg-white dark:bg-slate-800">
+            <div className={`${readOnly ? 'min-w-full' : 'min-w-full md:min-w-[800px]'} overflow-visible flex flex-col bg-white dark:bg-slate-800`}>
                 {/* Header Row */}
                 {!readOnly && (
                     <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20">

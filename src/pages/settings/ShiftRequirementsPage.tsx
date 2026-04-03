@@ -138,28 +138,25 @@ const SortableRequirementRow = ({
                 </div>
 
                 {/* 時間範囲 */}
-                <div className="flex items-end gap-2 flex-1 min-w-0">
-                    <div className="flex-1 min-w-0">
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                            開始時間
-                        </label>
+                <div className="flex-1 min-w-0">
+                    <div className="flex gap-2 mb-1 lg:hidden">
+                        <span className="flex-1 text-xs text-slate-500 dark:text-slate-400">開始時間</span>
+                        <span className="text-sm shrink-0 invisible select-none">〜</span>
+                        <span className="flex-1 text-xs text-slate-500 dark:text-slate-400">終了時間</span>
+                    </div>
+                    <div className="flex items-center gap-2">
                         <input
                             type="time"
                             value={req.startTime}
                             onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
-                            className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="flex-1 min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
-                    </div>
-                    <span className="text-slate-400 pb-2 text-sm shrink-0">〜</span>
-                    <div className="flex-1 min-w-0">
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
-                            終了時間
-                        </label>
+                        <span className="text-slate-400 text-sm shrink-0">〜</span>
                         <input
                             type="time"
                             value={req.endTime}
                             onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
-                            className="w-full min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="flex-1 min-w-0 px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-base font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
                 </div>

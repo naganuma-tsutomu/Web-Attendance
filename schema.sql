@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS shift_preferences (
     id TEXT PRIMARY KEY,
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL, -- e.g. "2024-04"
+    submitted INTEGER DEFAULT 0, -- 0: 未提出, 1: 提出済み
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 

@@ -24,8 +24,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         }
 
         return Response.json({
-            startHour: settingsMap['business_hours_start'] ? parseInt(settingsMap['business_hours_start'], 10) : DEFAULT_START_HOUR,
-            endHour: settingsMap['business_hours_end'] ? parseInt(settingsMap['business_hours_end'], 10) : DEFAULT_END_HOUR,
+            startHour: settingsMap['business_hours_start'] ? parseFloat(settingsMap['business_hours_start']) : DEFAULT_START_HOUR,
+            endHour: settingsMap['business_hours_end'] ? parseFloat(settingsMap['business_hours_end']) : DEFAULT_END_HOUR,
             closedDays: closedDays,
         });
     } catch (e) {
@@ -42,12 +42,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const endHour = body.endHour ?? DEFAULT_END_HOUR;
         const closedDays = body.closedDays ?? DEFAULT_CLOSED_DAYS;
 
-        // バリデーション
-        if (!Number.isInteger(startHour) || startHour < 0 || startHour > 23) {
-            return createValidationError('開始時間は0〜23の整数で指定してください');
+        // バリデーション (30分刻みを許容: 0, 0.5, 1, 1.5, ...)
+        if (typeof startHour !== 'number' || startHour % 0.5 !== 0 || startHour < 0 || startHour > 23.5) {
+            return createValidationError('開始時間は0〜23:30の30分刻みで指定してください');
         }
-        if (!Number.isInteger(endHour) || endHour < 1 || endHour > 24) {
-            return createValidationError('終了時間は1〜24の整数で指定してください');
+        if (typeof endHour !== 'number' || endHour % 0.5 !== 0 || endHour < 0.5 || endHour > 24) {
+            return createValidationError('終了時間は0:30〜24:00の30分刻みで指定してください');
         }
         if (startHour >= endHour) {
             return createValidationError('開始時間は終了時間より前に設定してください');

@@ -110,7 +110,13 @@ const AppearanceSettings = () => {
         }
     };
 
-    const hourOptions = Array.from({ length: 25 }, (_, i) => i); // 0-24
+    // 0:00〜24:00を30分刻みで生成 (0, 0.5, 1, 1.5, ..., 24)
+    const hourOptions = Array.from({ length: 49 }, (_, i) => i * 0.5);
+    const formatHour = (h: number) => {
+        const hh = Math.floor(h);
+        const mm = h % 1 === 0.5 ? '30' : '00';
+        return `${String(hh).padStart(2, '0')}:${mm}`;
+    };
     const DAYS_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土', '祝日'];
 
     return (
@@ -239,11 +245,11 @@ const AppearanceSettings = () => {
                                     </label>
                                     <select
                                         value={startHour}
-                                        onChange={(e) => handleStartHourChange(parseInt(e.target.value))}
+                                        onChange={(e) => handleStartHourChange(parseFloat(e.target.value))}
                                         className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                     >
                                         {hourOptions.filter(h => h < 24).map(h => (
-                                            <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                                            <option key={h} value={h}>{formatHour(h)}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -254,11 +260,11 @@ const AppearanceSettings = () => {
                                     </label>
                                     <select
                                         value={endHour}
-                                        onChange={(e) => handleEndHourChange(parseInt(e.target.value))}
+                                        onChange={(e) => handleEndHourChange(parseFloat(e.target.value))}
                                         className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                     >
                                         {hourOptions.filter(h => h >= 1).map(h => (
-                                            <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                                            <option key={h} value={h}>{formatHour(h)}</option>
                                         ))}
                                     </select>
                                 </div>

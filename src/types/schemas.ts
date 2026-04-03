@@ -107,8 +107,8 @@ export const HolidaySchema = z.object({
 });
 
 export const BusinessHoursSchema = z.object({
-  startHour: z.number().int(),
-  endHour: z.number().int(),
+  startHour: z.number().multipleOf(0.5),
+  endHour: z.number().multipleOf(0.5),
   closedDays: z.array(z.number().int()).optional(),
 });
 

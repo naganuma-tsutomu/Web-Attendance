@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 export function useStaffSession() {
     const navigate = useNavigate();
     const [staff, setStaff] = useState<{ id: string, name: string } | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const checkSession = async () => {
@@ -15,10 +16,12 @@ export function useStaffSession() {
                 setStaff(data.staff);
             } catch {
                 navigate('/staff/login');
+            } finally {
+                setIsLoading(false);
             }
         };
         checkSession();
     }, [navigate]);
 
-    return { staff };
+    return { staff, isLoading };
 }

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { format, getDay, startOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { X, Loader2 } from 'lucide-react';
 import { savePreference } from '../../../lib/api';
 import { CLOSED_DAY_HOLIDAY } from '../../../constants';
+import { isFixedHoliday as checkFixedHoliday } from '../../../lib/holidayUtils';
 import type { ShiftPreferenceDetail, Shift, Holiday } from '../../../types';
 
 interface PreferenceTabProps {
@@ -41,25 +42,14 @@ export default function PreferenceTab({
     const [selectedEndTime, setSelectedEndTime] = useState<string>('18:00');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-    const hasChanges = JSON.stringify(
+    const hasChanges = useMemo(() => JSON.stringify(
         [...preferences].sort((a, b) => a.date.localeCompare(b.date))
     ) !== JSON.stringify(
         [...savedPreferences].sort((a, b) => a.date.localeCompare(b.date))
-    );
+    ), [preferences, savedPreferences]);
 
-    const isFixedHoliday = (date: Date): boolean => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const holiday = holidays.find(h => h.date === dateStr);
-        if (holiday && !holiday.isWorkday && closedDays.includes(CLOSED_DAY_HOLIDAY)) return true;
-
-        if (!myAvailableDays || myAvailableDays.length === 0) return false;
-        const dow = getDay(date);
-        const nthWeek = Math.ceil(date.getDate() / 7);
-        const config = myAvailableDays.find((d: any) => (typeof d === 'number' ? d : d.day) === dow);
-        if (!config) return true;
-        if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return true;
-        return false;
-    };
+    const isFixedHoliday = (date: Date): boolean =>
+        checkFixedHoliday(date, holidays, closedDays, CLOSED_DAY_HOLIDAY, myAvailableDays);
 
     const handleDateClick = (dateStr: string) => {
         const existing = preferences.find(p => p.date === dateStr);
@@ -155,7 +145,7 @@ export default function PreferenceTab({
                                                     ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-300 dark:text-red-700 cursor-not-allowed'
                                                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                                             : isTraining
-                                                ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400'
+                                                ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400 cursor-not-allowed'
                                                 : isSelected
                                                     ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400'
                                                     : isNationalHoliday
@@ -207,7 +197,7 @@ export default function PreferenceTab({
             {/* Partial Selection Modal */}
             {selectedDateAction && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateAction(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
                         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-base font-black text-slate-800 dark:text-white">
                                 {format(new Date(selectedDateAction), 'M月d日 (E)', { locale: ja })} の希望
@@ -264,7 +254,7 @@ export default function PreferenceTab({
             {/* Cancel Confirmation Modal */}
             {showCancelConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowCancelConfirm(false)}>
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
                         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-base font-black text-slate-800 dark:text-white">変更を破棄しますか？</h3>
                             <button onClick={() => setShowCancelConfirm(false)} className="bg-white dark:bg-slate-700 p-1.5 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">

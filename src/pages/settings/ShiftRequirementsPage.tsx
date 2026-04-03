@@ -18,9 +18,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
-import { getClasses, getShiftRequirements, saveShiftRequirements } from '../../lib/api';
+import { saveShiftRequirements } from '../../lib/api';
 import { handleApiError } from '../../lib/errorHandler';
-import type { ShiftClass, ShiftRequirement } from '../../types';
+import { useClasses, useShiftRequirements } from '../../lib/hooks';
+import type { ShiftRequirement } from '../../types';
 import { SHIFT_DAY } from '../../constants';
 
 // 曜日パターンの選択肢
@@ -217,15 +218,31 @@ const SortableRequirementRow = ({
 };
 
 const ShiftRequirementsPage = () => {
-    const [classes, setClasses] = useState<ShiftClass[]>([]);
     const [requirements, setRequirements] = useState<ShiftRequirement[]>([]);
     const [savedRequirements, setSavedRequirements] = useState<ShiftRequirement[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [loadingError, setLoadingError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
     const [selectedClass, setSelectedClass] = useState<string>('');
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+    const { data: classes = [], isLoading: classesLoading, isError: classesError, refetch: refetchClasses } = useClasses();
+    const { data: requirementsData, isLoading: reqLoading, isError: reqError, refetch: refetchReqs } = useShiftRequirements();
+
+    const loading = classesLoading || reqLoading;
+    const loadingError = classesError || reqError;
+
+    // requirementsDataが変化したら編集中stateを同期
+    useEffect(() => {
+        if (!requirementsData) return;
+        setRequirements(requirementsData);
+        setSavedRequirements(requirementsData);
+    }, [requirementsData]);
+
+    // 最初のclassを自動選択
+    useEffect(() => {
+        if (classes.length > 0 && !selectedClass) {
+            setSelectedClass(classes[0].id);
+        }
+    }, [classes, selectedClass]);
 
     const isDirty = JSON.stringify(requirements) !== JSON.stringify(savedRequirements);
 
@@ -234,69 +251,16 @@ const ShiftRequirementsPage = () => {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    // 初期データ読み込み
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setLoadingError(null);
-            try {
-                // クラス一覧を取得
-                const classesData = await getClasses();
-                setClasses(classesData);
-
-                // 必要人数設定を取得
-                const requirementsData = await getShiftRequirements();
-                setRequirements(requirementsData);
-                setSavedRequirements(requirementsData);
-
-                // 最初のクラスを選択状態に
-                if (classesData.length > 0) {
-                    setSelectedClass(classesData[0].id);
-                }
-            } catch (err) {
-                console.error('Failed to load data', err);
-                setLoadingError('データの読み込みに失敗しました。');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
-
     // データ再読み込み
     const handleRetry = () => {
-        const fetchData = async () => {
-            setLoading(true);
-            setLoadingError(null);
-            try {
-                const classesData = await getClasses();
-                setClasses(classesData);
-                const requirementsData = await getShiftRequirements();
-                setRequirements(requirementsData);
-                if (classesData.length > 0) {
-                    setSelectedClass(classesData[0].id);
-                }
-            } catch (err) {
-                console.error('Failed to load data', err);
-                setLoadingError('データの読み込みに失敗しました。');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    };
-
-    // エラー表示（自動非表示）
-    const showError = (msg: string) => {
-        setError(msg);
-        setTimeout(() => setError(''), 5000);
+        refetchClasses();
+        refetchReqs();
     };
 
     // 新しいタイムスロットを追加
     const addTimeSlot = () => {
         if (!selectedClass) {
-            showError('クラスを選択してください');
+            toast.error('クラスを選択してください');
             return;
         }
 
@@ -369,25 +333,24 @@ const ShiftRequirementsPage = () => {
         );
 
         if (invalidRequirements.length > 0) {
-            showError('未入力の項目があります');
+            toast.error('未入力の項目があります');
             return;
         }
 
         // 時間の妥当性チェック
         const invalidTimeRanges = requirements.filter(r => r.startTime >= r.endTime);
         if (invalidTimeRanges.length > 0) {
-            showError('終了時間は開始時間より後に設定してください');
+            toast.error('終了時間は開始時間より後に設定してください');
             return;
         }
 
         // 重複チェック
         if (hasOverlappingSlots()) {
-            showError('時間帯が重複しています');
+            toast.error('時間帯が重複しています');
             return;
         }
 
         setSaving(true);
-        setError('');
         try {
             await saveShiftRequirements(requirements);
             setSavedRequirements(requirements);
@@ -421,7 +384,7 @@ const ShiftRequirementsPage = () => {
                 <div className="text-center max-w-md">
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 flex flex-col items-center animate-in fade-in">
                         <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mb-3" />
-                        <p className="text-red-800 dark:text-red-300 font-medium mb-4">{loadingError}</p>
+                        <p className="text-red-800 dark:text-red-300 font-medium mb-4">データの読み込みに失敗しました。</p>
                         <button
                             onClick={handleRetry}
                             className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors flex items-center gap-2"
@@ -448,14 +411,6 @@ const ShiftRequirementsPage = () => {
                         </p>
                     </div>
                 </div>
-
-                {/* Toast Messages */}
-                {error && (
-                    <div className="fixed top-20 right-4 z-50 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 px-4 py-3 rounded-xl flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 shadow-lg">
-                        <AlertCircle className="w-5 h-5" />
-                        <span className="text-sm font-medium">{error}</span>
-                    </div>
-                )}
 
                 {/* Class Selector */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">

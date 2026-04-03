@@ -270,6 +270,7 @@ const StaffPage = () => {
                         onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
                         className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-500"
                         title="前月"
+                        aria-label="前月"
                     >
                         <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -284,6 +285,7 @@ const StaffPage = () => {
                         onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
                         className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-500"
                         title="次月"
+                        aria-label="次月"
                     >
                         <ChevronRight className="w-5 h-5" />
                     </button>

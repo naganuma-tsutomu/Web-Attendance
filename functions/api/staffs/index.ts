@@ -4,37 +4,52 @@ import type { Env, D1Row } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
-        const { results } = await context.env.DB.prepare(
+        // staffs と available_days を JOIN して一括取得
+        const { results: staffRows } = await context.env.DB.prepare(
             "SELECT * FROM staffs ORDER BY display_order ASC"
         ).all();
 
-        // Fetch all available days for all staffs in one go to be efficient
-        const { results: allAvailableDays } = await context.env.DB.prepare(
-            "SELECT * FROM staff_available_days"
-        ).all();
+        const staffIds = (staffRows as D1Row[]).map(r => r.id as string);
 
-        // Fetch all classes for all staffs
-        const { results: allStaffClasses } = await context.env.DB.prepare(
-            "SELECT * FROM staff_classes"
-        ).all();
+        if (staffIds.length === 0) {
+            return Response.json([]);
+        }
 
-        const staffs = (results as D1Row[]).map((row) => {
+        // available_days と classes を staffId で絞り込んで取得（全件フェッチを廃止）
+        const placeholders = staffIds.map(() => '?').join(',');
+        const [{ results: allAvailableDays }, { results: allStaffClasses }] = await Promise.all([
+            context.env.DB.prepare(
+                `SELECT staffId, dayOfWeek, weeks FROM staff_available_days WHERE staffId IN (${placeholders})`
+            ).bind(...staffIds).all(),
+            context.env.DB.prepare(
+                `SELECT staffId, classId FROM staff_classes WHERE staffId IN (${placeholders})`
+            ).bind(...staffIds).all(),
+        ]);
+
+        // staffId → availableDays / classIds の Map を事前構築
+        const availableDaysMap = new Map<string, Array<{ day: number; weeks: number[] | undefined }>>();
+        for (const d of allAvailableDays as D1Row[]) {
+            const key = d.staffId as string;
+            if (!availableDaysMap.has(key)) availableDaysMap.set(key, []);
+            availableDaysMap.get(key)!.push({
+                day: d.dayOfWeek as number,
+                weeks: safeJsonParse(d.weeks as string | null, undefined),
+            });
+        }
+
+        const classIdsMap = new Map<string, string[]>();
+        for (const sc of allStaffClasses as D1Row[]) {
+            const key = sc.staffId as string;
+            if (!classIdsMap.has(key)) classIdsMap.set(key, []);
+            classIdsMap.get(key)!.push(sc.classId as string);
+        }
+
+        const staffs = (staffRows as D1Row[]).map((row) => {
             const staffId = row.id as string;
-            const normalizedDays = (allAvailableDays as D1Row[])
-                .filter((d) => d.staffId === staffId)
-                .map((d) => ({
-                    day: d.dayOfWeek,
-                    weeks: safeJsonParse(d.weeks as string | null, undefined)
-                }));
-
-            const classIds = (allStaffClasses as D1Row[])
-                .filter((sc) => sc.staffId === staffId)
-                .map((sc) => sc.classId as string);
-
             return {
                 ...row,
-                availableDays: normalizedDays,
-                classIds: classIds,
+                availableDays: availableDaysMap.get(staffId) ?? [],
+                classIds: classIdsMap.get(staffId) ?? [],
                 accessKey: row.access_key,
             };
         });

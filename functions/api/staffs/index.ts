@@ -1,44 +1,57 @@
+// NOTE(ARCH-3): 型は src/types から共有。将来的に shared/types.ts へ移行予定
 import type { Staff } from '../../../src/types';
-import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-
-export interface Env {
-    DB: D1Database;
-}
+import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
+import type { Env, D1Row } from '../../types';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
-        const { results } = await context.env.DB.prepare(
+        // staffs と available_days を JOIN して一括取得
+        const { results: staffRows } = await context.env.DB.prepare(
             "SELECT * FROM staffs ORDER BY display_order ASC"
         ).all();
 
-        // Fetch all available days for all staffs in one go to be efficient
-        const { results: allAvailableDays } = await context.env.DB.prepare(
-            "SELECT * FROM staff_available_days"
-        ).all();
+        const staffIds = (staffRows as D1Row[]).map(r => r.id as string);
 
-        // Fetch all classes for all staffs
-        const { results: allStaffClasses } = await context.env.DB.prepare(
-            "SELECT * FROM staff_classes"
-        ).all();
+        if (staffIds.length === 0) {
+            return Response.json([]);
+        }
 
-        const staffs = results.map((row: any) => {
-            const staffId = row.id;
-            const normalizedDays = allAvailableDays
-                .filter((d: any) => d.staffId === staffId)
-                .map((d: any) => ({
-                    day: d.dayOfWeek,
-                    weeks: d.weeks ? JSON.parse(d.weeks) : undefined
-                }));
+        // available_days と classes を staffId で絞り込んで取得（全件フェッチを廃止）
+        const placeholders = staffIds.map(() => '?').join(',');
+        const [{ results: allAvailableDays }, { results: allStaffClasses }] = await Promise.all([
+            context.env.DB.prepare(
+                `SELECT staffId, dayOfWeek, weeks FROM staff_available_days WHERE staffId IN (${placeholders})`
+            ).bind(...staffIds).all(),
+            context.env.DB.prepare(
+                `SELECT staffId, classId FROM staff_classes WHERE staffId IN (${placeholders})`
+            ).bind(...staffIds).all(),
+        ]);
 
-            const classIds = allStaffClasses
-                .filter((sc: any) => sc.staffId === staffId)
-                .map((sc: any) => sc.classId);
+        // staffId → availableDays / classIds の Map を事前構築
+        const availableDaysMap = new Map<string, Array<{ day: number; weeks: number[] | undefined }>>();
+        for (const d of allAvailableDays as D1Row[]) {
+            const key = d.staffId as string;
+            if (!availableDaysMap.has(key)) availableDaysMap.set(key, []);
+            availableDaysMap.get(key)!.push({
+                day: d.dayOfWeek as number,
+                weeks: safeJsonParse(d.weeks as string | null, undefined),
+            });
+        }
 
+        const classIdsMap = new Map<string, string[]>();
+        for (const sc of allStaffClasses as D1Row[]) {
+            const key = sc.staffId as string;
+            if (!classIdsMap.has(key)) classIdsMap.set(key, []);
+            classIdsMap.get(key)!.push(sc.classId as string);
+        }
+
+        const staffs = (staffRows as D1Row[]).map((row) => {
+            const staffId = row.id as string;
             return {
                 ...row,
-                availableDays: normalizedDays.length > 0 ? normalizedDays : (row.availableDays ? JSON.parse(row.availableDays) : undefined),
-                isHelpStaff: row.isHelpStaff === 1,
-                classIds: classIds
+                availableDays: availableDaysMap.get(staffId) ?? [],
+                classIds: classIdsMap.get(staffId) ?? [],
+                accessKey: row.access_key,
             };
         });
 
@@ -59,29 +72,28 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         // Validate role
         const roleError = validateRole(staffData.role || '');
         if (roleError) return createValidationError(roleError);
-        
-        const id = staffData.id || `staff_${Date.now()}`;
 
-        const { maxOrder } = await context.env.DB.prepare(
-            "SELECT MAX(display_order) as maxOrder FROM staffs"
-        ).first() as { maxOrder: number | null };
+        const id = staffData.id || crypto.randomUUID();
 
-        const displayOrder = (maxOrder || 0) + 1;
+        const accessKey = staffData.accessKey || (() => {
+            const buf = new Uint32Array(1);
+            crypto.getRandomValues(buf);
+            return (100000 + (buf[0] % 900000)).toString();
+        })();
 
         const statements = [
             context.env.DB.prepare(
-                `INSERT INTO staffs (id, name, role, hoursTarget, availableDays, isHelpStaff, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
             ).bind(
                 id,
                 staffData.name!.trim(),
                 staffData.role!,
-                staffData.hoursTarget || null,
-                staffData.availableDays ? JSON.stringify(staffData.availableDays) : null,
-                staffData.isHelpStaff ? 1 : 0,
+                staffData.hoursTarget ?? null,
+                staffData.weeklyHoursTarget ?? null,
                 staffData.defaultWorkingHoursStart || null,
                 staffData.defaultWorkingHoursEnd || null,
-                displayOrder
+                accessKey
             )
         ];
 
@@ -93,14 +105,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
-                    ).bind(`${id}_available_${idx}`, id, day, weeks)
+                    ).bind(crypto.randomUUID(), id, day, weeks)
                 );
             });
         }
 
         // Add statements for staff classes
-        if ((staffData as any).classIds && (staffData as any).classIds.length > 0) {
-            (staffData as any).classIds.forEach((classId: string) => {
+        if (staffData.classIds && staffData.classIds.length > 0) {
+            staffData.classIds.forEach((classId: string) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_classes (staffId, classId) VALUES (?, ?)"

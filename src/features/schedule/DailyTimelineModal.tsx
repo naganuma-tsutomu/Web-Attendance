@@ -1,9 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { X, Save } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern } from '../../types';
+import { toast } from 'sonner';
+import { X, Save, Lock, Unlock } from 'lucide-react';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 interface DailyTimelineModalProps {
     date: Date;
@@ -11,8 +13,12 @@ interface DailyTimelineModalProps {
     staffList: Staff[];
     classes: ShiftClass[];
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
+    preferences: ShiftPreference[];
     onClose: () => void;
     onShiftUpdate?: () => void;
+    isFixed?: boolean;
+    onToggleFixed?: () => void;
 }
 
 const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
@@ -21,11 +27,16 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     staffList,
     classes,
     timePatterns,
+    roles,
+    preferences,
     onClose,
-    onShiftUpdate
+    onShiftUpdate,
+    isFixed,
+    onToggleFixed
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const saveRef = useRef<(() => Promise<void>) | null>(null);
 
     const handleSave = async () => {
@@ -33,9 +44,15 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
         setSavingAll(true);
         try {
             await saveRef.current();
+            toast.success('保存しました');
             onClose();
         } catch (error) {
-            alert('保存に失敗しました。');
+            console.error(error);
+            if (error instanceof Error && error.message) {
+                toast.error(error.message);
+            } else {
+                toast.error('保存に失敗しました。');
+            }
         } finally {
             setSavingAll(false);
         }
@@ -43,24 +60,35 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
 
     const handleClose = useCallback(() => {
         if (isModified) {
-            if (window.confirm('変更が保存されていません。変更を破棄してよろしいですか？')) {
-                onClose();
-            }
+            setShowCloseConfirm(true);
         } else {
             onClose();
         }
     }, [isModified, onClose]);
 
+    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
+
+    const handleBackdropMouseDown = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            setMouseDownOnBackdrop(true);
+        }
+    };
+
+    const handleBackdropMouseUp = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
+            handleClose();
+        }
+        setMouseDownOnBackdrop(false);
+    };
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-auto select-none"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) handleClose();
-            }}
+            onMouseDown={handleBackdropMouseDown}
+            onMouseUp={handleBackdropMouseUp}
         >
             <div
-                className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700"
-                style={{ maxHeight: 'calc(100vh - 4rem)' }}
+                className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700 max-h-[85dvh] sm:max-h-[calc(100dvh-4rem)]"
             >
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl flex-shrink-0">
@@ -73,9 +101,24 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                             バーをドラッグ・または左の入力欄で時間を変更できます（15分スナップ）
                         </p>
                     </div>
-                    <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {onToggleFixed && (
+                            <button
+                                onClick={onToggleFixed}
+                                title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                                className={`flex items-center p-2 rounded-lg transition-colors border shadow-sm ${
+                                    isFixed
+                                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
+                                }`}
+                            >
+                                {isFixed ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                            </button>
+                        )}
+                        <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -86,46 +129,65 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         staffList={staffList}
                         classes={classes}
                         timePatterns={timePatterns}
+                        roles={roles}
+                        preferences={preferences}
                         onShiftUpdate={onShiftUpdate}
                         onModifiedChange={setIsModified}
                         saveRef={saveRef}
+                        isFixed={isFixed}
+                        onToggleFixed={onToggleFixed}
+                        hideHeaderToggle={true}
                     />
 
                     {/* Footer Buttons */}
-                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-end gap-3 text-xs">
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex flex-col sm:flex-row items-end sm:items-center justify-between sm:justify-end gap-4 sm:gap-3 text-xs">
                         {isModified && (
-                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-4">
-                                <Save className="w-4 h-4" />
-                                <span className="font-medium">変更後は「保存する」ボタンで確定してください</span>
+                            <div className="flex items-start sm:items-center gap-2 text-indigo-600 dark:text-indigo-400 w-full sm:w-auto bg-indigo-50/50 sm:bg-transparent dark:bg-indigo-900/20 dark:sm:bg-transparent p-2 sm:p-0 rounded-md">
+                                <Save className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0" />
+                                <span className="font-medium leading-relaxed">変更後は「保存」ボタンで確定してください</span>
                             </div>
                         )}
-                        <button
-                            onClick={handleClose}
-                            disabled={savingAll}
-                            className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600"
-                        >
-                            キャンセル
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={savingAll || !isModified}
-                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 active:scale-95"
-                        >
-                            {savingAll ? (
-                                <>
-                                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    保存中...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-3.5 h-3.5" />
-                                    保存する
-                                </>
-                            )}
-                        </button>
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                            <button
+                                onClick={handleClose}
+                                disabled={savingAll}
+                                className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600 whitespace-nowrap shrink-0"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={savingAll || !isModified}
+                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap shrink-0 sm:min-w-[80px]"
+                            >
+                                {savingAll ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        保存中...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-3.5 h-3.5 flex-shrink-0" />
+                                        保存
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {/* Close Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showCloseConfirm}
+                title="変更の破棄"
+                message="変更が保存されていません。変更を破棄してよろしいですか？"
+                confirmLabel="破棄して閉じる"
+                cancelLabel="戻る"
+                onConfirm={onClose}
+                onCancel={() => setShowCloseConfirm(false)}
+                variant="danger"
+            />
         </div >
     );
 };

@@ -1,43 +1,56 @@
-export interface Env {
-    DB: D1Database;
-}
+import { handleServerError, createValidationError } from '../../utils/validation';
+import type { Env, D1BindParam } from '../../types';
+
+// shifts テーブルで更新を許可するカラム名のホワイトリスト
+const ALLOWED_SHIFT_COLUMNS = new Set([
+    'staffId', 'startTime', 'endTime', 'classType', 'isEarlyShift', 'isError',
+]);
+
+/**
+ * setClauses に追加する前にカラム名がホワイトリストに含まれているか検証する。
+ * 不正なカラム名が検出された場合は例外をスローする。
+ */
+const addSetClause = (setClauses: string[], bindings: D1BindParam[], column: string, value: D1BindParam) => {
+    if (!ALLOWED_SHIFT_COLUMNS.has(column)) {
+        throw new Error(`Invalid column name: ${column}`);
+    }
+    setClauses.push(`${column} = ?`);
+    bindings.push(value);
+};
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as any;
+        const body = await context.request.json() as Partial<{
+            staffId: string; startTime: string; endTime: string;
+            classType: string; isEarlyShift: boolean; isError: boolean;
+        }>;
 
-        // 渡されたフィールドのみ動的にUPDATEする
+        // addSetClause() でホワイトリスト検証済みのカラム名のみ追加
         const setClauses: string[] = [];
-        const bindings: any[] = [];
+        const bindings: D1BindParam[] = [];
 
         if (body.staffId !== undefined) {
-            setClauses.push('staffId = ?');
-            bindings.push(body.staffId);
+            addSetClause(setClauses, bindings, 'staffId', body.staffId);
         }
         if (body.startTime !== undefined) {
-            setClauses.push('startTime = ?');
-            bindings.push(body.startTime);
+            addSetClause(setClauses, bindings, 'startTime', body.startTime);
         }
         if (body.endTime !== undefined) {
-            setClauses.push('endTime = ?');
-            bindings.push(body.endTime);
+            addSetClause(setClauses, bindings, 'endTime', body.endTime);
         }
         if (body.classType !== undefined) {
-            setClauses.push('classType = ?');
-            bindings.push(body.classType);
+            addSetClause(setClauses, bindings, 'classType', body.classType);
         }
         if (body.isEarlyShift !== undefined) {
-            setClauses.push('isEarlyShift = ?');
-            bindings.push(body.isEarlyShift ? 1 : 0);
+            addSetClause(setClauses, bindings, 'isEarlyShift', body.isEarlyShift ? 1 : 0);
         }
         if (body.isError !== undefined) {
-            setClauses.push('isError = ?');
-            bindings.push(body.isError ? 1 : 0);
+            addSetClause(setClauses, bindings, 'isError', body.isError ? 1 : 0);
         }
 
         if (setClauses.length === 0) {
-            return new Response('No fields to update', { status: 400 });
+            return createValidationError('更新するフィールドがありません');
         }
 
         bindings.push(id);
@@ -45,9 +58,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             `UPDATE shifts SET ${setClauses.join(', ')} WHERE id = ?`
         ).bind(...bindings).run();
 
-        return new Response('Updated', { status: 200 });
+        return Response.json({ success: true, message: 'Updated' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error updating shift');
     }
 };
 
@@ -57,8 +70,8 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         await context.env.DB.prepare(
             'DELETE FROM shifts WHERE id = ?'
         ).bind(id).run();
-        return new Response('Deleted', { status: 200 });
+        return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error deleting shift');
     }
 };

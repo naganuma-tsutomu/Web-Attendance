@@ -1,13 +1,12 @@
-export interface Env {
-    DB: D1Database;
-}
+import { createValidationError, handleServerError } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const { orders }: { orders: { id: string, order: number }[] } = await context.request.json();
 
         if (!orders || !Array.isArray(orders)) {
-            return new Response('Invalid orders data', { status: 400 });
+            return createValidationError('Invalid orders data');
         }
 
         const statements = orders.map(item =>
@@ -17,8 +16,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         await context.env.DB.batch(statements);
 
-        return new Response('Reordered', { status: 200 });
+        return Response.json({ success: true, message: 'Reordered' });
     } catch (e) {
-        return new Response((e as Error).message, { status: 500 });
+        return handleServerError(e, 'Database error reordering classes');
     }
 };

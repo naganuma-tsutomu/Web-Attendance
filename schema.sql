@@ -3,25 +3,23 @@ CREATE TABLE IF NOT EXISTS classes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     display_order INTEGER DEFAULT 0,
-    auto_allocate INTEGER DEFAULT 1 -- 1: ON, 0: OFF
+    auto_allocate INTEGER DEFAULT 1, -- 1: ON, 0: OFF
+    color TEXT DEFAULT '#818cf8'
 );
 
--- Initial Class Data
-INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_niji', '虹組', 1);
-INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_smile', 'スマイル組', 2);
-INSERT OR IGNORE INTO classes (id, name, display_order) VALUES ('class_special', '特殊', 3);
+
 
 -- Staffs Table
 CREATE TABLE IF NOT EXISTS staffs (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL,
-    hoursTarget INTEGER,
-    availableDays TEXT, -- JSON array string (Lgegacy, will be replaced by staff_available_days)
-    isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
+    hoursTarget REAL,
+    weeklyHoursTarget REAL,
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
-    display_order INTEGER DEFAULT 0
+    display_order INTEGER DEFAULT 0,
+    access_key TEXT
 );
 
 -- Staff Classes (Many-to-Many)
@@ -47,8 +45,8 @@ CREATE TABLE IF NOT EXISTS shift_preferences (
     id TEXT PRIMARY KEY,
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL, -- e.g. "2024-04"
-    unavailableDates TEXT NOT NULL, -- JSON array string (Legacy, will be replaced by shift_preference_dates)
-    FOREIGN KEY(staffId) REFERENCES staffs(id)
+    submitted INTEGER DEFAULT 0, -- 0: 未提出, 1: 提出済み
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
 -- shift_preference_dates Table (Normalized)
@@ -57,6 +55,9 @@ CREATE TABLE IF NOT EXISTS shift_preference_dates (
     staffId TEXT NOT NULL,
     yearMonth TEXT NOT NULL,
     date TEXT NOT NULL, -- "YYYY-MM-DD"
+    startTime TEXT,     -- "HH:MM" or NULL (NULL means full day unavailable)
+    endTime TEXT,       -- "HH:MM" or NULL
+    type TEXT,          -- "training" or NULL
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
@@ -69,7 +70,15 @@ CREATE TABLE IF NOT EXISTS shifts (
     endTime TEXT NOT NULL, -- "HH:MM"
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
-    isError INTEGER DEFAULT 0
+    isError INTEGER DEFAULT 0,
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE,
+    FOREIGN KEY(classType) REFERENCES classes(id) ON DELETE CASCADE
+);
+
+-- Fixed Dates (Locked shifts) Table
+CREATE TABLE IF NOT EXISTS fixed_dates (
+    date TEXT PRIMARY KEY,
+    yearMonth TEXT NOT NULL -- e.g. "2024-04"
 );
 
 -- ======================================================
@@ -81,14 +90,25 @@ CREATE TABLE IF NOT EXISTS shift_time_patterns (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,       -- 例: "早番", "遅番", "中番"
     startTime TEXT NOT NULL,  -- "HH:MM"
-    endTime TEXT NOT NULL     -- "HH:MM"
+    endTime TEXT NOT NULL,    -- "HH:MM"
+    display_order INTEGER DEFAULT 0,
+    sun INTEGER DEFAULT 1,
+    mon INTEGER DEFAULT 1,
+    tue INTEGER DEFAULT 1,
+    wed INTEGER DEFAULT 1,
+    thu INTEGER DEFAULT 1,
+    fri INTEGER DEFAULT 1,
+    sat INTEGER DEFAULT 1,
+    holiday INTEGER DEFAULT 1
 );
 
 -- 役職マスタ (自由に追加・削除可能)
 CREATE TABLE IF NOT EXISTS roles (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,  -- 例: "正社員", "短時間パートA"
-    targetHours INTEGER DEFAULT 0 -- 月間目標時間
+    targetHours REAL DEFAULT 0, -- 月間目標時間
+    weeklyHoursTarget REAL, -- 週間目標時間
+    display_order INTEGER DEFAULT 0
 );
 
 -- 役職とパターンの中間テーブル (役職に使えるパターンを紐付ける)
@@ -100,16 +120,7 @@ CREATE TABLE IF NOT EXISTS role_patterns (
     FOREIGN KEY(patternId) REFERENCES shift_time_patterns(id) ON DELETE CASCADE
 );
 
--- 初期データ: 標準的な役職
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_full', '正社員');
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_semi', '準社員');
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_part', 'パート');
-INSERT OR IGNORE INTO roles (id, name) VALUES ('role_special', '特殊スタッフ');
 
--- 初期データ: 標準的な勤務時間パターン
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_early', '早番', '09:00', '17:00');
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_late', '遅番', '12:00', '20:00');
-INSERT OR IGNORE INTO shift_time_patterns (id, name, startTime, endTime) VALUES ('stp_short', '短時間', '10:00', '15:00');
 
 -- 廃止: role_settings, shift_patterns (既に存在する場合は残しても無害)
 -- DROP TABLE IF EXISTS role_settings;
@@ -132,7 +143,39 @@ CREATE TABLE IF NOT EXISTS shift_requirements (
     FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE
 );
 
--- Initial sample data (optional)
--- Example: Niji class needs 2 staff on weekdays 9:00-12:00
-INSERT OR IGNORE INTO shift_requirements (id, classId, dayOfWeek, startTime, endTime, minStaffCount, priority)
-VALUES ('req_001', 'class_niji', 1, '09:00', '12:00', 2, 1);
+
+
+-- ======================================================
+-- 祝日管理テーブル
+-- ======================================================
+
+CREATE TABLE IF NOT EXISTS holidays (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,      -- YYYY-MM-DD形式
+    name TEXT NOT NULL,              -- 祝日名
+    type TEXT NOT NULL,              -- 'national', 'observance', 'company'等
+    is_workday INTEGER DEFAULT 0,    -- 振替休日など特別対応用 (0: 休日, 1: 出勤日)
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ======================================================
+-- アプリケーション設定テーブル (key-value)
+-- ======================================================
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- 日付検索用インデックス
+CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
+CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
+
+-- シフト・希望休検索用インデックス
+CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
+CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);
+CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yearMonth);
+CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
+CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
+

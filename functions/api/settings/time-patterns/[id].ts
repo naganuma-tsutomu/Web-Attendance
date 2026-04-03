@@ -1,19 +1,18 @@
-export interface Env { DB: D1Database; }
-
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
+import type { Env } from '../../../types';
 
 // PUT /api/settings/time-patterns/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
         const body = await context.request.json() as { name?: string; startTime?: string; endTime?: string };
-        
+
         // Validate name if provided
         if (body.name !== undefined) {
             const nameError = validateName(body.name, '名前', 50);
             if (nameError) return createValidationError(nameError);
         }
-        
+
         // Validate time range if both provided
         if (body.startTime !== undefined && body.endTime !== undefined) {
             const timeError = validateTimeRange(body.startTime, body.endTime);
@@ -37,11 +36,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 if (timeError) return createValidationError(timeError);
             }
         }
-        
+
         // Build update query dynamically
         const updates: string[] = [];
         const values: any[] = [];
-        
+
         if (body.name !== undefined) {
             updates.push('name = ?');
             values.push(body.name.trim());
@@ -54,19 +53,40 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             updates.push('endTime = ?');
             values.push(body.endTime);
         }
-        
-        if (updates.length === 0) {
-            return createValidationError('更新するデータがありません');
+        // 曜日・祝日フラグの追加
+        const dayFlags = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
+        for (const flag of dayFlags) {
+            if ((body as any)[flag] !== undefined) {
+                updates.push(`${flag} = ?`);
+                values.push((body as any)[flag]);
+            }
         }
-        
-        values.push(id);
-        await context.env.DB.prepare(
-            `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
-        ).bind(...values).run();
-        
+
+        if (updates.length > 0) {
+            values.push(id);
+            await context.env.DB.prepare(
+                `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
+            ).bind(...values).run();
+        }
+
+        // スタッフ区分の紐付け同期
+        if ((body as any).roleIds !== undefined) {
+            const roleIds = (body as any).roleIds as string[];
+            // 一旦削除
+            await context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id).run();
+            // 再挿入
+            if (roleIds.length > 0) {
+                const statements = roleIds.map(roleId =>
+                    context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
+                        .bind(roleId, id)
+                );
+                await context.env.DB.batch(statements);
+            }
+        }
+
         return Response.json({ success: true });
-    } catch (e) { 
-        return handleServerError(e, 'Database error updating time pattern'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error updating time pattern');
     }
 };
 
@@ -76,7 +96,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = context.params.id as string;
         await context.env.DB.prepare('DELETE FROM shift_time_patterns WHERE id = ?').bind(id).run();
         return Response.json({ success: true });
-    } catch (e) { 
-        return handleServerError(e, 'Database error deleting time pattern'); 
+    } catch (e) {
+        return handleServerError(e, 'Database error deleting time pattern');
     }
 };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 
 // Custom lightweight User interface
 export interface User {
@@ -26,11 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        checkAuth();
-    }, []);
-
-    const checkAuth = async () => {
+    const checkAuth = useCallback(async () => {
         try {
             const res = await fetch('/api/auth/me');
             if (res.ok) {
@@ -48,9 +44,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const login = async (password: string) => {
+    useEffect(() => {
+        checkAuth();
+    }, [checkAuth]);
+
+    const login = useCallback(async (password: string) => {
         const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -60,12 +60,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error('パスワードが間違っています。');
         }
         await checkAuth();
-    };
+    }, [checkAuth]);
 
-    const logout = async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        setCurrentUser(null);
-    };
+    const logout = useCallback(async () => {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+        } catch (err) {
+            console.error('Logout failed:', err);
+        } finally {
+            setCurrentUser(null);
+        }
+    }, []);
 
     const value = {
         currentUser,
@@ -76,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateShiftsForMonth } from '../algorithm';
-import type { Staff, ShiftPreference, DynamicRole } from '../../types';
+import { generateShiftsForMonth, isStaffAvailable } from '../algorithm';
+import { UNASSIGNED_STAFF_ID, SHIFT_DAY } from '../../constants';
+import type { Staff, ShiftPreference, DynamicRole, ShiftRequirement } from '../../types';
 
 // テスト用のスタッフデータ
 const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role: string }): Staff => ({
@@ -8,22 +9,28 @@ const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role:
     ...overrides,
 });
 
+// テスト用の必要人数データ
+const makeReq = (overrides: Partial<ShiftRequirement> & { id: string; classId: string }): ShiftRequirement => ({
+    dayOfWeek: SHIFT_DAY.EVERYDAY,
+    startTime: '09:00',
+    endTime: '18:00',
+    minStaffCount: 1,
+    priority: 0,
+    ...overrides,
+});
+
 const emptyPrefs: ShiftPreference[] = [];
 const emptyRoles: DynamicRole[] = [];
-// 正社員を定義したroles（土曜日テスト用）
-const fullTimeRoles: DynamicRole[] = [
-    { id: 'r1', name: '正社員', targetHours: 160, patterns: [] }
-];
 const dummyClasses = [
     { id: 'class_niji', name: '虹組', display_order: 0, auto_allocate: 1 },
     { id: 'class_smile', name: 'スマイル組', display_order: 1, auto_allocate: 1 },
-    { id: 'class_special', name: '特殊', display_order: 2, auto_allocate: 0 },
 ];
 
 describe('generateShiftsForMonth', () => {
     it('日曜日のシフトは生成されない', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
 
         // 2025-06 の日曜日（1, 8, 15, 22, 29 日）にシフトが存在しないことを確認
         const sundays = ['2025-06-01', '2025-06-08', '2025-06-15', '2025-06-22', '2025-06-29'];
@@ -33,116 +40,325 @@ describe('generateShiftsForMonth', () => {
         });
     });
 
-    it('スタッフが1人の場合は不足分にエラーシフトが生成される', () => {
-        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
-
-        const errorShifts = shifts.filter(s => s.isError === true);
-        expect(errorShifts.length).toBeGreaterThan(0);
-        errorShifts.forEach(s => {
-            expect(s.staffId).toBe('UNASSIGNED');
-        });
-    });
-
-    it('指定した休日の日はそのスタッフのシフトが生成されない', () => {
+    it('必要人数設定に基づいてシフトが生成される', () => {
         const staff = [
             makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' }),
             makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),
         ];
-        const prefs: ShiftPreference[] = [{
-            id: 'p1',
-            staffId: 's1',
-            yearMonth: '2025-06',
-            unavailableDates: ['2025-06-02'], // 月曜
-        }];
+        const reqs = [
+            makeReq({ id: 'r1', classId: 'class_niji', minStaffCount: 2 })
+        ];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
 
-        const shifts = generateShiftsForMonth('2025-06', staff, prefs, emptyRoles, dummyClasses);
-        const targetDayShifts = shifts.filter(s => s.date === '2025-06-02' && s.staffId === 's1');
+        const weekdayShifts = shifts.filter(s => s.date === '2025-06-02'); // 月曜
+        expect(weekdayShifts).toHaveLength(2);
+        expect(weekdayShifts.every(s => s.classType === 'class_niji')).toBe(true);
+    });
+
+    it('スタッフが足りない場合は不足分にエラーシフトが生成される', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', minStaffCount: 2 })];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+
+        const errorShifts = shifts.filter(s => s.isError === true && s.date === '2025-06-02');
+        expect(errorShifts).toHaveLength(1);
+        expect(errorShifts[0].staffId).toBe(UNASSIGNED_STAFF_ID);
+    });
+
+    it('同一スタッフが重複して割り当てられない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [
+            makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '12:00' }),
+            makeReq({ id: 'r2', classId: 'class_smile', startTime: '10:00', endTime: '13:00' }), // 重複する時間帯
+        ];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+
+        const staffAShifts = shifts.filter(s => s.staffId === 's1' && s.date === '2025-06-02');
+        // スタッフAはどちらか一方（優先度の高い方など）にしか割り当てられないはず
+        expect(staffAShifts.length).toBeLessThanOrEqual(1);
+
+        // もう一方はエラー（UNASSIGNED）になるはず
+        const errorShifts = shifts.filter(s => s.isError && s.date === '2025-06-02');
+        expect(errorShifts.length).toBe(1);
+    });
+
+    it('hourTargetを尊重して割り当てが抑制される', () => {
+        const staff = [
+            makeStaff({ id: 's1', name: 'スタッフA', role: 'パート', hoursTarget: 20 }) // 超短時間
+        ];
+        // 毎日9時間（9-18）の要件
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+
+        const staffAShifts = shifts.filter(s => s.staffId === 's1');
+        // 9時間 * 3日 = 27時間 > 20時間 なので、3日目あたりで割り当てられなくなるはず
+        expect(staffAShifts.length).toBeLessThan(5);
+    });
+
+    it('祝日にはシフトが生成されない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const holidays = ['2025-06-02']; // 月曜を祝日に設定
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, holidays, reqs);
+
+        const targetDayShifts = shifts.filter(s => s.date === '2025-06-02');
         expect(targetDayShifts).toHaveLength(0);
     });
 
-    it('土曜日のシフトが生成される', () => {
-        const staff = [
-            makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' }),
-            makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),
+    it('登録されたパターンに合致しない時間は割り当てられない', () => {
+        const roles: DynamicRole[] = [
+            {
+                id: 'role1',
+                name: '正社員',
+                targetHours: 160,
+                display_order: 1,
+                patterns: [
+                    { id: 'p1', name: '早番', startTime: '09:00', endTime: '17:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
+                ]
+            }
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
 
-        // 2025-06-07 は土曜日
-        const saturdayShifts = shifts.filter(s => s.date === '2025-06-07');
-        expect(saturdayShifts.length).toBeGreaterThan(0);
+        // 要件が 09:00-18:00 (パターンの 09:00-17:00 と一致しない)
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '18:00' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles, dummyClasses, [], reqs);
+        const assigned = shifts.filter(s => s.staffId === 's1');
+
+        // 一致しないので割り当てられないはず
+        expect(assigned).toHaveLength(0);
+        expect(shifts.find(s => s.isError)).toBeDefined();
     });
 
-
-    it('生成されたシフトIDに重複がない', () => {
-        const staff = [
-            makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' }),
-            makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),
+    it('役職の優先順位（display_order）に従って割り当てられる', () => {
+        const roles: DynamicRole[] = [
+            { id: 'r_high', name: '優先高', targetHours: 160, display_order: 1, patterns: [] },
+            { id: 'r_low', name: '優先低', targetHours: 160, display_order: 10, patterns: [] }
         ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
-        const ids = shifts.map(s => s.id);
-        const uniqueIds = new Set(ids);
-        expect(uniqueIds.size).toBe(ids.length);
+        const staff = [
+            makeStaff({ id: 's_low', name: '後回し', role: '優先低' }),
+            makeStaff({ id: 's_high', name: '優先', role: '優先高' })
+        ];
+        const reqs = [makeReq({ id: 'req1', classId: 'class_niji', minStaffCount: 1 })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles, dummyClasses, [], reqs);
+
+        // 最初の日のシフトを確認
+        const firstDayShift = shifts.find(s => s.date === '2025-06-02' && !s.isError);
+        expect(firstDayShift?.staffId).toBe('s_high'); // 優先度の高いスタッフが選ばれる
     });
 
-    it('第n週の固定休日が正しく反映される', () => {
-        const staff = [
-            makeStaff({
-                id: 's1',
-                name: 'スタッフA',
-                role: '正社員',
-                availableDays: [{ day: 1, weeks: [1, 3, 5] }] // 第1, 3, 5月曜のみ出勤 (第2, 4月曜は休み)
-            }),
-            makeStaff({ id: 's2', name: 'スタッフB', role: '正社員' }),
-            makeStaff({ id: 's3', name: 'スタッフC', role: '正社員' }),
-            makeStaff({ id: 's4', name: 'スタッフD', role: '正社員' }),
-            makeStaff({ id: 's5', name: 'スタッフE', role: '正社員' }),
-            makeStaff({ id: 's6', name: 'スタッフF', role: '正社員' }),
+    it('要求時間をカバーするパターンがある場合、そのパターンの時間で割り当てられる', () => {
+        const roles: DynamicRole[] = [
+            {
+                id: 'role1',
+                name: '正社員',
+                targetHours: 160,
+                display_order: 1,
+                patterns: [
+                    { id: 'p1', name: 'フルタイム', startTime: '09:00', endTime: '18:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
+                ]
+            }
         ];
-        // 2025年6月の月曜日: 02(第1), 09(第2), 16(第3), 23(第4), 30(第5)
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
 
-        // 第1月曜 (02日) -> 出勤
-        expect(shifts.filter(s => s.date === '2025-06-02' && s.staffId === 's1')).toHaveLength(1);
-        // 第2月曜 (09日) -> 休み
-        expect(shifts.filter(s => s.date === '2025-06-09' && s.staffId === 's1')).toHaveLength(0);
-        // 第3月曜 (16日) -> 出勤
-        expect(shifts.filter(s => s.date === '2025-06-16' && s.staffId === 's1')).toHaveLength(1);
-        // 第4月曜 (23日) -> 休み
-        expect(shifts.filter(s => s.date === '2025-06-23' && s.staffId === 's1')).toHaveLength(0);
-        // 第5月曜 (30日) -> 出勤
-        expect(shifts.filter(s => s.date === '2025-06-30' && s.staffId === 's1')).toHaveLength(1);
+        // 要件は 11:00-12:00
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', startTime: '11:00', endTime: '12:00' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, roles, dummyClasses, [], reqs);
+        const assigned = shifts.find(s => s.staffId === 's1');
+
+        // 割り当てに成功し、時間はパターンの 09:00-18:00 になっているはず
+        expect(assigned).toBeDefined();
+        expect(assigned?.startTime).toBe('09:00');
+        expect(assigned?.endTime).toBe('18:00');
     });
 
-    it('hoursTarget が null の場合は労働時間制限なく割り当てられる', () => {
-        const staff = [
-            makeStaff({ id: 's1', name: 'スタッフA', role: '準社員', hoursTarget: null })
-        ];
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses);
+    it('スタッフのavailableDaysの特定の週(nthWeek)指定が正しく機能する', () => {
+        const staff = [makeStaff({ 
+            id: 's1', 
+            name: 'スタッフA', 
+            role: 'パート',
+            // 毎週月曜日（day: 1）だが、第1週と第3週のみ出勤可能
+            availableDays: [0, { day: 1, weeks: [1, 3] }, 2, 3, 4, 5, 6] 
+        })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })]; // 毎日必要
 
-        // 2025年6月の月〜金は21日間、土曜日は4日間、計25日間
-        // 準社員は平日の上限6人枠と土曜日の1人枠に入る（他にスタッフがいないため）
-        const staffAShifts = shifts.filter(s => s.staffId === 's1');
-        expect(staffAShifts.length).toBe(25);
-    });
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+        const myShifts = shifts.filter(s => s.staffId === 's1');
 
-    it('正社員がいる場合、準社員は土曜日に割り当てられない', () => {
-        const staff = [
-            makeStaff({ id: 'ft1', name: '正社員A', role: '正社員' }),
-            makeStaff({ id: 'ft2', name: '正社員B', role: '正社員' }),
-            makeStaff({ id: 's1', name: '準社員A', role: '準社員' })
-        ];
-        // fullTimeRolesを渡して正社員を正しく認識させる
-        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, fullTimeRoles, dummyClasses);
+        // 2025-06 の月曜日は 2, 9, 16, 23, 30 日
+        // 2日(第1週)、16日(第3週) にだけシフトが入るはず
+        const monDates = ['2025-06-02', '2025-06-16'];
+        
+        // 9日(第2週)、23日(第4週)、30日(第5週)にはシフトがないはず
+        const nonWorkingMonDates = ['2025-06-09', '2025-06-23', '2025-06-30'];
 
-        // 土曜日のシフトを取得
-        const saturdayShifts = shifts.filter(s => {
-            const date = new Date(s.date);
-            return date.getDay() === 6;
+        myShifts.forEach(shift => {
+            expect(nonWorkingMonDates.includes(shift.date)).toBe(false);
         });
 
-        // 準社員Aが土曜日にいないことを確認
-        const s1SatShifts = saturdayShifts.filter(s => s.staffId === 's1');
-        expect(s1SatShifts.length).toBe(0);
+        const assignedDates = myShifts.map(s => s.date);
+        monDates.forEach(date => {
+            expect(assignedDates.includes(date)).toBe(true);
+        });
+    });
+
+    it('ShiftPreference (希望休) で指定された日付には割り当てられない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const prefs: ShiftPreference[] = [
+            { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-05', startTime: null, endTime: null, type: null }, { date: '2025-06-06', startTime: null, endTime: null, type: null }] }
+        ];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, prefs, emptyRoles, dummyClasses, [], reqs);
+        const myShifts = shifts.filter(s => s.staffId === 's1');
+
+        // 希望休の日に割り当てがされていないことを確認
+        expect(myShifts.find(s => s.date === '2025-06-05')).toBeUndefined();
+        expect(myShifts.find(s => s.date === '2025-06-06')).toBeUndefined();
+    });
+
+    it('ShiftRequirementのdayOfWeek=7（平日のみ）が正しく機能する', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        // 平日のみ (dayOfWeek: 7)
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', dayOfWeek: SHIFT_DAY.WEEKDAYS })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+        
+        // 2025-06-07 は土曜なので、シフトが生成されないはず
+        const satShifts = shifts.filter(s => s.date === '2025-06-07');
+        expect(satShifts).toHaveLength(0);
+
+        // 2025-06-02 は月曜なので、生成されるはず
+        const monShifts = shifts.filter(s => s.date === '2025-06-02');
+        expect(monShifts.length).toBeGreaterThan(0);
+    });
+
+    it('weeklyHoursTargetを尊重して週間の割り当てが抑制される', () => {
+        const staff = [
+            makeStaff({ id: 'sw1', name: 'スタッフW', role: 'パート', weeklyHoursTarget: 20 }) // 週20時間まで
+        ];
+        // 毎日9時間（9-18）の要件
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+
+        const assignedShifts = shifts.filter(s => s.staffId === 'sw1' && !s.isError);
+        
+        // 第1週 (6/2 - 6/8) のシフトを集計
+        const week1Shifts = assignedShifts.filter(s => s.date >= '2025-06-02' && s.date <= '2025-06-08');
+        // 9時間/日 x 2日 = 18時間。3日目は27時間になりNG。なので週に最大2日まで。
+        expect(week1Shifts.length).toBeLessThanOrEqual(2);
+    });
+
+    describe('ローテーション処理', () => {
+        const rotationSettings = {
+            enabled: true,
+            roleId: 'role1',
+            earlyPatternId: 'p_early',
+            latePatternId: 'p_late',
+            weekdayEarlyCount: 1,
+            weekdayLateCount: 1,
+            saturdayEnabled: true,
+            saturdayCount: 1,
+            saturdayPreferFridayLate: true
+        };
+
+        const rotationPatterns = [
+            { id: 'p_early', name: '早番', startTime: '07:00', endTime: '16:00', sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 0 },
+            { id: 'p_late', name: '遅番', startTime: '10:00', endTime: '19:00', sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 0 }
+        ] as any[];
+
+        const rotationRoles = [
+            { id: 'role1', name: '正社員', targetHours: 160, display_order: 1, patterns: rotationPatterns }
+        ] as any[];
+
+        it('設定が有効な場合、要求とは独立してローテーションシフトが生成される', () => {
+            const staff = [
+                makeStaff({ id: 'rs1', name: '正社員A', role: '正社員' }),
+                makeStaff({ id: 'rs2', name: '正社員B', role: '正社員' })
+            ];
+            // 要件は空にする
+            const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], [], [], [], rotationSettings, rotationPatterns);
+
+            // 6月2日(月)は平日なので早番と遅番が1つずつ生成されるはず
+            const weekdayShifts = shifts.filter(s => s.date === '2025-06-02' && s.id.startsWith('rot_'));
+            expect(weekdayShifts).toHaveLength(2);
+            expect(weekdayShifts.some(s => s.startTime === '07:00')).toBe(true);
+            expect(weekdayShifts.some(s => s.startTime === '10:00')).toBe(true);
+        });
+
+        it('前月末のシフト状態が引き継がれ、連続早番・遅番を避ける', () => {
+            const staff = [
+                makeStaff({ id: 'rs1', name: '正社員A', role: '正社員' }), // 先月末遅番
+                makeStaff({ id: 'rs2', name: '正社員B', role: '正社員' })  // 先月末早番
+            ];
+            
+            const existingShifts = [
+                { id: 'ex1', date: '2025-05-30', staffId: 'rs1', startTime: '10:00', endTime: '19:00', classType: 'class_niji' }, // 遅番
+                { id: 'ex2', date: '2025-05-30', staffId: 'rs2', startTime: '07:00', endTime: '16:00', classType: 'class_niji' }  // 早番
+            ] as any[];
+
+            const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], existingShifts, [], [], rotationSettings, rotationPatterns);
+
+            // 6月2日(月)の割り当て: rs1(前回遅番)は連続遅番を避けるため早番になるはず
+            // rs2(前回早番)は連続早番を避けるため遅番になるはず
+            const jun2Early = shifts.find(s => s.date === '2025-06-02' && s.startTime === '07:00');
+            const jun2Late = shifts.find(s => s.date === '2025-06-02' && s.startTime === '10:00');
+
+            expect(jun2Early?.staffId).toBe('rs1');
+            expect(jun2Late?.staffId).toBe('rs2');
+        });
+
+        it('saturdayPreferFridayLate が有効な場合、金曜遅番のスタッフが土曜に優先して割り当てられる', () => {
+            const staff = [
+                makeStaff({ id: 'rs1', name: '正社員A', role: '正社員' }),
+                makeStaff({ id: 'rs2', name: '正社員B', role: '正社員' })
+            ];
+            
+            const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], [], [], [], rotationSettings, rotationPatterns);
+
+            // 6/6(金)の遅番になった人が誰か特定する
+            const fridayLate = shifts.find(s => s.date === '2025-06-06' && s.startTime === '10:00');
+            expect(fridayLate).toBeDefined();
+
+            // 6/7(土)のシフトには遅番が1枠だけ生成される (saturdayCount: 1)
+            const saturdayShift = shifts.find(s => s.date === '2025-06-07' && s.startTime === '10:00');
+            expect(saturdayShift).toBeDefined();
+
+            // 金曜遅番の人が土曜に出勤しているはず
+            expect(saturdayShift?.staffId).toBe(fridayLate?.staffId);
+        });
+    });
+});
+
+describe('isStaffAvailable', () => {
+    it('スタッフのデフォルト出勤可能日（availableDays）に基づく判定ができる', () => {
+        const staff = makeStaff({ 
+            id: 's1', 
+            name: 'スタッフA', 
+            role: 'パート',
+            availableDays: [1, 2, 3] // 月・火・水のみ
+        });
+        // 2025-06-02は月曜日
+        expect(isStaffAvailable(staff, new Date(2025, 5, 2), '2025-06-02', [])).toBe(true);
+        // 2025-06-05は木曜日
+        expect(isStaffAvailable(staff, new Date(2025, 5, 5), '2025-06-05', [])).toBe(false);
+    });
+
+    it('終日の希望休（detailsに時間指定なし）がある場合は不可と判定される', () => {
+        const staff = makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' });
+        const prefs: ShiftPreference[] = [
+            { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-05', startTime: null, endTime: null, type: null }] }
+        ];
+        expect(isStaffAvailable(staff, new Date(2025, 5, 5), '2025-06-05', prefs)).toBe(false);
+    });
+    
+    it('研修や時間の指定がある希望休の場合は（終日不可ではないため）availableと判定される', () => {
+        const staff = makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' });
+        const prefs: ShiftPreference[] = [
+            { id: 'p1', staffId: 's1', yearMonth: '2025-06', details: [{ date: '2025-06-05', startTime: '10:00', endTime: '12:00', type: null }] }
+        ];
+        expect(isStaffAvailable(staff, new Date(2025, 5, 5), '2025-06-05', prefs)).toBe(true);
     });
 });

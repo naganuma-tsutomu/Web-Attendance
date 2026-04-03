@@ -1,18 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog, FileSpreadsheet, BookOpen, RefreshCw } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
+import { useFacilityName } from '../lib/hooks';
 
 const Layout = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { logout, currentUser } = useAuth();
+    const { data: facilityName = '施設名未設定' } = useFacilityName();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // 画面遷移時にメニューを閉じる
-    useEffect(() => {
-        setIsMenuOpen(false);
-    }, [location.pathname]);
+    const closeMenu = () => {
+        if (isMenuOpen) {
+            setIsMenuOpen(false);
+        }
+    };
 
     const handleLogout = async () => {
         await logout();
@@ -20,14 +23,17 @@ const Layout = () => {
     };
 
     const navItems = [
-        { path: '/', label: 'シフト表', icon: Calendar },
-        { path: '/staff', label: 'スタッフ管理', icon: Users },
-        { path: '/preferences', label: '休日管理', icon: Clock },
-        { path: '/settings/patterns', label: '勤務時間パターン', icon: Clock },
-        { path: '/settings/roles', label: '役職管理', icon: Users },
-        { path: '/settings/classes', label: 'クラス管理', icon: GraduationCap },
-        { path: '/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
-        { path: '/settings/appearance', label: '外観設定', icon: Palette },
+        { path: '/admin', label: 'シフト表', icon: Calendar },
+        { path: '/admin/staff', label: 'スタッフ管理', icon: Users },
+        { path: '/admin/preferences', label: '休日管理', icon: Clock },
+        { path: '/admin/settings/patterns', label: '勤務時間パターン', icon: Clock },
+        { path: '/admin/settings/roles', label: 'スタッフ区分管理', icon: Users },
+        { path: '/admin/settings/classes', label: 'クラス管理', icon: GraduationCap },
+        { path: '/admin/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
+        { path: '/admin/settings/appearance', label: '基本設定', icon: Palette },
+        { path: '/admin/settings/rotation', label: 'ローテーション設定', icon: RefreshCw },
+        { path: '/admin/settings/excel', label: 'Excel出力設定', icon: FileSpreadsheet },
+        { path: '/admin/manual', label: 'ユーザーマニュアル', icon: BookOpen },
     ];
 
     return (
@@ -36,7 +42,7 @@ const Layout = () => {
             <header className="md:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center">
                     <Moon className="w-6 h-6 text-indigo-500 mr-2" />
-                    <h1 className="text-lg font-bold tracking-wider text-slate-800 dark:text-white">星空児童館</h1>
+                    <h1 className="text-lg font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
                 </div>
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -63,21 +69,23 @@ const Layout = () => {
             `}>
                 <div className="hidden md:flex p-6 items-center justify-center border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
                     <Moon className="w-8 h-8 text-indigo-500 mr-3" />
-                    <h1 className="text-xl font-bold tracking-wider text-slate-800 dark:text-white">星空児童館</h1>
+                    <h1 className="text-xl font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
                 </div>
 
                 <div className="flex-1 py-6 px-4 space-y-2 flex flex-col overflow-y-auto">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        const isActive = location.pathname === item.path || 
-                            (item.path !== '/' && location.pathname.startsWith(item.path)) ||
-                            // Special case for /settings/patterns - also active on /settings
-                            (item.path === '/settings/patterns' && location.pathname === '/settings');
+                        const isActive = item.path === '/admin'
+                            ? location.pathname === '/admin'
+                            : (location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))) ||
+                            // Special case for /admin/settings/patterns - also active on /admin/settings
+                            (item.path === '/admin/settings/patterns' && location.pathname === '/admin/settings');
 
                         return (
                             <Link
                                 key={item.path}
                                 to={item.path}
+                                onClick={closeMenu}
                                 className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
                                     ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
                                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'
@@ -106,7 +114,7 @@ const Layout = () => {
             </nav>
 
             {/* Main Content Area */}
-            <main className="flex-1 h-screen overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 min-w-0 flex flex-col">
+            <main className="flex-1 md:h-screen overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 min-w-0 flex flex-col">
                 <div className="flex-1 w-full overflow-y-auto focus:outline-none">
                     <Outlet />
                 </div>

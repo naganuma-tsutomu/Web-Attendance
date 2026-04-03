@@ -1,84 +1,127 @@
-export type Role = string; // 動的役職 (DBから取得)
-export type ClassType = string; // クラスID (DBから取得)
+/**
+ * 型定義ファイル
+ *
+ * Zod スキーマ (schemas.ts) を Single Source of Truth とし、
+ * z.infer<> で推論した型をベースに、アプリケーション固有の
+ * 厳密な型制約を上書き (Override) して公開する。
+ *
+ * 既存インポート `from '../types'` はそのまま動作する。
+ */
 
-export interface ShiftClass {
-    id: string;
-    name: string;
-    display_order: number;
-    auto_allocate: number; // 1: ON, 0: OFF
-}
+import { z } from 'zod';
+import type {
+    AvailableDayConfig as _AvailableDayConfig,
+    StaffInferred,
+    ShiftClassInferred,
+    ShiftPreferenceDetailInferred,
+    ShiftPreferenceInferred,
+    ShiftInferred,
+    ShiftTimePatternInferred,
+    DynamicRoleInferred,
+    ShiftRequirementInferred,
+    HolidayInferred,
+    BusinessHoursInferred,
+    ExcelSettingsSchema,
+    ExcelHighlightRuleSchema
+} from './schemas';
 
-export interface AvailableDayConfig {
-    day: number;    // 0:日, 1:月, ..., 6:土
-    weeks?: number[]; // [1, 2, 3, 4, 5] (空または未定義なら「全週」)
-}
+// ==========================================
+// 型エイリアス（単純なもの）
+// ==========================================
+export type Role = string;
+export type ClassType = string;
+export type AvailableDayConfig = _AvailableDayConfig;
 
-export interface Staff {
-    id: string;
-    name: string;
-    role: string; // 役職名 (動的)
+// ==========================================
+// アプリケーション向けの型 (Zod 推論ベース + Override)
+// ==========================================
+
+/** スタッフ */
+export interface Staff extends Omit<StaffInferred, 'hoursTarget' | 'display_order'> {
     hoursTarget: number | null;
-    isHelpStaff?: boolean;
-    classIds?: string[];
-    availableDays?: (number | AvailableDayConfig)[];
-    defaultWorkingHoursStart?: string;
-    defaultWorkingHoursEnd?: string;
     display_order?: number;
 }
 
-export interface ShiftPreference {
-    id: string;
-    staffId: string;
-    yearMonth: string;
-    unavailableDates: string[];
+/** シフトクラス（組） */
+export interface ShiftClass extends Omit<ShiftClassInferred, 'display_order' | 'auto_allocate' | 'color'> {
+    display_order: number;
+    auto_allocate: number;
+    color?: string;
 }
 
-export interface Shift {
-    id: string;
-    date: string;
-    staffId: string | 'UNASSIGNED';
-    startTime: string;
-    endTime: string;
+/** 希望休の詳細 */
+export type ShiftPreferenceDetail = ShiftPreferenceDetailInferred;
+
+/** 希望休 */
+export type ShiftPreference = ShiftPreferenceInferred;
+
+/** シフト */
+export interface Shift extends Omit<ShiftInferred, 'isError' | 'isEarlyShift' | 'classType'> {
     classType: ClassType;
-    isEarlyShift: boolean;
+    isEarlyShift?: boolean;
     isError?: boolean;
 }
 
-// シフト要件（必要人数設定）
-export interface ShiftRequirement {
-    id: string;
-    classId: string;
-    dayOfWeek: number; // 0-6 for Sun-Sat, 7 for weekdays
-    startTime: string;
-    endTime: string;
-    minStaffCount: number;
-    priority: number;
+/** 勤務時間パターン */
+export interface ShiftTimePattern extends Omit<ShiftTimePatternInferred, 'display_order' | 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday'> {
+    display_order?: number;
+    sun: number;
+    mon: number;
+    tue: number;
+    wed: number;
+    thu: number;
+    fri: number;
+    sat: number;
+    holiday: number;
 }
 
-// 勤務時間パターン (役職と無関係な時間定義)
-export interface ShiftTimePattern {
-    id: string;
-    name: string;     // 例: "早番", "遅番"
-    startTime: string;
-    endTime: string;
-}
-
-// 役職 (DB管理・動的)
-export interface DynamicRole {
-    id: string;
-    name: string;
+/** スタッフ区分 */
+export interface DynamicRole extends Omit<DynamicRoleInferred, 'display_order' | 'targetHours' | 'patterns'> {
     targetHours: number | null;
+    display_order: number;
     patterns: ShiftTimePattern[];
 }
 
-// シフト要件
-export interface ShiftRequirement {
-    id: string;
-    classId: string;
-    dayOfWeek: number;      // 0:日, 1:月, ..., 6:土, 7:平日, 8:毎日
-    startTime: string;      // HH:MM
-    endTime: string;        // HH:MM
-    minStaffCount: number;  // 最小スタッフ数
-    maxStaffCount?: number; // 最大スタッフ数（オプション）
-    priority: number;       // 優先度（高いほど優先）
+/** シフト要件 */
+export interface ShiftRequirement extends Omit<ShiftRequirementInferred, 'priority'> {
+    priority: number;
+}
+
+/** 祝日 */
+export interface Holiday extends Omit<HolidayInferred, 'type' | 'isWorkday' | 'is_workday'> {
+    type: 'national' | 'observance' | 'company';
+    isWorkday: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface BusinessHours extends Omit<BusinessHoursInferred, 'closedDays'> {
+    closedDays: number[];
+}
+
+/** Excel出力設定 */
+export type ExcelHighlightRule = z.infer<typeof ExcelHighlightRuleSchema>;
+export type ExcelSettings = z.infer<typeof ExcelSettingsSchema>;
+
+/** 休憩設定 */
+export interface BreakSettings {
+    exceptionEnabled: boolean;
+    exceptionThresholdTime: string;  // "HH:MM" (デフォルト: "12:00")
+    exceptionBreakMinutes: number;   // デフォルト: 30
+    displayActualHoursInModal: boolean;  // シフトモーダルで実労働時間表示
+    displayActualHoursInExcel: boolean;  // Excelで実労働時間表示
+}
+
+/** ローテーション設定 */
+export interface RotationSettings {
+    enabled: boolean;
+    roleId: string;
+    earlyPatternId: string;
+    latePatternId: string;
+    weekdayEarlyCount: number;
+    weekdayLateCount: number;
+    saturdayEnabled: boolean;
+    saturdayCount: number;
+    saturdayPreferFridayLate: boolean;
+    saturdayPatternId?: string;
 }

@@ -1,3 +1,4 @@
+// NOTE(ARCH-3): 型は src/types から共有。将来的に shared/types.ts へ移行予定
 import type { Staff } from '../../../src/types';
 import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';

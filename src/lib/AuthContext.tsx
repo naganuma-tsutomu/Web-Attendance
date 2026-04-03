@@ -63,12 +63,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [checkAuth]);
 
     const logout = useCallback(async () => {
-        await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-        });
-        setCurrentUser(null);
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+        } catch (err) {
+            console.error('Logout failed:', err);
+        } finally {
+            setCurrentUser(null);
+        }
     }, []);
 
     const value = {

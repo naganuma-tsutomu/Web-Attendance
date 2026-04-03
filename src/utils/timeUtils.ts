@@ -16,6 +16,7 @@ export const DEFAULT_BREAK_SETTINGS: BreakSettings = {
  * Convert a HH:MM string to total minutes.
  */
 export const timeToMinutes = (timeStr: string): number => {
+    if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) return 0;
     const [h, m] = timeStr.split(':').map(Number);
     return h * 60 + m;
 };

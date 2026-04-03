@@ -235,6 +235,9 @@ const findAvailableStaff = (
 
             if (staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) {
                 const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+                if (!currentWeeklyHours[staff.id]) {
+                    currentWeeklyHours[staff.id] = {};
+                }
                 const currentWeekHrs = currentWeeklyHours[staff.id][weekKey] || 0;
                 if (currentWeekHrs + duration > staff.weeklyHoursTarget) {
                     return false;

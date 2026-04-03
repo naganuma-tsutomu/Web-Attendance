@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -24,6 +24,15 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     variant = 'danger',
     isLoading = false
 }) => {
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onCancel();
+        };
+        document.addEventListener('keydown', handleEsc);
+        return () => document.removeEventListener('keydown', handleEsc);
+    }, [isOpen, onCancel]);
+
     if (!isOpen) return null;
 
     const confirmButtonClass = variant === 'danger'
@@ -40,7 +49,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 />
 
                 {/* Modal Content */}
-                <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md animate-in zoom-in-95 duration-200">
+                <div role="dialog" aria-modal="true" className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md animate-in zoom-in-95 duration-200">
                     <div className="absolute right-4 top-4">
                         <button
                             onClick={onCancel}

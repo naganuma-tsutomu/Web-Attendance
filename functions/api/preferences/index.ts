@@ -128,7 +128,7 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
             // レコードがない場合は作成
             await context.env.DB.prepare(
                 "INSERT INTO shift_preferences (id, staffId, yearMonth, submitted) VALUES (?, ?, ?, ?)"
-            ).bind(`pref_${Date.now()}`, body.staffId, body.yearMonth, submittedValue).run();
+            ).bind(`pref_${crypto.randomUUID()}`, body.staffId, body.yearMonth, submittedValue).run();
         } else {
             await context.env.DB.prepare(
                 "UPDATE shift_preferences SET submitted = ? WHERE staffId = ? AND yearMonth = ?"

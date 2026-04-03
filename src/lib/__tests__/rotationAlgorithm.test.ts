@@ -8,7 +8,7 @@
  * - applyRotation: エッジケース（スタッフ数 < 要件数）テスト
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import {
     restorePreviousMonthState,
@@ -24,8 +24,8 @@ const makeStaff = (id: string, role = 'フルタイム'): Staff => ({
     id,
     name: `Staff ${id}`,
     role,
-    displayOrder: 0,
-    isHelpStaff: false,
+    hoursTarget: null,
+    display_order: 0,
     availableDays: [],
     classIds: [],
 });
@@ -36,22 +36,22 @@ const makePattern = (id: string, startTime: string, endTime: string): ShiftTimeP
     startTime,
     endTime,
     roleIds: [],
-    dayTypes: { weekday: true, saturday: false, holiday: false },
-    isHoliday: false,
+    sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1
 });
 
 const makeClass = (id: string): ShiftClass => ({
     id,
     name: `Class ${id}`,
-    color: '#000000',
-    displayOrder: 0,
+    display_order: 0,
+    auto_allocate: 1,
 });
 
 const makeRole = (id: string, name: string): DynamicRole => ({
     id,
     name,
+    targetHours: null,
+    patterns: [],
     display_order: 1,
-    color: '#000000',
 });
 
 const makeRotationSettings = (overrides: Partial<RotationSettings> = {}): RotationSettings => ({
@@ -143,8 +143,8 @@ describe('assignWeekdayShifts', () => {
         const staff = [makeStaff('s1'), makeStaff('s2'), makeStaff('s3')];
         const state = makeEmptyState(['s1', 's2', 's3']);
         const generatedShifts: Shift[] = [];
-        const currentHours = { s1: 0, s2: 0, s3: 0 };
-        const currentWeeklyHours = { s1: {}, s2: {}, s3: {} };
+        const currentHours: Record<string, number> = { s1: 0, s2: 0, s3: 0 };
+        const currentWeeklyHours: Record<string, Record<string, number>> = { s1: {}, s2: {}, s3: {} };
 
         const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 1 });
 
@@ -172,8 +172,8 @@ describe('assignWeekdayShifts', () => {
         const state = makeEmptyState(['s1', 's2', 's3']);
         state.previousDayEarly = ['s1']; // s1 は前日早番
         const generatedShifts: Shift[] = [];
-        const currentHours = { s1: 0, s2: 0, s3: 0 };
-        const currentWeeklyHours = { s1: {}, s2: {}, s3: {} };
+        const currentHours: Record<string, number> = { s1: 0, s2: 0, s3: 0 };
+        const currentWeeklyHours: Record<string, Record<string, number>> = { s1: {}, s2: {}, s3: {} };
 
         const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 1 });
 
@@ -199,13 +199,13 @@ describe('assignWeekdayShifts', () => {
         const staff = [makeStaff('s1')]; // 1人のみ
         const state = makeEmptyState(['s1']);
         const generatedShifts: Shift[] = [];
-        const currentHours = { s1: 0 };
-        const currentWeeklyHours = { s1: {} };
+        const currentHours: Record<string, number> = { s1: 0 };
+        const currentWeeklyHours: Record<string, Record<string, number>> = { s1: {} };
 
         const settings = makeRotationSettings({ weekdayEarlyCount: 2, weekdayLateCount: 2 }); // 要件4名だが1人しかいない
 
         const date = new Date('2025-07-01');
-        const sort = (a: Staff, b: Staff) => 0;
+        const sort = (_a: Staff, _b: Staff) => 0;
 
         expect(() => {
             assignWeekdayShifts(

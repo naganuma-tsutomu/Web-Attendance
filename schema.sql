@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS staffs (
     role TEXT NOT NULL,
     hoursTarget REAL,
     weeklyHoursTarget REAL,
-    isHelpStaff INTEGER DEFAULT 0, -- Boolean 0 or 1
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
     display_order INTEGER DEFAULT 0,

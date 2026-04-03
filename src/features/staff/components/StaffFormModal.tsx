@@ -133,9 +133,12 @@ const StaffFormModal = ({
                             <input
                                 type="number"
                                 required
-                                value={formData.hoursTarget === null ? '' : formData.hoursTarget}
+                                value={formData.hoursTarget === null ? '' : (formData.hoursTarget === 0 ? '' : formData.hoursTarget)}
                                 disabled={formData.hoursTarget === null}
-                                onChange={e => setFormData({ ...formData, hoursTarget: parseInt(e.target.value) || 0 })}
+                                onChange={e => {
+                                    const v = e.target.value;
+                                    setFormData({ ...formData, hoursTarget: v === '' ? 0 : parseInt(v, 10) });
+                                }}
                                 placeholder="設定されていません"
                                 className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-indigo-500 font-medium transition-all
                                     ${formData.hoursTarget === null
@@ -166,9 +169,12 @@ const StaffFormModal = ({
                             <input
                                 type="number"
                                 required
-                                value={formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined ? '' : formData.weeklyHoursTarget}
+                                value={formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined ? '' : (formData.weeklyHoursTarget === 0 ? '' : formData.weeklyHoursTarget)}
                                 disabled={formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined}
-                                onChange={e => setFormData({ ...formData, weeklyHoursTarget: parseInt(e.target.value) || 0 })}
+                                onChange={e => {
+                                    const v = e.target.value;
+                                    setFormData({ ...formData, weeklyHoursTarget: v === '' ? 0 : parseInt(v, 10) });
+                                }}
                                 placeholder="設定されていません"
                                 className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-indigo-500 font-medium transition-all
                                     ${(formData.weeklyHoursTarget === null || formData.weeklyHoursTarget === undefined)
@@ -193,82 +199,79 @@ const StaffFormModal = ({
 
                                 return (
                                     <div key={dayNum} className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-sm font-bold text-slate-700 dark:text-slate-300 w-8">{label}曜</span>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="sr-only peer"
-                                                        checked={isHoliday}
-                                                        onChange={(e) => {
-                                                            const checked = e.target.checked;
-                                                            let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
-                                                            if (checked) {
-                                                                newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
-                                                            } else {
-                                                                newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
-                                                                newAvailableDays.push(dayNum);
-                                                            }
-                                                            setFormData({ ...formData, availableDays: newAvailableDays });
-                                                        }}
-                                                    />
-                                                    <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 dark:peer-checked:bg-red-600"></div>
-                                                    <span className="ms-3 text-xs font-bold text-slate-500 dark:text-slate-400">{isHoliday ? '休み' : '出勤'}</span>
-                                                </label>
-                                            </div>
-
-                                            {isHoliday && (
-                                                <div className="flex space-x-1">
-                                                    {[1, 2, 3, 4, 5].map(week => {
-                                                        let isWeekHoliday = false;
-                                                        if (isHolidayEveryWeek) {
-                                                            isWeekHoliday = true;
-                                                        } else if (isPartialWorking && typeof config === 'object') {
-                                                            const weeksAvailable = config.weeks ?? [];
-                                                            isWeekHoliday = !weeksAvailable.includes(week);
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-300 w-8 shrink-0">{label}曜</span>
+                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={isHoliday}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
+                                                        if (checked) {
+                                                            newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                        } else {
+                                                            newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                            newAvailableDays.push(dayNum);
                                                         }
-
-                                                        return (
-                                                            <button
-                                                                key={week}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
-                                                                    const currentConfig = newAvailableDays.find((d: number | AvailableDayConfig) => d && (typeof d === 'number' ? d : d.day) === dayNum);
-                                                                    let availableWeeks = [1, 2, 3, 4, 5];
-                                                                    if (typeof currentConfig === 'object') {
-                                                                        availableWeeks = [...(currentConfig.weeks || [])];
-                                                                    } else if (!currentConfig) {
-                                                                        availableWeeks = [];
-                                                                    }
-                                                                    if (isWeekHoliday) {
-                                                                        availableWeeks.push(week);
-                                                                    } else {
-                                                                        availableWeeks = availableWeeks.filter(w => w !== week);
-                                                                    }
-                                                                    availableWeeks.sort();
-                                                                    newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
-                                                                    if (availableWeeks.length === 5) {
-                                                                        newAvailableDays.push(dayNum);
-                                                                    } else if (availableWeeks.length > 0) {
-                                                                        newAvailableDays.push({ day: dayNum, weeks: availableWeeks });
-                                                                    }
-                                                                    setFormData({ ...formData, availableDays: newAvailableDays });
-                                                                }}
-                                                                className={`w-7 h-7 rounded-lg text-[10px] font-bold border transition-all ${isWeekHoliday
-                                                                    ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 shadow-sm'
-                                                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                                                                    }`}
-                                                                title={`第${week}週`}
-                                                            >
-                                                                {week}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                        setFormData({ ...formData, availableDays: newAvailableDays });
+                                                    }}
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 dark:peer-checked:bg-red-600"></div>
+                                            </label>
+                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{isHoliday ? '休み' : '出勤'}</span>
                                         </div>
+                                        {isHoliday && (
+                                            <div className="flex gap-1 pl-11">
+                                                {[1, 2, 3, 4, 5].map(week => {
+                                                    let isWeekHoliday = false;
+                                                    if (isHolidayEveryWeek) {
+                                                        isWeekHoliday = true;
+                                                    } else if (isPartialWorking && typeof config === 'object') {
+                                                        const weeksAvailable = config.weeks ?? [];
+                                                        isWeekHoliday = !weeksAvailable.includes(week);
+                                                    }
+
+                                                    return (
+                                                        <button
+                                                            key={week}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                let newAvailableDays = [...(formData.availableDays || defaultAvailableDays)];
+                                                                const currentConfig = newAvailableDays.find((d: number | AvailableDayConfig) => d && (typeof d === 'number' ? d : d.day) === dayNum);
+                                                                let availableWeeks = [1, 2, 3, 4, 5];
+                                                                if (typeof currentConfig === 'object') {
+                                                                    availableWeeks = [...(currentConfig.weeks || [])];
+                                                                } else if (!currentConfig) {
+                                                                    availableWeeks = [];
+                                                                }
+                                                                if (isWeekHoliday) {
+                                                                    availableWeeks.push(week);
+                                                                } else {
+                                                                    availableWeeks = availableWeeks.filter(w => w !== week);
+                                                                }
+                                                                availableWeeks.sort();
+                                                                newAvailableDays = newAvailableDays.filter((d: number | AvailableDayConfig) => (typeof d === 'number' ? d : d.day) !== dayNum);
+                                                                if (availableWeeks.length === 5) {
+                                                                    newAvailableDays.push(dayNum);
+                                                                } else if (availableWeeks.length > 0) {
+                                                                    newAvailableDays.push({ day: dayNum, weeks: availableWeeks });
+                                                                }
+                                                                setFormData({ ...formData, availableDays: newAvailableDays });
+                                                            }}
+                                                            className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${isWeekHoliday
+                                                                ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 shadow-sm'
+                                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                                                }`}
+                                                            title={`第${week}週`}
+                                                        >
+                                                            {week}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}

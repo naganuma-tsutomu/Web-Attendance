@@ -341,7 +341,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                                     value={editForm.name}
                                     onChange={e => setEditForm({ ...editForm, name: e.target.value })}
                                     className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-base dark:text-white transition-all outline-none font-bold"
-                                    autoFocus
+                                    autoFocus={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
                                     onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(); }}
                                 />
                             </div>

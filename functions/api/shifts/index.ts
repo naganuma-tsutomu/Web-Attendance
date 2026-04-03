@@ -64,19 +64,38 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         // D1 batch limit is 100 statements. Split data into chunks of 100.
         const chunkSize = 100;
-        for (let i = 0; i < shiftsData.length; i += chunkSize) {
-            const chunk = shiftsData.slice(i, i + chunkSize);
-            const batch = chunk.map((shift) => stmt.bind(
-                `shift_${crypto.randomUUID()}`,
-                shift.date,
-                shift.staffId,
-                shift.startTime,
-                shift.endTime,
-                shift.classType,
-                shift.isEarlyShift ? 1 : 0,
-                shift.isError ? 1 : 0
-            ));
-            await context.env.DB.batch(batch);
+        const insertedIds: string[] = [];
+
+        try {
+            for (let i = 0; i < shiftsData.length; i += chunkSize) {
+                const chunk = shiftsData.slice(i, i + chunkSize);
+                const ids = chunk.map(() => `shift_${crypto.randomUUID()}`);
+                const batch = chunk.map((shift, idx) => stmt.bind(
+                    ids[idx],
+                    shift.date,
+                    shift.staffId,
+                    shift.startTime,
+                    shift.endTime,
+                    shift.classType,
+                    shift.isEarlyShift ? 1 : 0,
+                    shift.isError ? 1 : 0
+                ));
+                await context.env.DB.batch(batch);
+                insertedIds.push(...ids);
+            }
+        } catch (batchError) {
+            // 途中のチャンクが失敗した場合、挿入済みのシフトを削除してロールバック
+            if (insertedIds.length > 0) {
+                try {
+                    const rollbackPlaceholders = insertedIds.map(() => '?').join(',');
+                    await context.env.DB.prepare(
+                        `DELETE FROM shifts WHERE id IN (${rollbackPlaceholders})`
+                    ).bind(...insertedIds).run();
+                } catch (rollbackError) {
+                    console.error('Rollback failed:', rollbackError);
+                }
+            }
+            throw batchError; // 元のエラーを再スローして 500 を返す
         }
 
         return Response.json({ success: true, message: `Successfully inserted ${shiftsData.length} shifts` });

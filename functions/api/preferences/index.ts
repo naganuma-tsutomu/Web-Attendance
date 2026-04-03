@@ -1,3 +1,4 @@
+// NOTE(ARCH-3): 型は src/types から共有。将来的に shared/types.ts へ移行予定
 import type { ShiftPreference } from '../../../src/types';
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
@@ -74,7 +75,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             statements.push(
                 context.env.DB.prepare(
                     "INSERT INTO shift_preferences (id, staffId, yearMonth, submitted) VALUES (?, ?, ?, ?)"
-                ).bind(`pref_${Date.now()}`, pref.staffId, pref.yearMonth, hasSubmittedFlag ? submittedValue : 0)
+                ).bind(crypto.randomUUID(), pref.staffId, pref.yearMonth, hasSubmittedFlag ? submittedValue : 0)
             );
         } else if (hasSubmittedFlag) {
             // 既存レコード: submitted が明示的に指定された場合のみ更新
@@ -96,7 +97,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             statements.push(
                 context.env.DB.prepare(
                     "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime, type) VALUES (?, ?, ?, ?, ?, ?, ?)"
-                ).bind(`prefd_${pref.staffId}_${d.date}_${idx}`, pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime, d.type || null)
+                ).bind(crypto.randomUUID(), pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime, d.type || null)
             );
         });
 

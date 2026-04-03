@@ -40,8 +40,17 @@ const StaffLoginPage = () => {
             });
 
             if (!response.ok) {
-                const msg = await response.text();
-                throw new Error(msg || 'ログインに失敗しました');
+                let errorMessage = 'ログインに失敗しました';
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch {
+                    const text = await response.text();
+                    if (text) errorMessage = text;
+                }
+                throw new Error(errorMessage);
             }
 
             navigate('/staff/preference');

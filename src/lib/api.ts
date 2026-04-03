@@ -111,8 +111,6 @@ export const savePreference = async (preference: Omit<ShiftPreference, 'id'>): P
     });
 };
 
-/** @deprecated savePreference を使用してください */
-export const updatePreferences = savePreference;
 
 export const updatePreferenceSubmitted = async (staffId: string, yearMonth: string, submitted: boolean): Promise<void> => {
     await apiFetch('/preferences', {

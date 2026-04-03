@@ -43,7 +43,8 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                     <button
                         {...attributes}
                         {...listeners}
-                        className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 p-1 rounded-lg hover:bg-white transition-all"
+                        aria-label="並び替え"
+                        className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-all"
                     >
                         <GripVertical className="w-5 h-5" />
                     </button>
@@ -119,13 +120,15 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                     <>
                         <button
                             onClick={() => onEdit?.(staff)}
-                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+                            aria-label="編集"
+                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
                         >
                             <Edit2 className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => onDelete?.(staff.id, staff.name)}
-                            className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+                            aria-label="削除"
+                            className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
                         >
                             <Trash2 className="w-5 h-5" />
                         </button>

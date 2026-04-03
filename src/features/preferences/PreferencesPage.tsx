@@ -6,6 +6,7 @@ import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
 import { isStaffFixedHoliday } from '../../lib/availabilityUtils';
+import { toast } from 'sonner';
 import { generateMonthDays } from './utils';
 import type { AllPrefsForMonth } from './types';
 import SummaryCard from './components/SummaryCard';
@@ -20,7 +21,6 @@ const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
     const [preferences, setPreferences] = useState<ReturnType<typeof generateMonthDays>>([]);
-    const [message, setMessage] = useState({ text: '', type: '' });
     const [syncingHolidays, setSyncingHolidays] = useState(false);
     const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
     const [isEditingModalMode, setIsEditingModalMode] = useState(false);
@@ -135,20 +135,17 @@ const PreferencesPage = () => {
 
     const handleSave = async () => {
         if (!selectedStaffId) return;
-        setMessage({ text: '', type: '' });
         try {
             const details = preferences
                 .filter(p => p.status === 'unavailable')
                 .map(p => ({ date: p.dateStr, startTime: p.startTime || null, endTime: p.endTime || null, type: p.type || null }));
 
             await savePreferenceMutation.mutateAsync({ staffId: selectedStaffId, yearMonth, details });
-            setMessage({ text: '休日設定を保存しました！', type: 'success' });
+            toast.success('休日設定を保存しました');
         } catch (err) {
             console.error(err);
             const errMsg = err instanceof Error ? err.message : '保存に失敗しました。';
-            setMessage({ text: errMsg, type: 'error' });
-        } finally {
-            setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+            toast.error(errMsg);
         }
     };
 
@@ -163,12 +160,10 @@ const PreferencesPage = () => {
         setConfirmSubmit(null);
         try {
             await updateSubmittedMutation.mutateAsync({ staffId: selectedStaffId, yearMonth, submitted });
-            setMessage({ text: submitted ? '提出済みに変更しました' : '未提出に戻しました', type: 'success' });
+            toast.success(submitted ? '提出済みに変更しました' : '未提出に戻しました');
         } catch (err) {
             console.error(err);
-            setMessage({ text: '提出状態の変更に失敗しました', type: 'error' });
-        } finally {
-            setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+            toast.error('提出状態の変更に失敗しました');
         }
     };
 
@@ -177,14 +172,13 @@ const PreferencesPage = () => {
         try {
             const res = await syncHolidays();
             if (res.success) {
-                setMessage({ text: `祝日を同期しました（${res.synced}件追加）`, type: 'success' });
+                toast.success(`祝日を同期しました（${res.synced}件追加）`);
             }
         } catch (err) {
             console.error(err);
-            setMessage({ text: '祝日の同期に失敗しました。', type: 'error' });
+            toast.error('祝日の同期に失敗しました。');
         } finally {
             setSyncingHolidays(false);
-            setTimeout(() => setMessage({ text: '', type: '' }), 3000);
         }
     };
 
@@ -254,16 +248,6 @@ const PreferencesPage = () => {
                             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
                                 <CalendarHeader selectedStaff={selectedStaff} targetDate={targetDate} />
 
-                                {/* メッセージ */}
-                                {message.text && (
-                                    <div className={`mx-5 mt-4 p-3 rounded-xl flex items-center gap-2 text-sm font-medium border ${message.type === 'success'
-                                        ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                                        : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
-                                        }`}>
-                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                        {message.text}
-                                    </div>
-                                )}
 
                                 {/* エラー */}
                                 {prefError && (

@@ -1,6 +1,24 @@
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
 import type { Env, D1Row, D1BindParam } from '../../types';
 
+// staffs テーブルで更新を許可するカラム名のホワイトリスト
+const ALLOWED_STAFF_COLUMNS = new Set([
+    'name', 'role', 'hoursTarget', 'weeklyHoursTarget',
+    'defaultWorkingHoursStart', 'defaultWorkingHoursEnd', 'access_key',
+]);
+
+/**
+ * setClauses に追加する前にカラム名がホワイトリストに含まれているか検証する。
+ * 不正なカラム名が検出された場合は例外をスローする。
+ */
+const addSetClause = (setClauses: string[], binds: D1BindParam[], column: string, value: D1BindParam) => {
+    if (!ALLOWED_STAFF_COLUMNS.has(column)) {
+        throw new Error(`Invalid column name: ${column}`);
+    }
+    setClauses.push(`${column} = ?`);
+    binds.push(value);
+};
+
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
@@ -29,36 +47,30 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
 
         // 更新するカラムを動的に構築（undefined = 更新しない、null = NULL を書き込む）
+        // addSetClause() でホワイトリスト検証済みのカラム名のみ追加
         const setClauses: string[] = [];
         const binds: D1BindParam[] = [];
 
         if (staffData.name !== undefined) {
-            setClauses.push('name = ?');
-            binds.push(staffData.name.trim());
+            addSetClause(setClauses, binds, 'name', staffData.name.trim());
         }
         if (staffData.role !== undefined) {
-            setClauses.push('role = ?');
-            binds.push(staffData.role);
+            addSetClause(setClauses, binds, 'role', staffData.role);
         }
         if (staffData.hoursTarget !== undefined) {
-            setClauses.push('hoursTarget = ?');
-            binds.push(staffData.hoursTarget);
+            addSetClause(setClauses, binds, 'hoursTarget', staffData.hoursTarget);
         }
         if (staffData.weeklyHoursTarget !== undefined) {
-            setClauses.push('weeklyHoursTarget = ?');
-            binds.push(staffData.weeklyHoursTarget);
+            addSetClause(setClauses, binds, 'weeklyHoursTarget', staffData.weeklyHoursTarget);
         }
         if (staffData.defaultWorkingHoursStart !== undefined) {
-            setClauses.push('defaultWorkingHoursStart = ?');
-            binds.push(staffData.defaultWorkingHoursStart || null);
+            addSetClause(setClauses, binds, 'defaultWorkingHoursStart', staffData.defaultWorkingHoursStart || null);
         }
         if (staffData.defaultWorkingHoursEnd !== undefined) {
-            setClauses.push('defaultWorkingHoursEnd = ?');
-            binds.push(staffData.defaultWorkingHoursEnd || null);
+            addSetClause(setClauses, binds, 'defaultWorkingHoursEnd', staffData.defaultWorkingHoursEnd || null);
         }
         if (staffData.accessKey !== undefined) {
-            setClauses.push('access_key = ?');
-            binds.push(staffData.accessKey || null);
+            addSetClause(setClauses, binds, 'access_key', staffData.accessKey || null);
         }
 
         const statements = [];
@@ -82,7 +94,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                 statements.push(
                     context.env.DB.prepare(
                         "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
-                    ).bind(`${id}_available_${idx}`, id, day, weeks)
+                    ).bind(crypto.randomUUID(), id, day, weeks)
                 );
             });
         }

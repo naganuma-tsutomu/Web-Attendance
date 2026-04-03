@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View, type DateHeaderProps, type DateCellWrapperProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, startOfMonth, addDays, getDay, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -263,9 +263,9 @@ const SchedulePage = () => {
                                     selectable={!isTouchDevice.current}
                                     onSelectSlot={({ start }) => handleOpenTimeline(start as Date)}
                                     eventPropGetter={schedule.eventStyleGetter}
-                                    onSelectEvent={(event: any) => {
+                                    onSelectEvent={(event: CalendarEvent) => {
                                         if (event.isSummary) {
-                                            handleOpenTimeline(event.start);
+                                            handleOpenTimeline(event.start as Date);
                                             return;
                                         }
                                         handleEventSelect(event);
@@ -283,7 +283,7 @@ const SchedulePage = () => {
                                     components={{
                                         toolbar: () => null,
                                         month: {
-                                            dateHeader: (props: any) => {
+                                            dateHeader: (props: DateHeaderProps) => {
                                                 const dateStr = format(props.date, 'yyyy-MM-dd');
                                                 const isFixed = schedule.fixedDates.has(dateStr);
                                                 const holidayName = schedule.getHolidayNameForDate(props.date);
@@ -319,7 +319,7 @@ const SchedulePage = () => {
                                                 );
                                             }
                                         },
-                                        dateCellWrapper: (props: any) => {
+                                        dateCellWrapper: (props: DateCellWrapperProps) => {
                                             const date = props.value;
                                             const isHoliday = schedule.isHolidayDate(date);
                                             const dayOfWeek = getDay(date);

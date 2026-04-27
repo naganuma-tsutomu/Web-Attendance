@@ -167,8 +167,15 @@ const findAvailableStaff = (
     roles: DynamicRole[],
     holidays: string[] = [],
     breakSettings?: BreakSettings,
-    closedDays: number[] = []
+    closedDays: number[] = [],
+    targetClassId?: string
 ): Array<{ staff: Staff; pattern?: ShiftTimePattern }> => {
+    // クラス所属によるフィルタ:
+    // - targetClassId が指定されている場合、そのクラスに所属するスタッフのみ候補にする
+    // - classIds が未設定（空配列 or undefined）のスタッフは後方互換のため全クラス候補とする
+    const classFilteredStaff = targetClassId
+        ? staffList.filter(s => !s.classIds || s.classIds.length === 0 || s.classIds.includes(targetClassId))
+        : staffList;
     const yesterdayStr = format(subDays(date, 1), 'yyyy-MM-dd');
     const todayShiftsByStaff = new Map<string, Shift[]>();
     const yesterdayShiftsByStaff = new Map<string, Shift>();
@@ -186,7 +193,7 @@ const findAvailableStaff = (
 
     const roleMap = buildRoleMap(roles);
 
-    return staffList
+    return classFilteredStaff
         .map(staff => ({
             staff,
             result: isStaffAvailableForTimeSlot(staff, date, dateStr, startTime, endTime, preferences, todayShiftsByStaff.get(staff.id) || [], roles, holidays, closedDays)
@@ -359,7 +366,8 @@ export const generateShiftsForMonth = (
         );
     }
 
-    const classIds = classes.map(c => c.id);
+    // auto_allocate=0 のクラス（例: ヘルプ）は自動割り当て対象外
+    const classIds = classes.filter(c => c.auto_allocate !== 0).map(c => c.id);
 
     days.forEach(date => {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -414,7 +422,8 @@ export const generateShiftsForMonth = (
                         roles,
                         holidays,
                         breakSettings,
-                        closedDays
+                        closedDays,
+                        slot.req.classId
                     );
 
                     if (candidates.length > 0) {

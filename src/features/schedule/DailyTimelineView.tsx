@@ -378,7 +378,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         </div>
                                                         <div className="w-full sm:w-36 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex items-center px-1 py-1 sm:py-0">
                                                             <select
-                                                                className="w-full text-[10px] sm:text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+                                                                className="w-full text-[10px] sm:text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded pl-1 pr-5 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
                                                                 value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
                                                                 onChange={(e) => edit.handlePatternChange(shift.id, e.target.value)}
                                                             >

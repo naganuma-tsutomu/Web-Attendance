@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import AuthPage from './features/auth/AuthPage';
 import StaffPage from './features/staff/StaffPage';
 import PreferencesPage from './features/preferences/PreferencesPage';
@@ -99,6 +100,7 @@ function App() {
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
+      <PwaInstallPrompt />
     </QueryClientProvider>
   );
 }

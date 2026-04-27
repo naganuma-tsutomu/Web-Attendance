@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Loader2, GripVertical, UserCheck, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     createClass, deleteClass, updateClass,
     saveShiftRequirements,
 } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
-import { useShiftRequirements } from '../../../lib/hooks';
+import { useShiftRequirements, QUERY_KEYS } from '../../../lib/hooks';
 import type { ShiftClass, Staff, ShiftRequirement } from '../../../types';
 import { SHIFT_DAY } from '../../../constants';
 import {
@@ -114,18 +115,18 @@ const SortableRequirementRow = ({
                 </div>
                 <select value={req.dayOfWeek}
                     onChange={(e) => onUpdate(req.id, { dayOfWeek: parseInt(e.target.value) })}
-                    className="w-40 flex-shrink-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     {dayOfWeekOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                 </select>
                 <input type="time" value={req.startTime}
                     onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
-                    className="w-28 flex-shrink-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                 <span className="text-slate-400 text-sm flex-shrink-0">〜</span>
                 <input type="time" value={req.endTime}
                     onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
-                    className="w-28 flex-shrink-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                 <div className="flex items-center gap-1 flex-shrink-0">
                     <input type="number" min={1} max={20} value={req.minStaffCount}
                         onChange={(e) => onUpdate(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
@@ -150,6 +151,7 @@ const SortableRequirementRow = ({
 
             {/* ～xl: 2行レイアウト */}
             <div className="xl:hidden space-y-2">
+                {/* 1行目: grip + 番号 + 曜日 + 優先度 + 削除 */}
                 <div className="flex items-center gap-2">
                     <button {...attributes} {...listeners}
                         className="p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded flex-shrink-0">
@@ -165,26 +167,6 @@ const SortableRequirementRow = ({
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>
-                    <button onClick={() => onDeleteRequest(req.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                        title="削除">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-                <div className="flex items-center gap-2 pl-9">
-                    <input type="time" value={req.startTime}
-                        onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
-                        className="flex-1 min-w-[80px] px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                    <span className="text-slate-400 text-sm flex-shrink-0">〜</span>
-                    <input type="time" value={req.endTime}
-                        onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
-                        className="flex-1 min-w-[80px] px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                        <input type="number" min={1} max={20} value={req.minStaffCount}
-                            onChange={(e) => onUpdate(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
-                            className="w-14 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center" />
-                        <span className="text-sm text-slate-500 dark:text-slate-400">名</span>
-                    </div>
                     <select value={req.priority}
                         onChange={(e) => onUpdate(req.id, { priority: parseInt(e.target.value) })}
                         className={`w-16 h-[38px] px-1 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer flex-shrink-0 ${
@@ -194,6 +176,27 @@ const SortableRequirementRow = ({
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>
+                    <button onClick={() => onDeleteRequest(req.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                        title="削除">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+                {/* 2行目: 開始〜終了 + 人数 */}
+                <div className="flex items-center gap-2 pl-9">
+                    <input type="time" value={req.startTime}
+                        onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
+                        className="flex-1 min-w-0 px-1 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    <span className="text-slate-400 text-sm flex-shrink-0">〜</span>
+                    <input type="time" value={req.endTime}
+                        onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
+                        className="flex-1 min-w-0 px-1 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <input type="number" min={1} max={20} value={req.minStaffCount}
+                            onChange={(e) => onUpdate(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
+                            className="w-14 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center" />
+                        <span className="text-sm text-slate-500 dark:text-slate-400">名</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -211,6 +214,7 @@ interface ClassManagementProps {
 }
 
 const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagementProps) => {
+    const queryClient = useQueryClient();
     const [selectedClassId, setSelectedClassId] = useState<string>('');
 
     // basic info inline form
@@ -368,6 +372,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
         try {
             await saveShiftRequirements(requirements);
             setSavedRequirements(requirements);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftRequirements });
             toast.success('保存しました');
         } catch (err) {
             handleApiError(err, '保存に失敗しました');

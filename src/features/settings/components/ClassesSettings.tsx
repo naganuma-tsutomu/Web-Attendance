@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
+import { QUERY_KEYS } from '../../../lib/hooks';
 import type { ShiftClass, Staff } from '../../../types';
 import {
     DndContext,
@@ -155,6 +157,7 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, isOverlay = false
 };
 
 const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: ClassesSettingsProps) => {
+    const queryClient = useQueryClient();
     const [editingClass, setEditingClass] = useState<ShiftClass | null>(null);
     const [editForm, setEditForm] = useState({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -180,6 +183,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
             await deleteClass(deleteConfirm.id);
             toast.success(`クラス「${deleteConfirm.name}」を削除しました`);
             setDeleteConfirm(null);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '削除に失敗しました');
@@ -205,6 +209,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                 toast.success(`クラス「${editForm.name}」を追加しました`);
             }
             setEditingClass(null);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '保存に失敗しました');
@@ -228,6 +233,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
         try {
             const orders = newClasses.map((c, index) => ({ id: c.id, order: index }));
             await updateClassOrder(orders);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
         } catch (err) {
             handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();

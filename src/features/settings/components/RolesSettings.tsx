@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus, Trash2, Loader2, CheckCircle, GripVertical, Edit2, X, Target, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { createRole, deleteRole, updateRole, updateRolePatterns, updateRoleOrder } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
+import { QUERY_KEYS } from '../../../lib/hooks';
 import type { DynamicRole, ShiftTimePattern } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 import RoleEditModal from './RoleEditModal';
@@ -162,6 +164,7 @@ const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: 
 };
 
 const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: RolesSettingsProps) => {
+    const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -209,6 +212,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
             setNewRole({ name: '', hoursTarget: null, weeklyHoursTarget: null, patternIds: [] });
             toast.success('スタッフ区分を追加しました');
             setIsAddModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'スタッフ区分の追加に失敗しました');
@@ -260,6 +264,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
 
             toast.success('スタッフ区分を更新しました');
             setIsEditModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'スタッフ区分の更新に失敗しました');
@@ -274,6 +279,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
         try {
             await deleteRole(deleteConfirmId);
             setDeleteConfirmId(null);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'スタッフ区分の削除に失敗しました');
@@ -304,6 +310,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
                 order: index + 1
             }));
             await updateRoleOrder(orders);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
         } catch (err) {
             handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();

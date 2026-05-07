@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus, Trash2, Loader2, CheckCircle, GripVertical, Edit2, X, Target, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { createRole, deleteRole, updateRole, updateRolePatterns, updateRoleOrder } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
+import { QUERY_KEYS } from '../../../lib/hooks';
 import type { DynamicRole, ShiftTimePattern } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 import RoleEditModal from './RoleEditModal';
@@ -36,11 +38,12 @@ interface RolesSettingsProps {
     onUpdate: () => void;
 }
 
-const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: {
+const SortableRoleItem = ({ role, index, onDelete, onEdit, onToggleFullTime, isOverlay = false }: {
     role: DynamicRole,
     index: number,
     onDelete?: (id: string) => void,
     onEdit?: () => void,
+    onToggleFullTime?: (id: string, current: boolean) => void,
     isOverlay?: boolean
 }) => {
     const {
@@ -147,7 +150,14 @@ const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: 
                     </div>
                 </div>
                 {!isOverlay && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                            onClick={() => onToggleFullTime?.(role.id, role.isFullTime)}
+                            title={role.isFullTime ? '正社員（クリックで解除）' : '正社員に設定'}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${role.isFullTime ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-700' : 'bg-slate-50 dark:bg-slate-700 text-slate-400 border-slate-200 dark:border-slate-600 hover:text-indigo-500'}`}
+                        >
+                            正社員
+                        </button>
                         <button onClick={onEdit} className="text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 p-2 rounded-lg transition-all" title="編集">
                             <Edit2 className="w-4 h-4" />
                         </button>
@@ -162,6 +172,7 @@ const SortableRoleItem = ({ role, index, onDelete, onEdit, isOverlay = false }: 
 };
 
 const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: RolesSettingsProps) => {
+    const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -209,11 +220,22 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
             setNewRole({ name: '', hoursTarget: null, weeklyHoursTarget: null, patternIds: [] });
             toast.success('スタッフ区分を追加しました');
             setIsAddModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'スタッフ区分の追加に失敗しました');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleToggleFullTime = async (id: string, current: boolean) => {
+        try {
+            await updateRole(id, { isFullTime: !current });
+            setRoles(prev => prev.map(r => r.id === id ? { ...r, isFullTime: !current } : r));
+            toast.success(!current ? '正社員フラグを設定しました' : '正社員フラグを解除しました');
+        } catch (err) {
+            handleApiError(err, '更新に失敗しました');
         }
     };
 
@@ -260,6 +282,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
 
             toast.success('スタッフ区分を更新しました');
             setIsEditModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'スタッフ区分の更新に失敗しました');
@@ -274,6 +297,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
         try {
             await deleteRole(deleteConfirmId);
             setDeleteConfirmId(null);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'スタッフ区分の削除に失敗しました');
@@ -304,6 +328,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
                 order: index + 1
             }));
             await updateRoleOrder(orders);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.roles });
         } catch (err) {
             handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();
@@ -360,6 +385,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
                                         index={index}
                                         onDelete={setDeleteConfirmId}
                                         onEdit={() => handleEditClick(role)}
+                                        onToggleFullTime={handleToggleFullTime}
                                     />
                                 ))}
                             </div>

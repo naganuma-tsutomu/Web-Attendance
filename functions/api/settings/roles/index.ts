@@ -27,6 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             const roleSpecificPatterns = (rp as D1Row[]).filter((p) => p.roleId === role.id);
             return {
                 ...role,
+                isFullTime: role.is_full_time === 1,
                 patterns: [...roleSpecificPatterns, ...(commonPatterns as D1Row[])]
                     .sort((a, b) => ((a.display_order as number) || 0) - ((b.display_order as number) || 0))
             };

@@ -3,7 +3,7 @@ import type { Env, D1BindParam } from '../../types';
 
 // shifts テーブルで更新を許可するカラム名のホワイトリスト
 const ALLOWED_SHIFT_COLUMNS = new Set([
-    'staffId', 'startTime', 'endTime', 'classType', 'isEarlyShift', 'isError',
+    'staffId', 'startTime', 'endTime', 'classType', 'isEarlyShift', 'isError', 'duty_number',
 ]);
 
 /**
@@ -24,6 +24,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const body = await context.request.json() as Partial<{
             staffId: string; startTime: string; endTime: string;
             classType: string; isEarlyShift: boolean; isError: boolean;
+            duty_number: number | null;
         }>;
 
         // addSetClause() でホワイトリスト検証済みのカラム名のみ追加
@@ -47,6 +48,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
         if (body.isError !== undefined) {
             addSetClause(setClauses, bindings, 'isError', body.isError ? 1 : 0);
+        }
+        if (body.duty_number !== undefined) {
+            addSetClause(setClauses, bindings, 'duty_number', body.duty_number);
         }
 
         if (setClauses.length === 0) {

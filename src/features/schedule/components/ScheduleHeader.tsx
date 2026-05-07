@@ -2,7 +2,7 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings } from '../../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
 import DatePicker from '../../../components/ui/DatePicker';
@@ -31,6 +31,7 @@ interface ScheduleHeaderProps {
     businessHours?: BusinessHours;
     excelSettings?: ExcelSettings;
     breakSettings?: BreakSettings;
+    roles?: DynamicRole[];
 }
 
 const ScheduleHeader = ({
@@ -56,7 +57,8 @@ const ScheduleHeader = ({
     onRetry,
     businessHours,
     excelSettings,
-    breakSettings
+    breakSettings,
+    roles = []
 }: ScheduleHeaderProps) => {
     return (
         <div className="flex-shrink-0 p-4 sm:p-6 md:p-8 pb-4 md:pb-4 space-y-6">
@@ -149,7 +151,7 @@ const ScheduleHeader = ({
                             <span className="hidden sm:inline text-sm font-bold whitespace-nowrap">労働時間</span>
                         </button>
                         <button
-                            onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings)}
+                            onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles)}
                             className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
                         >
                             <Download className="w-5 h-5 text-green-600" />

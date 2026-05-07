@@ -10,12 +10,14 @@ const ExcelSettings = () => {
     const updateSettingsMutation = useUpdateExcelSettings();
 
     const [excludeHolidayStaffOnSaturdays, setExcludeHolidayStaffOnSaturdays] = useState(false);
+    const [showDutyNumbers, setShowDutyNumbers] = useState(false);
     const [highlightRules, setHighlightRules] = useState<ExcelHighlightRule[]>([]);
     const [modified, setModified] = useState(false);
 
     useEffect(() => {
         if (settings) {
             setExcludeHolidayStaffOnSaturdays(settings.excludeHolidayStaffOnSaturdays);
+            setShowDutyNumbers(settings.showDutyNumbers ?? false);
             setHighlightRules(settings.highlightRules || []);
             setModified(false);
         }
@@ -53,6 +55,7 @@ const ExcelSettings = () => {
         try {
             await updateSettingsMutation.mutateAsync({
                 excludeHolidayStaffOnSaturdays,
+                showDutyNumbers,
                 highlightRules,
             });
             toast.success('Excel出力設定を保存しました');

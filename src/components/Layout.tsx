@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, UserCog, FileSpreadsheet, BookOpen, RefreshCw } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, FileSpreadsheet, BookOpen, RefreshCw, RotateCcw } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { useFacilityName } from '../lib/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Layout = () => {
     const location = useLocation();
@@ -10,6 +11,19 @@ const Layout = () => {
     const { logout, currentUser } = useAuth();
     const { data: facilityName = '施設名未設定' } = useFacilityName();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const queryClient = useQueryClient();
+
+    const handleRefresh = useCallback(async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        try {
+            await queryClient.refetchQueries();
+        } finally {
+            // アニメーションが見えるよう少し待つ
+            setTimeout(() => setIsRefreshing(false), 600);
+        }
+    }, [isRefreshing, queryClient]);
 
     const closeMenu = () => {
         if (isMenuOpen) {
@@ -29,7 +43,6 @@ const Layout = () => {
         { path: '/admin/settings/patterns', label: '勤務時間パターン', icon: Clock },
         { path: '/admin/settings/roles', label: 'スタッフ区分管理', icon: Users },
         { path: '/admin/settings/classes', label: 'クラス管理', icon: GraduationCap },
-        { path: '/admin/settings/shift-requirements', label: '必要人数設定', icon: UserCog },
         { path: '/admin/settings/appearance', label: '基本設定', icon: Palette },
         { path: '/admin/settings/rotation', label: 'ローテーション設定', icon: RefreshCw },
         { path: '/admin/settings/excel', label: 'Excel出力設定', icon: FileSpreadsheet },
@@ -44,13 +57,23 @@ const Layout = () => {
                     <Moon className="w-6 h-6 text-indigo-500 mr-2" />
                     <h1 className="text-lg font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
                 </div>
-                <button
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                    aria-label="メニューを開く"
-                >
-                    {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                </button>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
+                        aria-label="データを更新"
+                    >
+                        <RotateCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </button>
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        aria-label="メニューを開く"
+                    >
+                        {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                    </button>
+                </div>
             </header>
 
             {/* Mobile Menu Overlay */}

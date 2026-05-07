@@ -13,6 +13,52 @@ import type { OffDutyStaffInfo } from './components/ShiftActionMenus';
 import OffDutySection from './components/OffDutySection';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
+import { updateShift } from '../../lib/api';
+import { getEffectiveDutyNumber } from '../../utils/dutyNumber';
+
+// ── DutyNumberCell ──
+const DutyNumberCell: React.FC<{
+    shiftId: string;
+    value: number;
+    isAuto: boolean;
+    groupSize: number;
+    onUpdate: (shiftId: string, value: number | null) => Promise<void>;
+}> = ({ shiftId, value, isAuto, groupSize, onUpdate }) => {
+    const [editing, setEditing] = useState(false);
+    const options = Array.from({ length: groupSize }, (_, i) => i + 1);
+
+    if (editing) {
+        return (
+            <div className="hidden sm:flex w-8 flex-shrink-0 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 items-center justify-center">
+                <select
+                    autoFocus
+                    className="w-full text-[10px] text-center bg-white dark:bg-slate-800 border-0 focus:ring-1 focus:ring-indigo-400 rounded"
+                    value={value}
+                    onChange={async (e) => {
+                        await onUpdate(shiftId, Number(e.target.value));
+                        setEditing(false);
+                    }}
+                    onBlur={() => setEditing(false)}
+                >
+                    {options.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            className="hidden sm:flex w-8 flex-shrink-0 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 items-center justify-center gap-0.5 group/duty cursor-pointer"
+            title={isAuto ? '自動計算（クリックで変更）' : 'クリックで変更 / 右クリックでリセット'}
+            onClick={() => setEditing(true)}
+            onContextMenu={async (e) => { e.preventDefault(); await onUpdate(shiftId, null); }}
+        >
+            <span className={`text-xs font-bold ${isAuto ? 'text-slate-400 dark:text-slate-500 italic' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                {value}
+            </span>
+        </div>
+    );
+};
 
 interface DailyTimelineViewProps {
     date: Date;
@@ -30,12 +76,16 @@ interface DailyTimelineViewProps {
     onToggleFixed?: () => void;
     hideHeaderToggle?: boolean;
     highlightStaffId?: string;
+    showDutyNumbers?: boolean;
+    leaderIsFullTimeOnly?: boolean;
 }
 
 const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     date, shifts, staffList, classes, timePatterns, roles,
     preferences = [], onShiftUpdate, onModifiedChange, saveRef,
-    readOnly = false, isFixed = false, onToggleFixed, hideHeaderToggle, highlightStaffId
+    readOnly = false, isFixed = false, onToggleFixed, hideHeaderToggle, highlightStaffId,
+    showDutyNumbers = false,
+    leaderIsFullTimeOnly = false,
 }) => {
     // ── Business hours ──
     const { data: businessHoursData } = useBusinessHours();
@@ -157,6 +207,47 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         return 'none';
     };
 
+    const handleDutyNumberUpdate = useCallback(async (shiftId: string, value: number | null) => {
+        if (value === null) {
+            await updateShift(shiftId, { duty_number: null });
+            onShiftUpdate?.();
+            return;
+        }
+
+        const sourceShift = dayShifts.find(s => s.id === shiftId);
+        if (!sourceShift) return;
+        const effectiveClassType = localShifts[shiftId]?.classType ?? sourceShift.classType;
+
+        // レンダリングと同じ方法でグループを構築
+        const groupShifts = dayShifts.filter(s => {
+            const local = localShifts[s.id];
+            const cls = local ? local.classType : s.classType;
+            const err = local ? local.isError : s.isError;
+            return cls === effectiveClassType && !err;
+        });
+        const groupStaffIds = groupShifts.map(s => s.staffId);
+        const fullTimeGroupIds = leaderIsFullTimeOnly
+            ? groupStaffIds.filter(id => {
+                const st = staffList.find(st2 => st2.id === id);
+                return st ? roles.find(r => r.id === st.role)?.isFullTime === true : false;
+            })
+            : undefined;
+
+        const sourceEffective = getEffectiveDutyNumber(sourceShift.staffId, sourceShift.duty_number, date, groupStaffIds, fullTimeGroupIds);
+        if (sourceEffective === value) return;
+
+        // 対象番号をすでに持っているシフトを探してスワップ
+        const targetShift = groupShifts.find(s => s.id !== shiftId &&
+            getEffectiveDutyNumber(s.staffId, s.duty_number, date, groupStaffIds, fullTimeGroupIds) === value
+        );
+
+        await Promise.all([
+            updateShift(shiftId, { duty_number: value }),
+            ...(targetShift ? [updateShift(targetShift.id, { duty_number: sourceEffective })] : []),
+        ]);
+        onShiftUpdate?.();
+    }, [onShiftUpdate, dayShifts, localShifts, date, staffList, roles, leaderIsFullTimeOnly]);
+
     const calculateDuration = (startMins: number, endMins: number) => {
         const diff = endMins - startMins;
         if (diff < 0) return '??';
@@ -237,7 +328,10 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 {/* Header Row */}
                 {!readOnly && (
                     <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20">
-                        <div className="hidden sm:flex w-[480px] flex-shrink-0">
+                        <div className={`hidden sm:flex ${showDutyNumbers ? 'w-[512px]' : 'w-[480px]'} flex-shrink-0`}>
+                            {showDutyNumbers && (
+                                <div className="w-8 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">№</div>
+                            )}
                             <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
                             <div className="w-36 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">シフトパターン</div>
                             <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">開始</div>
@@ -284,6 +378,22 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             if (cls.id === 'unassigned') return (isError || !classes.some(c => c.id === currentClassId));
                             return currentClassId === cls.id && !isError;
                         });
+                        // display_order 順の staffId 配列（ローテーション計算の基準）
+                        const groupStaffIds = groupShifts.map(gs => gs.staffId);
+                        // 正社員フラグが付いた staffId のサブセット（leaderIsFullTimeOnly 時に使用）
+                        const fullTimeGroupIds = leaderIsFullTimeOnly
+                            ? groupStaffIds.filter(id => {
+                                const s = staffList.find(st => st.id === id);
+                                return s ? roles.find(r => r.id === s.role)?.isFullTime === true : false;
+                            })
+                            : undefined;
+                        // 番号カラム表示時は番号順にソート
+                        const sortedGroupShifts = showDutyNumbers
+                            ? [...groupShifts].sort((a, b) =>
+                                getEffectiveDutyNumber(a.staffId, a.duty_number, date, groupStaffIds, fullTimeGroupIds) -
+                                getEffectiveDutyNumber(b.staffId, b.duty_number, date, groupStaffIds, fullTimeGroupIds)
+                            )
+                            : groupShifts;
 
                         if (groupShifts.length === 0 && (cls.id === 'unassigned' || readOnly)) return null;
 
@@ -329,7 +439,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                     {groupShifts.length === 0 && (
                                         <div className="p-4 text-center text-slate-400 dark:text-slate-500 text-[10px]">人員が割り当てられていません</div>
                                     )}
-                                    {groupShifts.map((shift) => {
+                                    {sortedGroupShifts.map((shift) => {
                                         const staff = staffList.find(s => s.id === shift.staffId);
                                         const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
                                         const s = localShifts[shift.id] ?? { start: timeToMinutes(shift.startTime), end: timeToMinutes(shift.endTime), classType: shift.classType, isError: shift.isError ?? false } as LocalShiftData;
@@ -345,7 +455,20 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                             >
                                                 {/* Left Info Column */}
                                                 {!readOnly ? (
-                                                    <div className="flex flex-col sm:flex-row w-[110px] sm:w-[480px] flex-shrink-0 text-xs sm:text-sm bg-white dark:bg-slate-800">
+                                                    <div className={`flex flex-col sm:flex-row w-[110px] ${showDutyNumbers ? 'sm:w-[512px]' : 'sm:w-[480px]'} flex-shrink-0 text-xs sm:text-sm bg-white dark:bg-slate-800`}>
+                                                        {showDutyNumbers && (() => {
+                                                            const effective = getEffectiveDutyNumber(shift.staffId, shift.duty_number, date, groupStaffIds, fullTimeGroupIds);
+                                                            const isAuto = shift.duty_number == null;
+                                                            return (
+                                                                <DutyNumberCell
+                                                                    shiftId={shift.id}
+                                                                    value={effective}
+                                                                    isAuto={isAuto}
+                                                                    groupSize={groupShifts.length}
+                                                                    onUpdate={handleDutyNumberUpdate}
+                                                                />
+                                                            );
+                                                        })()}
                                                         <div className="w-full sm:w-28 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
                                                             <div className="font-medium text-[11px] sm:text-[13px] text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
                                                                 {staffName}
@@ -378,7 +501,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                         </div>
                                                         <div className="w-full sm:w-36 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex items-center px-1 py-1 sm:py-0">
                                                             <select
-                                                                className="w-full text-[10px] sm:text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+                                                                className="w-full text-[10px] sm:text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded pl-1 pr-5 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
                                                                 value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
                                                                 onChange={(e) => edit.handlePatternChange(shift.id, e.target.value)}
                                                             >

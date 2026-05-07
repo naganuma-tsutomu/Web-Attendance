@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus, Trash2, Users, Loader2, GripVertical, Edit2, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { createClass, deleteClass, updateClass, updateClassOrder } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
+import { QUERY_KEYS } from '../../../lib/hooks';
 import type { ShiftClass, Staff } from '../../../types';
 import {
     DndContext,
@@ -102,6 +104,11 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, isOverlay = false
                             <span>{staffCount}名</span>
                         </div>
                     )}
+                    {cls.auto_allocate === 0 && (
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-md">
+                            手動
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -150,6 +157,7 @@ const SortableClassRow = ({ cls, staffCount, onDelete, onEdit, isOverlay = false
 };
 
 const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: ClassesSettingsProps) => {
+    const queryClient = useQueryClient();
     const [editingClass, setEditingClass] = useState<ShiftClass | null>(null);
     const [editForm, setEditForm] = useState({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -175,6 +183,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
             await deleteClass(deleteConfirm.id);
             toast.success(`クラス「${deleteConfirm.name}」を削除しました`);
             setDeleteConfirm(null);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '削除に失敗しました');
@@ -200,6 +209,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                 toast.success(`クラス「${editForm.name}」を追加しました`);
             }
             setEditingClass(null);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '保存に失敗しました');
@@ -223,6 +233,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
         try {
             const orders = newClasses.map((c, index) => ({ id: c.id, order: index }));
             await updateClassOrder(orders);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
         } catch (err) {
             handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();
@@ -350,6 +361,33 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-500 dark:text-slate-400">クラスカラー</label>
                                 <ColorPicker value={editForm.color} onChange={c => setEditForm({ ...editForm, color: c })} />
+                            </div>
+
+                            {/* 自動割り当て */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400">自動割り当て</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditForm({ ...editForm, auto_allocate: editForm.auto_allocate === 1 ? 0 : 1 })}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
+                                        editForm.auto_allocate === 1
+                                            ? 'bg-indigo-500'
+                                            : 'bg-slate-300 dark:bg-slate-600'
+                                    }`}
+                                    role="switch"
+                                    aria-checked={editForm.auto_allocate === 1}
+                                >
+                                    <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                                            editForm.auto_allocate === 1 ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                    />
+                                </button>
+                                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                                    {editForm.auto_allocate === 1
+                                        ? 'ON：シフト自動生成の対象になります'
+                                        : 'OFF：手動配置専用（自動生成でスキップ）'}
+                                </p>
                             </div>
                         </div>
 

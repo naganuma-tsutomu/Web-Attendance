@@ -18,9 +18,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { saveShiftRequirements } from '../../lib/api';
 import { handleApiError } from '../../lib/errorHandler';
-import { useClasses, useShiftRequirements } from '../../lib/hooks';
+import { useClasses, useShiftRequirements, QUERY_KEYS } from '../../lib/hooks';
 import type { ShiftRequirement } from '../../types';
 import { SHIFT_DAY } from '../../constants';
 
@@ -215,6 +216,7 @@ const SortableRequirementRow = ({
 };
 
 const ShiftRequirementsPage = () => {
+    const queryClient = useQueryClient();
     const [requirements, setRequirements] = useState<ShiftRequirement[]>([]);
     const [savedRequirements, setSavedRequirements] = useState<ShiftRequirement[]>([]);
     const [saving, setSaving] = useState(false);
@@ -351,6 +353,7 @@ const ShiftRequirementsPage = () => {
         try {
             await saveShiftRequirements(requirements);
             setSavedRequirements(requirements);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftRequirements });
             toast.success('保存しました');
         } catch (err) {
             handleApiError(err, '保存に失敗しました');

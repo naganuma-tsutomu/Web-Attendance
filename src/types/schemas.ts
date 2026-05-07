@@ -56,6 +56,7 @@ export const ShiftSchema = z.object({
   classType: z.string(),
   isEarlyShift: z.union([z.boolean(), z.number()]).optional().nullable(),
   isError: z.union([z.boolean(), z.number()]).optional().nullable(),
+  duty_number: z.number().int().nullable().optional(),
 });
 
 export const ShiftTimePatternSchema = z.object({
@@ -82,6 +83,7 @@ export const DynamicRoleSchema = z.object({
   weeklyHoursTarget: z.number().optional().nullable(),
   display_order: z.number().optional().nullable(),
   patterns: z.array(ShiftTimePatternSchema).optional().default([]),
+  isFullTime: z.boolean().default(false),
 });
 
 export const ShiftRequirementSchema = z.object({
@@ -122,6 +124,8 @@ export const ExcelHighlightRuleSchema = z.object({
 export const ExcelSettingsSchema = z.object({
   excludeHolidayStaffOnSaturdays: z.boolean().default(false),
   highlightRules: z.array(ExcelHighlightRuleSchema).default([]),
+  showDutyNumbers: z.boolean().default(false),
+  leaderIsFullTimeOnly: z.boolean().default(false),
 });
 
 // ==========================================

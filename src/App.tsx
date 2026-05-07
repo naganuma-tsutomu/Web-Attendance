@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import AuthPage from './features/auth/AuthPage';
 import StaffPage from './features/staff/StaffPage';
 import PreferencesPage from './features/preferences/PreferencesPage';
@@ -14,7 +15,6 @@ import RolesPage from './pages/settings/RolesPage';
 import ClassesPage from './pages/settings/ClassesPage';
 import AppearancePage from './pages/settings/AppearancePage';
 import ExcelSettingsPage from './pages/settings/ExcelSettingsPage';
-import ShiftRequirementsPage from './pages/settings/ShiftRequirementsPage';
 import RotationPage from './pages/settings/RotationPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import StaffPreferencePage from './pages/StaffPreferencePage';
@@ -63,7 +63,7 @@ const AppRoutes = () => {
           <Route path="settings/patterns" element={<TimePatternsPage />} />
           <Route path="settings/roles" element={<RolesPage />} />
           <Route path="settings/classes" element={<ClassesPage />} />
-          <Route path="settings/shift-requirements" element={<ShiftRequirementsPage />} />
+          <Route path="settings/shift-requirements" element={<Navigate to="/admin/settings/classes" replace />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           <Route path="settings/excel" element={<ExcelSettingsPage />} />
           <Route path="settings/rotation" element={<RotationPage />} />
@@ -99,6 +99,7 @@ function App() {
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
+      <PwaInstallPrompt />
     </QueryClientProvider>
   );
 }

@@ -19,6 +19,8 @@ interface DailyTimelineModalProps {
     onShiftUpdate?: () => void;
     isFixed?: boolean;
     onToggleFixed?: () => void;
+    showDutyNumbers?: boolean;
+    leaderIsFullTimeOnly?: boolean;
 }
 
 const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
@@ -32,7 +34,9 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     onClose,
     onShiftUpdate,
     isFixed,
-    onToggleFixed
+    onToggleFixed,
+    showDutyNumbers,
+    leaderIsFullTimeOnly,
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
@@ -137,6 +141,8 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         isFixed={isFixed}
                         onToggleFixed={onToggleFixed}
                         hideHeaderToggle={true}
+                        showDutyNumbers={showDutyNumbers}
+                        leaderIsFullTimeOnly={leaderIsFullTimeOnly}
                     />
 
                     {/* Footer Buttons */}

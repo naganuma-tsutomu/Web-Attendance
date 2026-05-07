@@ -26,7 +26,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
+        const body = await context.request.json() as { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[], isFullTime?: boolean };
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -41,7 +41,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
 
         // スタッフ区分情報の更新
-        if (body.name !== undefined || body.targetHours !== undefined || body.weeklyHoursTarget !== undefined) {
+        if (body.name !== undefined || body.targetHours !== undefined || body.weeklyHoursTarget !== undefined || body.isFullTime !== undefined) {
             const updates: string[] = [];
             const values: any[] = [];
             if (body.name !== undefined) {
@@ -55,6 +55,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             if (body.weeklyHoursTarget !== undefined) {
                 updates.push('weeklyHoursTarget = ?');
                 values.push(body.weeklyHoursTarget);
+            }
+            if (body.isFullTime !== undefined) {
+                updates.push('is_full_time = ?');
+                values.push(body.isFullTime ? 1 : 0);
             }
             values.push(id);
             await context.env.DB.prepare(

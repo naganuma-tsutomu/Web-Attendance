@@ -200,7 +200,7 @@ export const createRole = async (name: string, targetHours: number | null = null
     return id;
 };
 
-export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] }): Promise<void> => {
+export const updateRole = async (roleId: string, data: { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[], isFullTime?: boolean }): Promise<void> => {
     await apiFetch(`/settings/roles/${encodeURIComponent(roleId)}`, {
         method: 'PUT',
         body: JSON.stringify(data)

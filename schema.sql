@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS shifts (
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
     isError INTEGER DEFAULT 0,
+    duty_number INTEGER DEFAULT NULL,
     FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE,
     FOREIGN KEY(classType) REFERENCES classes(id) ON DELETE CASCADE
 );
@@ -108,7 +109,8 @@ CREATE TABLE IF NOT EXISTS roles (
     name TEXT NOT NULL UNIQUE,  -- 例: "正社員", "短時間パートA"
     targetHours REAL DEFAULT 0, -- 月間目標時間
     weeklyHoursTarget REAL, -- 週間目標時間
-    display_order INTEGER DEFAULT 0
+    display_order INTEGER DEFAULT 0,
+    is_full_time INTEGER DEFAULT 0 -- 正社員フラグ（1番ローテーション対象）
 );
 
 -- 役職とパターンの中間テーブル (役職に使えるパターンを紐付ける)

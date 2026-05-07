@@ -33,6 +33,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const shiftsData = await context.request.json() as Array<{
             date: string; staffId: string; classType: string;
             startTime: string; endTime: string; isEarlyShift?: boolean; isError?: boolean;
+            duty_number?: number | null;
         }>;
         if (!shiftsData || shiftsData.length === 0) {
             return Response.json({ success: true, message: 'No data to insert' });
@@ -58,8 +59,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         const stmt = context.env.DB.prepare(
-            `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
 
         // D1 batch limit is 100 statements. Split data into chunks of 100.
@@ -78,7 +79,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                     shift.endTime,
                     shift.classType,
                     shift.isEarlyShift ? 1 : 0,
-                    shift.isError ? 1 : 0
+                    shift.isError ? 1 : 0,
+                    shift.duty_number ?? null
                 ));
                 await context.env.DB.batch(batch);
                 insertedIds.push(...ids);

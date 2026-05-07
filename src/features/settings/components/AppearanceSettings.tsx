@@ -1,7 +1,7 @@
-import { Moon, Sun, Clock, Building2, Coffee } from 'lucide-react';
+import { Moon, Sun, Clock, Building2, Coffee, Hash } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { useBusinessHours, useUpdateBusinessHours, useFacilityName, useUpdateFacilityName, useBreakSettings, useUpdateBreakSettings } from '../../../lib/hooks';
+import { useBusinessHours, useUpdateBusinessHours, useFacilityName, useUpdateFacilityName, useBreakSettings, useUpdateBreakSettings, useExcelSettings, useUpdateExcelSettings } from '../../../lib/hooks';
 import { getWeekStartsOn, setWeekStartsOn as saveWeekStartsOn, STORAGE_KEYS } from '../../../utils/dateUtils';
 import { DEFAULT_BREAK_SETTINGS } from '../../../utils/timeUtils';
 import type { BreakSettings } from '../../../types';
@@ -105,6 +105,36 @@ const AppearanceSettings = () => {
             await updateBusinessHoursMutation.mutateAsync({ startHour, endHour, closedDays });
             toast.success('営業時間・休館日を保存しました');
             setHoursModified(false);
+        } catch {
+            toast.error('保存に失敗しました');
+        }
+    };
+
+    // 当番番号設定
+    const { data: excelSettingsData } = useExcelSettings();
+    const updateExcelSettingsMutation = useUpdateExcelSettings();
+    const [showDutyNumbers, setShowDutyNumbers] = useState(false);
+    const [leaderIsFullTimeOnly, setLeaderIsFullTimeOnly] = useState(false);
+    const [dutyModified, setDutyModified] = useState(false);
+
+    useEffect(() => {
+        if (excelSettingsData) {
+            setShowDutyNumbers(excelSettingsData.showDutyNumbers ?? false);
+            setLeaderIsFullTimeOnly(excelSettingsData.leaderIsFullTimeOnly ?? false);
+            setDutyModified(false);
+        }
+    }, [excelSettingsData]);
+
+    const handleSaveDutySettings = async () => {
+        if (!excelSettingsData) return;
+        try {
+            await updateExcelSettingsMutation.mutateAsync({
+                ...excelSettingsData,
+                showDutyNumbers,
+                leaderIsFullTimeOnly,
+            });
+            toast.success('当番番号設定を保存しました');
+            setDutyModified(false);
         } catch {
             toast.error('保存に失敗しました');
         }
@@ -334,6 +364,54 @@ const AppearanceSettings = () => {
 
             {/* 休憩設定 */}
             <BreakSettingsSection />
+
+            {/* 当番番号設定 */}
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                    <Hash className="w-5 h-5 text-indigo-500" />
+                    <div>
+                        <p className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">当番番号</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">シフト作成画面とExcel出力に番号カラムを表示します。</p>
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <div>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">番号カラムを表示する</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">シフト作成画面とExcel出力の両方に当番番号（1, 2, 3...）の列を表示します。</p>
+                        </div>
+                        <button
+                            onClick={() => { setShowDutyNumbers(v => !v); setDutyModified(true); }}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${showDutyNumbers ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showDutyNumbers ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <div>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">1番を正社員のみで回す</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ONにすると、リーダー番号（1番）は正社員フラグが付いた区分のスタッフのみでローテーションします。</p>
+                        </div>
+                        <button
+                            onClick={() => { setLeaderIsFullTimeOnly(v => !v); setDutyModified(true); }}
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${leaderIsFullTimeOnly ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${leaderIsFullTimeOnly ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                </div>
+                {dutyModified && (
+                    <div className="flex justify-end mt-6 animate-in slide-in-from-bottom-2">
+                        <button
+                            onClick={handleSaveDutySettings}
+                            disabled={updateExcelSettingsMutation.isPending}
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {updateExcelSettingsMutation.isPending ? '保存中...' : '当番番号設定を保存'}
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -523,6 +601,7 @@ const BreakSettingsSection = () => {
                     </div>
                 )}
             </div>
+
         </div>
     );
 };

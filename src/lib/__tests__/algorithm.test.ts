@@ -112,6 +112,7 @@ describe('generateShiftsForMonth', () => {
                 name: '正社員',
                 targetHours: 160,
                 display_order: 1,
+                isFullTime: false,
                 patterns: [
                     { id: 'p1', name: '早番', startTime: '09:00', endTime: '17:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
                 ]
@@ -132,8 +133,8 @@ describe('generateShiftsForMonth', () => {
 
     it('役職の優先順位（display_order）に従って割り当てられる', () => {
         const roles: DynamicRole[] = [
-            { id: 'r_high', name: '優先高', targetHours: 160, display_order: 1, patterns: [] },
-            { id: 'r_low', name: '優先低', targetHours: 160, display_order: 10, patterns: [] }
+            { id: 'r_high', name: '優先高', targetHours: 160, display_order: 1, isFullTime: false, patterns: [] },
+            { id: 'r_low', name: '優先低', targetHours: 160, display_order: 10, isFullTime: false, patterns: [] }
         ];
         const staff = [
             makeStaff({ id: 's_low', name: '後回し', role: '優先低' }),
@@ -155,6 +156,7 @@ describe('generateShiftsForMonth', () => {
                 name: '正社員',
                 targetHours: 160,
                 display_order: 1,
+                isFullTime: false,
                 patterns: [
                     { id: 'p1', name: 'フルタイム', startTime: '09:00', endTime: '18:00', sun: 1, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 1 }
                 ]

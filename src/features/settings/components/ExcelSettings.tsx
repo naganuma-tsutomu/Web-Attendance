@@ -54,6 +54,7 @@ const ExcelSettings = () => {
     const handleSave = async () => {
         try {
             await updateSettingsMutation.mutateAsync({
+                ...settings,
                 excludeHolidayStaffOnSaturdays,
                 showDutyNumbers,
                 highlightRules,

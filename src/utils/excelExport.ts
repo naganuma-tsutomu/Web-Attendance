@@ -8,6 +8,7 @@ import { handleApiError } from '../lib/errorHandler';
 import { createHolidayMap, isHoliday } from '../lib/holidayUtils';
 import { SHIFT_STEP_MINS } from '../constants';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../types';
+import { buildLeaderMatcher } from './roleMatch';
 import { getEffectiveDutyNumber } from './dutyNumber';
 
 const DEFAULT_START_HOUR = 8;
@@ -173,18 +174,16 @@ export const exportToExcelAdvanced = async (
         const classStaffIdsMap: Record<string, string[]> = {};
         const fullTimeClassStaffIdsMap: Record<string, string[]> = {};
         if (showDutyNumbers) {
-            const leaderIsFullTimeOnly = excelSettings?.leaderIsFullTimeOnly ?? false;
-            const fullTimeRoleIds = leaderIsFullTimeOnly
-                ? new Set(roles.filter(r => r.isFullTime).map(r => r.id))
-                : null;
+            const leaderRoleId = excelSettings?.leaderRoleId ?? null;
+            const matcher = buildLeaderMatcher(leaderRoleId, roles);
             sortedDayShifts.forEach(s => {
                 if (!classStaffIdsMap[s.classType]) classStaffIdsMap[s.classType] = [];
                 if (!classStaffIdsMap[s.classType].includes(s.staffId)) {
                     classStaffIdsMap[s.classType].push(s.staffId);
                 }
-                if (fullTimeRoleIds) {
+                if (leaderRoleId) {
                     const staff = staffs.find(st => st.id === s.staffId);
-                    if (staff && fullTimeRoleIds.has(staff.role)) {
+                    if (staff && matcher(staff)) {
                         if (!fullTimeClassStaffIdsMap[s.classType]) fullTimeClassStaffIdsMap[s.classType] = [];
                         if (!fullTimeClassStaffIdsMap[s.classType].includes(s.staffId)) {
                             fullTimeClassStaffIdsMap[s.classType].push(s.staffId);

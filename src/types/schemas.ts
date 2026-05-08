@@ -125,7 +125,7 @@ export const ExcelSettingsSchema = z.object({
   excludeHolidayStaffOnSaturdays: z.boolean().default(false),
   highlightRules: z.array(ExcelHighlightRuleSchema).default([]),
   showDutyNumbers: z.boolean().default(false),
-  leaderIsFullTimeOnly: z.boolean().default(false),
+  leaderRoleId: z.string().nullable().default(null),
 });
 
 // ==========================================

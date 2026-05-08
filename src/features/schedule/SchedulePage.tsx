@@ -203,7 +203,7 @@ const SchedulePage = () => {
                                     isFixed={schedule.fixedDates.has(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                     onToggleFixed={() => schedule.toggleFixedDate(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
-                                    leaderIsFullTimeOnly={schedule.excelSettings?.leaderIsFullTimeOnly}
+                                    leaderRoleId={schedule.excelSettings?.leaderRoleId}
                                 />
                                 <div className={`mt-4 flex-shrink-0 flex items-center justify-end gap-3 transition-all duration-200 pb-2 ${schedule.isDayModified ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
                                     <div className="hidden sm:flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-2 text-xs">
@@ -416,7 +416,7 @@ const SchedulePage = () => {
                     isFixed={schedule.fixedDates.has(format(selectedDateForTimeline, 'yyyy-MM-dd'))}
                     onToggleFixed={() => schedule.toggleFixedDate(format(selectedDateForTimeline, 'yyyy-MM-dd'))}
                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
-                    leaderIsFullTimeOnly={schedule.excelSettings?.leaderIsFullTimeOnly}
+                    leaderRoleId={schedule.excelSettings?.leaderRoleId}
                 />
             )}
 

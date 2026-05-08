@@ -12,6 +12,7 @@ import { AddStaffMenu, SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions } from
 import type { OffDutyStaffInfo } from './components/ShiftActionMenus';
 import OffDutySection from './components/OffDutySection';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
+import { buildLeaderMatcher } from '../../utils/roleMatch';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import { updateShift } from '../../lib/api';
 import { getEffectiveDutyNumber } from '../../utils/dutyNumber';
@@ -77,7 +78,7 @@ interface DailyTimelineViewProps {
     hideHeaderToggle?: boolean;
     highlightStaffId?: string;
     showDutyNumbers?: boolean;
-    leaderIsFullTimeOnly?: boolean;
+    leaderRoleId?: string | null;
 }
 
 const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
@@ -85,7 +86,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     preferences = [], onShiftUpdate, onModifiedChange, saveRef,
     readOnly = false, isFixed = false, onToggleFixed, hideHeaderToggle, highlightStaffId,
     showDutyNumbers = false,
-    leaderIsFullTimeOnly = false,
+    leaderRoleId = null,
 }) => {
     // ── Business hours ──
     const { data: businessHoursData } = useBusinessHours();
@@ -226,10 +227,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             return cls === effectiveClassType && !err;
         });
         const groupStaffIds = groupShifts.map(s => s.staffId);
-        const fullTimeGroupIds = leaderIsFullTimeOnly
+        const matcher = buildLeaderMatcher(leaderRoleId, roles);
+        const fullTimeGroupIds = leaderRoleId
             ? groupStaffIds.filter(id => {
                 const st = staffList.find(st2 => st2.id === id);
-                return st ? roles.find(r => r.id === st.role)?.isFullTime === true : false;
+                return st ? matcher(st) : false;
             })
             : undefined;
 
@@ -246,7 +248,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             ...(targetShift ? [updateShift(targetShift.id, { duty_number: sourceEffective })] : []),
         ]);
         onShiftUpdate?.();
-    }, [onShiftUpdate, dayShifts, localShifts, date, staffList, roles, leaderIsFullTimeOnly]);
+    }, [onShiftUpdate, dayShifts, localShifts, date, staffList, roles, leaderRoleId]);
 
     const calculateDuration = (startMins: number, endMins: number) => {
         const diff = endMins - startMins;
@@ -380,11 +382,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                         });
                         // display_order 順の staffId 配列（ローテーション計算の基準）
                         const groupStaffIds = groupShifts.map(gs => gs.staffId);
-                        // 正社員フラグが付いた staffId のサブセット（leaderIsFullTimeOnly 時に使用）
-                        const fullTimeGroupIds = leaderIsFullTimeOnly
+                        const matcher = buildLeaderMatcher(leaderRoleId, roles);
+                        const fullTimeGroupIds = leaderRoleId
                             ? groupStaffIds.filter(id => {
                                 const s = staffList.find(st => st.id === id);
-                                return s ? roles.find(r => r.id === s.role)?.isFullTime === true : false;
+                                return s ? matcher(s) : false;
                             })
                             : undefined;
                         // 番号カラム表示時は番号順にソート

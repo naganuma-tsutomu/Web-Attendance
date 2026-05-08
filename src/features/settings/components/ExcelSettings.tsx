@@ -58,7 +58,7 @@ const ExcelSettings = () => {
                 excludeHolidayStaffOnSaturdays,
                 showDutyNumbers,
                 highlightRules,
-                leaderIsFullTimeOnly: settings?.leaderIsFullTimeOnly ?? false,
+                leaderRoleId: settings?.leaderRoleId ?? null,
             });
             toast.success('Excel出力設定を保存しました');
             setModified(false);

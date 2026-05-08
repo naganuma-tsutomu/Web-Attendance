@@ -1,7 +1,7 @@
 import { Moon, Sun, Clock, Building2, Coffee, Hash } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { useBusinessHours, useUpdateBusinessHours, useFacilityName, useUpdateFacilityName, useBreakSettings, useUpdateBreakSettings, useExcelSettings, useUpdateExcelSettings } from '../../../lib/hooks';
+import { useBusinessHours, useUpdateBusinessHours, useFacilityName, useUpdateFacilityName, useBreakSettings, useUpdateBreakSettings, useExcelSettings, useUpdateExcelSettings, useRoles } from '../../../lib/hooks';
 import { getWeekStartsOn, setWeekStartsOn as saveWeekStartsOn, STORAGE_KEYS } from '../../../utils/dateUtils';
 import { DEFAULT_BREAK_SETTINGS } from '../../../utils/timeUtils';
 import type { BreakSettings } from '../../../types';
@@ -114,13 +114,14 @@ const AppearanceSettings = () => {
     const { data: excelSettingsData } = useExcelSettings();
     const updateExcelSettingsMutation = useUpdateExcelSettings();
     const [showDutyNumbers, setShowDutyNumbers] = useState(false);
-    const [leaderIsFullTimeOnly, setLeaderIsFullTimeOnly] = useState(false);
+    const [leaderRoleId, setLeaderRoleId] = useState<string | null>(null);
     const [dutyModified, setDutyModified] = useState(false);
+    const { data: roles = [] } = useRoles();
 
     useEffect(() => {
         if (excelSettingsData) {
             setShowDutyNumbers(excelSettingsData.showDutyNumbers ?? false);
-            setLeaderIsFullTimeOnly(excelSettingsData.leaderIsFullTimeOnly ?? false);
+            setLeaderRoleId(excelSettingsData.leaderRoleId ?? null);
             setDutyModified(false);
         }
     }, [excelSettingsData]);
@@ -131,7 +132,7 @@ const AppearanceSettings = () => {
             await updateExcelSettingsMutation.mutateAsync({
                 ...excelSettingsData,
                 showDutyNumbers,
-                leaderIsFullTimeOnly,
+                leaderRoleId,
             });
             toast.success('当番番号設定を保存しました');
             setDutyModified(false);
@@ -389,15 +390,19 @@ const AppearanceSettings = () => {
                     </div>
                     <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
                         <div>
-                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">1番を正社員のみで回す</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">ONにすると、リーダー番号（1番）は正社員フラグが付いた区分のスタッフのみでローテーションします。</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">1番を特定区分のみで回す</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">選択した区分のスタッフのみでリーダー番号（1番）をローテーションします。「制限なし」の場合は全スタッフ対象です。</p>
                         </div>
-                        <button
-                            onClick={() => { setLeaderIsFullTimeOnly(v => !v); setDutyModified(true); }}
-                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${leaderIsFullTimeOnly ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        <select
+                            value={leaderRoleId ?? ''}
+                            onChange={e => { setLeaderRoleId(e.target.value || null); setDutyModified(true); }}
+                            className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${leaderIsFullTimeOnly ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                            <option value="">制限なし</option>
+                            {roles.map(r => (
+                                <option key={r.id} value={r.id}>{r.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
                 {dutyModified && (

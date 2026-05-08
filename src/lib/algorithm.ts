@@ -6,6 +6,7 @@ import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequi
 export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
 import { isStaffAvailable } from './availabilityUtils';
 import { applyRotation } from './rotationAlgorithm';
+import { applyLeaderRebalance } from './leaderRebalance';
 
 /** roles 配列から name と id 両方で引ける Map を構築する（O(1) ルックアップ用） */
 const buildRoleMap = (roles: DynamicRole[]): Map<string, DynamicRole> => {
@@ -321,7 +322,8 @@ export const generateShiftsForMonth = (
     closedDays: number[] = DEFAULT_CLOSED_DAYS, // New: 施設が休館の曜日リスト (0=日, 1=月...6=土)
     rotationSettings?: RotationSettings, // ローテーション設定
     timePatterns?: ShiftTimePattern[], // 追加: アプリ全体のシフトパターン
-    breakSettings?: BreakSettings // 休憩設定
+    breakSettings?: BreakSettings, // 休憩設定
+    leaderRoleId: string | null = null // 1番ローテーション対象区分（post-pass用）
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
@@ -464,5 +466,12 @@ export const generateShiftsForMonth = (
 
     });
 
-    return generatedShifts;
+    const { shifts: rebalanced } = applyLeaderRebalance({
+        shifts: generatedShifts,
+        staffList,
+        roles,
+        classes,
+        leaderRoleId,
+    });
+    return rebalanced;
 };

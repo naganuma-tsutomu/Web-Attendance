@@ -135,7 +135,8 @@ export const useScheduleData = () => {
                 businessHours?.closedDays,
                 rotationSettings,
                 timePatterns,
-                breakSettings
+                breakSettings,
+                excelSettings?.leaderRoleId ?? null
             );
             const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
 

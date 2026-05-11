@@ -28,6 +28,7 @@ const RotationSettings = () => {
 
     useEffect(() => {
         if (savedSettings) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSettings(savedSettings);
             setModified(false);
         }

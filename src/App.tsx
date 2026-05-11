@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { useRef } from 'react';
+import { useState } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
@@ -88,13 +88,10 @@ const queryClientConfig = {
 function App() {
   // モジュールスコープではなくコンポーネント内で管理することで
   // HMR や将来的な SSR でのリークを防ぐ
-  const queryClientRef = useRef<QueryClient | null>(null);
-  if (!queryClientRef.current) {
-    queryClientRef.current = new QueryClient(queryClientConfig);
-  }
+  const [queryClient] = useState(() => new QueryClient(queryClientConfig));
 
   return (
-    <QueryClientProvider client={queryClientRef.current}>
+    <QueryClientProvider client={queryClient}>
       <Toaster position="top-right" richColors />
       <AuthProvider>
         <AppRoutes />

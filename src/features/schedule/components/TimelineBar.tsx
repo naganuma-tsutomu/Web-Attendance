@@ -105,4 +105,5 @@ const TimelineBar: React.FC<TimelineBarProps> = ({
 };
 
 export default TimelineBar;
+// eslint-disable-next-line react-refresh/only-export-components
 export { hexToRgba, getBarColor };

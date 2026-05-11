@@ -43,6 +43,7 @@ const AppearanceSettings = () => {
 
     useEffect(() => {
         if (facilityNameData !== undefined) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFacilityName(facilityNameData);
             setFacilityNameModified(false);
         }
@@ -68,6 +69,7 @@ const AppearanceSettings = () => {
 
     useEffect(() => {
         if (businessHours) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStartHour(businessHours.startHour);
             setEndHour(businessHours.endHour);
             setClosedDays(businessHours.closedDays || []);
@@ -120,6 +122,7 @@ const AppearanceSettings = () => {
 
     useEffect(() => {
         if (excelSettingsData) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setShowDutyNumbers(excelSettingsData.showDutyNumbers ?? false);
             setLeaderRoleId(excelSettingsData.leaderRoleId ?? null);
             setDutyModified(false);
@@ -430,6 +433,7 @@ const BreakSettingsSection = () => {
 
     useEffect(() => {
         if (breakSettingsData) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setBreakSettings(breakSettingsData);
             setBreakModified(false);
         }

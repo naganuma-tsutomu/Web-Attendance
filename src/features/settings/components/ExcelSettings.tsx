@@ -16,6 +16,7 @@ const ExcelSettings = () => {
 
     useEffect(() => {
         if (settings) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setExcludeHolidayStaffOnSaturdays(settings.excludeHolidayStaffOnSaturdays);
             setShowDutyNumbers(settings.showDutyNumbers ?? false);
             setHighlightRules(settings.highlightRules || []);
@@ -62,7 +63,7 @@ const ExcelSettings = () => {
             });
             toast.success('Excel出力設定を保存しました');
             setModified(false);
-        } catch (err) {
+        } catch {
             toast.error('保存に失敗しました');
         }
     };

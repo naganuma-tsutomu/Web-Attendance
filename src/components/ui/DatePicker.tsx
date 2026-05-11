@@ -17,6 +17,7 @@ export const DatePicker = ({ date, onChange, trigger, align = 'left' }: DatePick
 
     useEffect(() => {
         if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCurrentMonth(startOfMonth(date));
         }
     }, [isOpen, date]);

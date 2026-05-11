@@ -32,7 +32,7 @@ const UserManualPage = () => {
                         remarkPlugins={[remarkGfm]} 
                         rehypePlugins={[rehypeSlug]}
                         components={{
-                            a: ({ node, href, children, ...props }) => {
+                            a: ({ href, children, ...props }) => {
                                 if (href && href.startsWith('#')) {
                                     return (
                                         <a

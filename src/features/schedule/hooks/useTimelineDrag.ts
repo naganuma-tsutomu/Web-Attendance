@@ -26,14 +26,20 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
     const dragRef = useRef<DragState | null>(null);
     const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-    // 最新の値を ref で保持（イベントリスナーのクロージャから参照）
+    // 最新の値を ref で保持（イベントリスナーのクロージャから参照）。
+    // レンダー中に .current を書き換えるのは意図的 — useEffect にすると1フレーム遅延が生じ
+    // ドラッグ中の最新値が取れなくなるため、この "latest-ref" パターンを維持する。
     const classesRef = useRef(classes);
+    // eslint-disable-next-line react-hooks/refs
     classesRef.current = classes;
     const hoursRef = useRef(hours);
+    // eslint-disable-next-line react-hooks/refs
     hoursRef.current = hours;
     const dispatchRef = useRef(dispatch);
+    // eslint-disable-next-line react-hooks/refs
     dispatchRef.current = dispatch;
     const hoveredGroupRef = useRef(hoveredGroup);
+    // eslint-disable-next-line react-hooks/refs
     hoveredGroupRef.current = hoveredGroup;
 
     const handlePointerDown = useCallback((
@@ -137,11 +143,11 @@ export const useTimelineDrag = ({ localShifts, classes, hours, readOnly, dispatc
     useEffect(() => {}, []);
 
     // DailyTimelineView の JSX バインディング用（互換性維持）
-    const handlePointerMove = useCallback((_e: React.PointerEvent) => {
+    const handlePointerMove = useCallback(() => {
         // window レベルのリスナーで処理
     }, []);
 
-    const handlePointerUp = useCallback((_e: React.PointerEvent) => {
+    const handlePointerUp = useCallback(() => {
         // window レベルのリスナーで処理
     }, []);
 

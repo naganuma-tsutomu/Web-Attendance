@@ -92,7 +92,7 @@ export default function PreferenceTab({
             setSavedPreferences(preferences);
             setMessage({ type: 'success', text: '休暇希望を保存しました' });
             setTimeout(() => setMessage(null), 3000);
-        } catch (err) {
+        } catch {
             setMessage({ type: 'error', text: '保存に失敗しました' });
         } finally {
             setSaving(false);

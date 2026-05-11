@@ -82,6 +82,7 @@ const StaffPreferencePage = () => {
         if (!staff || !prefsData) return;
         const myPref = prefsData.find(p => p.staffId === staff.id);
         const details = myPref?.details || [];
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPreferences(details);
         setSavedPreferences(details);
     }, [prefsData, staff]);

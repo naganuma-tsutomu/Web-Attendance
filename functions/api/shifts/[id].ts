@@ -64,6 +64,13 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true, message: 'Updated' });
     } catch (e) {
+        // duty_number の UNIQUE 制約違反は 409 で返す（H2）
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('duty_number')) {
+            return new Response(JSON.stringify({ error: '同じ日付に同じ当番番号が既に存在します' }), {
+                status: 409,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
         return handleServerError(e, 'Database error updating shift');
     }
 };

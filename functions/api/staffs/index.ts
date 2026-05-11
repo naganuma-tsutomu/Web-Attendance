@@ -75,11 +75,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const id = staffData.id || crypto.randomUUID();
 
-        const accessKey = staffData.accessKey || (() => {
+        const generateAccessKey = () => {
             const buf = new Uint32Array(1);
             crypto.getRandomValues(buf);
             return (100000 + (buf[0] % 900000)).toString();
-        })();
+        };
+
+        // access_key が UNIQUE 制約違反の場合は最大 5 回リトライする（H4）
+        const resolvedAccessKey = staffData.accessKey || generateAccessKey();
+        let accessKey = resolvedAccessKey;
+        const MAX_RETRIES = 5;
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            const existing = await context.env.DB.prepare(
+                "SELECT id FROM staffs WHERE access_key = ? LIMIT 1"
+            ).bind(accessKey).first();
+            if (!existing) break;
+            if (attempt === MAX_RETRIES - 1) {
+                return new Response(JSON.stringify({ error: 'アクセスキーの生成に失敗しました。再度お試しください。' }), { status: 500 });
+            }
+            accessKey = generateAccessKey();
+        }
 
         const statements = [
             context.env.DB.prepare(
@@ -99,7 +114,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         // Add statements for normalized available days
         if (staffData.availableDays && staffData.availableDays.length > 0) {
-            staffData.availableDays.forEach((d, idx) => {
+            staffData.availableDays.forEach((d) => {
                 const day = typeof d === 'number' ? d : d.day;
                 const weeks = typeof d === 'number' ? null : (d.weeks ? JSON.stringify(d.weeks) : null);
                 statements.push(

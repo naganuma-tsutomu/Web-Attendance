@@ -75,8 +75,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             ).bind(id).first() as { minStaffCount: number; maxStaffCount: number | null } | null;
             
             const newMinCount = body.minStaffCount ?? current?.minStaffCount ?? 1;
-            const newMaxCount = body.maxStaffCount !== undefined ? body.maxStaffCount : current?.maxStaffCount;
-            
+
             if (body.minStaffCount !== undefined) {
                 const minError = validateMinStaffCount(body.minStaffCount);
                 if (minError) return createValidationError(minError);

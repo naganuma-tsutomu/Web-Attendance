@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
-import type { Env, D1Row, D1BindParam } from '../../types';
+import type { Env, D1BindParam } from '../../types';
 
 // staffs テーブルで更新を許可するカラム名のホワイトリスト
 const ALLOWED_STAFF_COLUMNS = new Set([
@@ -88,7 +88,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             // Re-sync available days: Delete old and insert new
             statements.push(context.env.DB.prepare("DELETE FROM staff_available_days WHERE staffId = ?").bind(id));
 
-            staffData.availableDays.forEach((d, idx: number) => {
+            staffData.availableDays.forEach((d) => {
                 const day = typeof d === 'number' ? d : d.day;
                 const weeks = typeof d === 'number' ? null : (d.weeks ? JSON.stringify(d.weeks) : null);
                 statements.push(

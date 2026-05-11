@@ -59,8 +59,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (ymError) return createValidationError(ymError);
 
         const details = pref.details || [];
-        const hasSubmittedFlag = typeof (pref as any).submitted === 'boolean';
-        const submittedValue = (pref as any).submitted === true ? 1 : 0;
+        const hasSubmittedFlag = typeof pref.submitted === 'boolean';
+        const submittedValue = pref.submitted === true ? 1 : 0;
 
         // Statements for batch execution
         const statements = [];
@@ -93,7 +93,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             ).bind(pref.staffId, pref.yearMonth)
         );
 
-        details.forEach((d, idx) => {
+        details.forEach((d) => {
             statements.push(
                 context.env.DB.prepare(
                     "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime, type) VALUES (?, ?, ?, ?, ?, ?, ?)"

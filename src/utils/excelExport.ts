@@ -159,24 +159,23 @@ export const exportToExcelAdvanced = async (
         const dayShifts = shifts.filter(s => s.date === dateStr);
         const startRowForDay = currentRow;
 
-        // 出勤スタッフのソート（クラス順 → スタッフ表示順）
-        const sortedDayShifts = [...dayShifts].sort((a, b) => {
-            const classA = classes.find(c => c.id === a.classType);
-            const classB = classes.find(c => c.id === b.classType);
-            const classOrder = (classA?.display_order || 0) - (classB?.display_order || 0);
-            if (classOrder !== 0) return classOrder;
-            const idxA = staffs.findIndex(s => s.id === a.staffId);
-            const idxB = staffs.findIndex(s => s.id === b.staffId);
-            return idxA - idxB;
-        });
-
-        // クラスごとの staffId 配列（番号計算用）
+        // クラスごとの staffId 配列（番号計算用）— ソートより先に構築
         const classStaffIdsMap: Record<string, string[]> = {};
         const fullTimeClassStaffIdsMap: Record<string, string[]> = {};
         if (showDutyNumbers) {
             const leaderRoleId = excelSettings?.leaderRoleId ?? null;
             const matcher = buildLeaderMatcher(leaderRoleId, roles);
-            sortedDayShifts.forEach(s => {
+            // まずクラス順・スタッフ順で安定した staffId リストを作る
+            const presorted = [...dayShifts].sort((a, b) => {
+                const classA = classes.find(c => c.id === a.classType);
+                const classB = classes.find(c => c.id === b.classType);
+                const classOrder = (classA?.display_order || 0) - (classB?.display_order || 0);
+                if (classOrder !== 0) return classOrder;
+                const idxA = staffs.findIndex(s => s.id === a.staffId);
+                const idxB = staffs.findIndex(s => s.id === b.staffId);
+                return idxA - idxB;
+            });
+            presorted.forEach(s => {
                 if (!classStaffIdsMap[s.classType]) classStaffIdsMap[s.classType] = [];
                 if (!classStaffIdsMap[s.classType].includes(s.staffId)) {
                     classStaffIdsMap[s.classType].push(s.staffId);
@@ -192,6 +191,26 @@ export const exportToExcelAdvanced = async (
                 }
             });
         }
+
+        // 出勤スタッフのソート（クラス順 → 当番番号順 or スタッフ表示順）
+        const sortedDayShifts = [...dayShifts].sort((a, b) => {
+            const classA = classes.find(c => c.id === a.classType);
+            const classB = classes.find(c => c.id === b.classType);
+            const classOrder = (classA?.display_order || 0) - (classB?.display_order || 0);
+            if (classOrder !== 0) return classOrder;
+            if (showDutyNumbers) {
+                const groupA = classStaffIdsMap[a.classType] ?? [];
+                const ftA = fullTimeClassStaffIdsMap[a.classType];
+                const groupB = classStaffIdsMap[b.classType] ?? [];
+                const ftB = fullTimeClassStaffIdsMap[b.classType];
+                const dutyA = getEffectiveDutyNumber(a.staffId, a.duty_number, day, groupA, ftA);
+                const dutyB = getEffectiveDutyNumber(b.staffId, b.duty_number, day, groupB, ftB);
+                return dutyA - dutyB;
+            }
+            const idxA = staffs.findIndex(s => s.id === a.staffId);
+            const idxB = staffs.findIndex(s => s.id === b.staffId);
+            return idxA - idxB;
+        });
 
         // 休日スタッフの抽出
         const isSaturday = dayOfWeek === 6;

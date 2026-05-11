@@ -3,9 +3,10 @@ import { Plus, Trash2, Edit2, Clock, Loader2, GripVertical, UserCheck } from 'lu
 import { toast } from 'sonner';
 import { createTimePattern, deleteTimePattern, updateTimePattern, updateTimePatternOrder, getRoles } from '../../../lib/api';
 import { handleApiError } from '../../../lib/errorHandler';
-import { useBusinessHours } from '../../../lib/hooks';
+import { useBusinessHours, QUERY_KEYS } from '../../../lib/hooks';
 import type { ShiftTimePattern, DynamicRole } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
+import { useQueryClient } from '@tanstack/react-query';
 import TimePatternEditModal from './TimePatternEditModal';
 import {
     DndContext,
@@ -142,6 +143,7 @@ const SortablePatternRow = ({ pattern, roles, onDelete, onEdit, isOverlay = fals
 };
 
 const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: TimePatternsSettingsProps) => {
+    const queryClient = useQueryClient();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -212,6 +214,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
                 name: '', startTime: '09:00', endTime: '18:00', roleIds: [],
                 ...getDefaultDayValues()
             });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timePatterns });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'パターンの追加に失敗しました');
@@ -228,6 +231,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
             await updateTimePattern(editingId, editFormData);
             toast.success('パターンを更新しました');
             setIsEditModalOpen(false);
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timePatterns });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'パターンの更新に失敗しました');
@@ -255,6 +259,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
             await deleteTimePattern(deleteConfirmId);
             setDeleteConfirmId(null);
             toast.success('パターンを削除しました');
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timePatterns });
             onUpdate();
         } catch (err) {
             handleApiError(err, 'パターンの削除に失敗しました');
@@ -280,6 +285,7 @@ const TimePatternsSettings = ({ patterns, setPatterns, loading, onUpdate }: Time
 
         try {
             await updateTimePatternOrder(newPatterns.map((p, i) => ({ id: p.id, order: i })));
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timePatterns });
         } catch (err) {
             handleApiError(err, '並び替えの保存に失敗しました');
             onUpdate();

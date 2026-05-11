@@ -15,7 +15,7 @@ export const generateMonthDays = (baseDate: Date, holidays: Holiday[]): DayStatu
             dayOfWeek: dayNames[dayOfWeekIndex],
             isHoliday: dayOfWeekIndex === 0,
             status: 'available',
-            isNationalHoliday: !!h && !h.isWorkday && !h.is_workday,
+            isNationalHoliday: !!h && !h.isWorkday,
             holidayName: h?.name
         };
     });

@@ -119,7 +119,7 @@ describe('isStaffAvailableReason', () => {
             staffId: 'staff-1',
             yearMonth: '2025-06',
             submitted: false,
-            details: [{ id: 'd1', staffId: 'staff-1', yearMonth: '2025-06', date: '2025-06-02', startTime: null, endTime: null }],
+            details: [{ date: '2025-06-02', startTime: null, endTime: null }],
         }];
         expect(isStaffAvailableReason(staff, MON_W1, '2025-06-02', prefs)).toBe('preference');
     });
@@ -131,7 +131,7 @@ describe('isStaffAvailableReason', () => {
             staffId: 'staff-1',
             yearMonth: '2025-06',
             submitted: false,
-            details: [{ id: 'd1', staffId: 'staff-1', yearMonth: '2025-06', date: '2025-06-02', startTime: '09:00', endTime: '12:00' }],
+            details: [{ date: '2025-06-02', startTime: '09:00', endTime: '12:00' }],
         }];
         // 終日でないので preference には該当せず、固定休でもないため available
         expect(isStaffAvailableReason(staff, MON_W1, '2025-06-02', prefs)).toBe('available');

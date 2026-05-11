@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -90,6 +89,7 @@ export const exportToExcelAdvanced = async (
     }
     const toastId = toast.loading('Excelファイルを生成中...');
     try {
+    const ExcelJS = (await import('exceljs')).default;
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('シフト表');
 

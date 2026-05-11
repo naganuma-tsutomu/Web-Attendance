@@ -77,6 +77,18 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-calendar': ['react-big-calendar'],
+          'heavy-excel': ['exceljs', 'file-saver'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {
@@ -92,7 +104,14 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**'],
+      include: ['src/**'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/main.tsx',
+        'src/App.tsx',
+        'src/types/**',
+        'src/setupTests.ts',
+      ],
     },
   },
 })

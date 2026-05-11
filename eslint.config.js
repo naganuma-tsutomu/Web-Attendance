@@ -19,5 +19,9 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Sprint 3 (M3) で any を段階的に除去予定。それまでは warn に留める。
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
   },
 ])

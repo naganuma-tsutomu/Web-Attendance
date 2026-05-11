@@ -37,8 +37,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             context.env.DB.prepare("DELETE FROM fixed_dates WHERE yearMonth = ?").bind(yearMonth)
         ];
 
-        console.log(`[POST /api/fixed-dates] Input dates for ${yearMonth}:`, dates);
-
         if (uniqueDates.length > 0) {
             const insertStmt = context.env.DB.prepare(`INSERT OR REPLACE INTO fixed_dates (date, yearMonth) VALUES (?, ?)`);
             statements.push(...uniqueDates.map(date => insertStmt.bind(date, yearMonth)));

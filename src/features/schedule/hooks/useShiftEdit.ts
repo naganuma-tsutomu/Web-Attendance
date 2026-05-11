@@ -220,7 +220,8 @@ export function useShiftEdit({
                         staffId: s.staffId,
                         startTime: local ? toTimeStr(local.start) : s.startTime,
                         endTime: local ? toTimeStr(local.end) : s.endTime,
-                        classType: local ? local.classType : s.classType
+                        classType: local ? local.classType : s.classType,
+                        ...(local?.dutyNumber !== undefined ? { duty_number: local.dutyNumber } : {}),
                     };
                 });
                 await saveShiftsBatch(newShiftsToSave);
@@ -241,14 +242,15 @@ export function useShiftEdit({
 
             if (modifiedIds.length > 0) {
                 await Promise.all(modifiedIds.map(id => {
-                    const s = localShifts[id];
-                    return updateShift(id, {
-                        startTime: toTimeStr(s.start),
-                        endTime: toTimeStr(s.end),
-                        classType: s.classType,
-                        isError: s.isError,
-                        ...(s.dutyNumber !== undefined ? { duty_number: s.dutyNumber } : {}),
-                    });
+                    const cur = localShifts[id];
+                    const init = initialShifts[id];
+                    const patch: Partial<Shift> = {};
+                    if (cur.start !== init.start) patch.startTime = toTimeStr(cur.start);
+                    if (cur.end !== init.end) patch.endTime = toTimeStr(cur.end);
+                    if (cur.classType !== init.classType) patch.classType = cur.classType;
+                    if (cur.isError !== init.isError) patch.isError = cur.isError;
+                    if (cur.dutyNumber !== undefined) patch.duty_number = cur.dutyNumber;
+                    return updateShift(id, patch);
                 }));
             }
 

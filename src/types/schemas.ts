@@ -127,6 +127,27 @@ export const ExcelSettingsSchema = z.object({
   leaderRoleId: z.string().nullable().default(null),
 });
 
+export const BreakSettingsSchema = z.object({
+  exceptionEnabled: z.boolean().default(false),
+  exceptionThresholdTime: z.string().default('12:00'),
+  exceptionBreakMinutes: z.number().int().default(30),
+  displayActualHoursInModal: z.boolean().default(false),
+  displayActualHoursInExcel: z.boolean().default(false),
+});
+
+export const RotationSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  roleId: z.string().default(''),
+  earlyPatternId: z.string().default(''),
+  latePatternId: z.string().default(''),
+  weekdayEarlyCount: z.number().int().default(1),
+  weekdayLateCount: z.number().int().default(2),
+  saturdayEnabled: z.boolean().default(false),
+  saturdayCount: z.number().int().default(1),
+  saturdayPreferFridayLate: z.boolean().default(true),
+  saturdayPatternId: z.string().optional(),
+});
+
 // ==========================================
 // z.infer<> で TypeScript 型を生成
 // ==========================================
@@ -141,3 +162,5 @@ export type DynamicRoleInferred = z.infer<typeof DynamicRoleSchema>;
 export type ShiftRequirementInferred = z.infer<typeof ShiftRequirementSchema>;
 export type HolidayInferred = z.infer<typeof HolidaySchema>;
 export type BusinessHoursInferred = z.infer<typeof BusinessHoursSchema>;
+export type BreakSettingsInferred = z.infer<typeof BreakSettingsSchema>;
+export type RotationSettingsInferred = z.infer<typeof RotationSettingsSchema>;

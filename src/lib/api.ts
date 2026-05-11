@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings } from '../types';
-import { 
-    StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema, 
-    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema
+import {
+    StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
+    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
+    BreakSettingsSchema, RotationSettingsSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
 
@@ -57,8 +58,10 @@ export const getStaffList = async (): Promise<Staff[]> => {
     return apiFetch<Staff[]>('/staffs', {}, z.array(StaffSchema));
 };
 
+const StaffNameListSchema = z.array(z.object({ id: z.string(), name: z.string() }));
+
 export const getStaffNameList = async (): Promise<{ id: string, name: string }[]> => {
-    return apiFetch<{ id: string, name: string }[]>('/staffs/list');
+    return apiFetch<{ id: string, name: string }[]>('/staffs/list', {}, StaffNameListSchema);
 };
 
 export const createStaff = async (staffData: Omit<Staff, 'id'>): Promise<string> => {
@@ -312,11 +315,18 @@ export const deleteHoliday = async (id: string): Promise<void> => {
     });
 };
 
+const SyncHolidaysResultSchema = z.object({
+    success: z.boolean(),
+    message: z.string(),
+    synced: z.number(),
+    skipped: z.number(),
+});
+
 export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
     const url = year
         ? `/settings/holidays/sync?year=${year}`
         : '/settings/holidays/sync';
-    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url);
+    return apiFetch<{ success: boolean; message: string; synced: number; skipped: number }>(url, {}, SyncHolidaysResultSchema);
 };
 
 export const syncHolidaysIfNeeded = async (): Promise<void> => {
@@ -339,7 +349,7 @@ export const syncHolidaysIfNeeded = async (): Promise<void> => {
 // ==========================================
 
 export const getFixedDates = async (yearMonth: string): Promise<string[]> => {
-    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`);
+    return apiFetch<string[]>(`/fixed-dates?yearMonth=${yearMonth}`, {}, z.array(z.string()));
 };
 
 export const saveFixedDates = async (yearMonth: string, dates: string[]): Promise<void> => {
@@ -383,8 +393,10 @@ export const updateExcelSettings = async (data: ExcelSettings): Promise<void> =>
 // Facility API (施設名設定)
 // ==========================================
 
+const FacilitySchema = z.object({ name: z.string() });
+
 export const getFacilityName = async (): Promise<string> => {
-    const res = await apiFetch<{ name: string }>('/settings/facility');
+    const res = await apiFetch<{ name: string }>('/settings/facility', {}, FacilitySchema);
     return res.name;
 };
 
@@ -400,7 +412,7 @@ export const updateFacilityName = async (name: string): Promise<void> => {
 // ==========================================
 
 export const getRotationSettings = async (): Promise<RotationSettings> => {
-    return apiFetch<RotationSettings>('/settings/rotation-settings');
+    return apiFetch<RotationSettings>('/settings/rotation-settings', {}, RotationSettingsSchema);
 };
 
 export const updateRotationSettings = async (data: RotationSettings): Promise<void> => {
@@ -415,7 +427,7 @@ export const updateRotationSettings = async (data: RotationSettings): Promise<vo
 // ==========================================
 
 export const getBreakSettings = async (): Promise<BreakSettings> => {
-    return apiFetch<BreakSettings>('/settings/break-rules');
+    return apiFetch<BreakSettings>('/settings/break-rules', {}, BreakSettingsSchema);
 };
 
 export const updateBreakSettings = async (data: BreakSettings): Promise<void> => {

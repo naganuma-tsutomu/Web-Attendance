@@ -83,7 +83,6 @@ export const DynamicRoleSchema = z.object({
   weeklyHoursTarget: z.number().optional().nullable(),
   display_order: z.number().optional().nullable(),
   patterns: z.array(ShiftTimePatternSchema).optional().default([]),
-  isFullTime: z.boolean().default(false),
 });
 
 export const ShiftRequirementSchema = z.object({

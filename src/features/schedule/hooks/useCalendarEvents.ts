@@ -28,10 +28,12 @@ export const useCalendarEvents = (
     targetYearMonth: string,
     businessHours: BusinessHours | undefined
 ) => {
-    const { events, errorCount } = useMemo(() => {
-        let errCount = 0;
+    const { events, errorCount, errorDates } = useMemo(() => {
+        const errorByDate = new Map<string, number>();
         const calendarEvents: CalendarEvent[] = rawShifts.map(shift => {
-            if (shift.isError) errCount++;
+            if (shift.isError && shift.date.startsWith(targetYearMonth)) {
+                errorByDate.set(shift.date, (errorByDate.get(shift.date) ?? 0) + 1);
+            }
             const staff = staffList.find(s => s.id === shift.staffId);
             const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
 
@@ -51,8 +53,12 @@ export const useCalendarEvents = (
                 classColor: shiftClass?.color
             };
         });
-        return { events: calendarEvents, errorCount: errCount };
-    }, [rawShifts, staffList, classes]);
+        const sortedErrorDates = Array.from(errorByDate.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, count]) => ({ date, count }));
+        const totalErrors = sortedErrorDates.reduce((sum, e) => sum + e.count, 0);
+        return { events: calendarEvents, errorCount: totalErrors, errorDates: sortedErrorDates };
+    }, [rawShifts, staffList, classes, targetYearMonth]);
 
     const summaryEvents = useMemo(() => {
         if (view !== Views.MONTH) return events;
@@ -161,5 +167,5 @@ export const useCalendarEvents = (
         return { style };
     };
 
-    return { events, summaryEvents, errorCount, eventStyleGetter };
+    return { events, summaryEvents, errorCount, errorDates, eventStyleGetter };
 };

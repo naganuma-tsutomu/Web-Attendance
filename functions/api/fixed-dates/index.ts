@@ -28,8 +28,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
 
-        // 入力の重複排除（同じ日付が複数送られてきた場合の Unique Constraint 対策）
-        const uniqueDates = Array.from(new Set(dates || []));
+        // 重複排除し、date が yearMonth に属するものだけ受け付ける
+        // (date PRIMARY KEY の INSERT OR REPLACE で別月の行の yearMonth を上書きしてしまう事故を防止)
+        const uniqueDates = Array.from(new Set(dates || [])).filter(d => d.startsWith(yearMonth));
 
         // DELETE文とINSERT文を1つのバッチ（トランザクション）にまとめる
         const statements = [

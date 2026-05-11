@@ -156,6 +156,7 @@ const SchedulePage = () => {
                 view={schedule.view}
                 generating={schedule.generating}
                 errorCount={schedule.errorCount}
+                errorDates={schedule.errorDates}
                 loadError={schedule.loadError}
                 isFetching={schedule.isFetching}
                 isSummaryOpen={isSummaryOpen}
@@ -172,6 +173,7 @@ const SchedulePage = () => {
                 onClearShifts={schedule.handleClearShifts}
                 onToggleSummary={() => setIsSummaryOpen(!isSummaryOpen)}
                 onRetry={schedule.loadShifts}
+                onErrorDateClick={handleOpenTimeline}
                 businessHours={schedule.businessHours}
                 excelSettings={schedule.excelSettings}
                 breakSettings={schedule.breakSettings}

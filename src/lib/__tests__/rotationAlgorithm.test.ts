@@ -52,7 +52,6 @@ const makeRole = (id: string, name: string): DynamicRole => ({
     targetHours: null,
     patterns: [],
     display_order: 1,
-    isFullTime: false,
 });
 
 const makeRotationSettings = (overrides: Partial<RotationSettings> = {}): RotationSettings => ({

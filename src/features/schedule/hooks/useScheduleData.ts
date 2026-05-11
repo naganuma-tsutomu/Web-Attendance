@@ -60,7 +60,7 @@ export const useScheduleData = () => {
     const { rawShifts, preferences, fixedDates, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
 
     // カレンダーイベント構築
-    const { events, summaryEvents, errorCount, eventStyleGetter } = useCalendarEvents(
+    const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(
         rawShifts, staffList, classes, preferences, currentDate, view, targetYearMonth, businessHours
     );
 
@@ -119,7 +119,8 @@ export const useScheduleData = () => {
             const fixedContextShifts = rawShifts.filter(s => s.date.startsWith(targetYearMonth) && fixedDates.has(s.date));
             const mergedContext = [...existingContextShifts, ...fixedContextShifts];
 
-            await saveFixedDatesMutation.mutateAsync({ yearMonth: targetYearMonth, dates: Array.from(fixedDates) });
+            const datesForTargetMonth = Array.from(fixedDates).filter(d => d.startsWith(targetYearMonth));
+            await saveFixedDatesMutation.mutateAsync({ yearMonth: targetYearMonth, dates: datesForTargetMonth });
             await deleteShiftsMutation.mutateAsync({ yearMonth: targetYearMonth, exceptDates: Array.from(fixedDates) });
 
             const generatedShifts = generateShiftsForMonth(
@@ -222,7 +223,9 @@ export const useScheduleData = () => {
         const next = new Set(fixedDates);
         if (next.has(dateStr)) next.delete(dateStr);
         else next.add(dateStr);
-        saveFixedDatesMutation.mutate({ yearMonth: targetYearMonth, dates: Array.from(next) }, {
+        const yearMonthOfDate = dateStr.slice(0, 7);
+        const datesForMonth = Array.from(next).filter(d => d.startsWith(yearMonthOfDate));
+        saveFixedDatesMutation.mutate({ yearMonth: yearMonthOfDate, dates: datesForMonth }, {
             onError: (err: any) => handleApiError(err, '固定日の保存に失敗しました')
         });
     };
@@ -248,6 +251,7 @@ export const useScheduleData = () => {
         isFetching,
         generating,
         errorCount,
+        errorDates,
         loadError,
         currentDate,
         view,

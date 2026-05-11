@@ -285,6 +285,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
             await updateClass(selectedClassId, basicForm);
             setSavedBasicForm(basicForm);
             toast.success('クラス情報を更新しました');
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '保存に失敗しました');
@@ -301,6 +302,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
             toast.success(`クラス「${deleteConfirm.name}」を削除しました`);
             setDeleteConfirm(null);
             setSelectedClassId('');
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '削除に失敗しました');
@@ -319,6 +321,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
             toast.success(`クラス「${newForm.name}」を追加しました`);
             setShowNewModal(false);
             setNewForm({ name: '', color: CLASS_COLORS[0], auto_allocate: 1 });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
             onUpdate();
         } catch (err) {
             handleApiError(err, '追加に失敗しました');

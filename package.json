@@ -1,7 +1,7 @@
 {
   "name": "web-attendance",
   "private": true,
-  "version": "2.4.1",
+  "version": "2.4.4",
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev --compatibility-date=2024-03-20 -- npm run dev:client",

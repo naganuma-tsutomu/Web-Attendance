@@ -14,8 +14,8 @@ const makeShift = (overrides: Partial<Shift> & { id: string; date: string; staff
 });
 
 const roles: DynamicRole[] = [
-    { id: 'role_full', name: '正社員', targetHours: null, display_order: 1, patterns: [], isFullTime: true },
-    { id: 'role_part', name: 'パート', targetHours: null, display_order: 2, patterns: [], isFullTime: false },
+    { id: 'role_full', name: '正社員', targetHours: null, display_order: 1, patterns: [] },
+    { id: 'role_part', name: 'パート', targetHours: null, display_order: 2, patterns: [] },
 ];
 
 const classes: ShiftClass[] = [

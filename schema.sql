@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS shifts (
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
     isError INTEGER DEFAULT 0,
-    duty_number INTEGER DEFAULT NULL
+    duty_number INTEGER DEFAULT NULL,
+    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
 );
 
 -- Fixed Dates (Locked shifts) Table
@@ -142,6 +143,7 @@ CREATE TABLE IF NOT EXISTS shift_requirements (
     FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_shift_requirements_class_day ON shift_requirements(classId, dayOfWeek);
 
 
 -- ======================================================
@@ -167,6 +169,9 @@ CREATE TABLE IF NOT EXISTS app_settings (
     value TEXT NOT NULL
 );
 
+-- スタッフアクセスキー一意インデックス（H4: 衝突を DB レベルで防止）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_staffs_access_key ON staffs(access_key) WHERE access_key IS NOT NULL;
+
 -- 日付検索用インデックス
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
@@ -174,6 +179,8 @@ CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
 -- シフト・希望休検索用インデックス
 CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
 CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);
+-- duty_number は NULL 可で、NULL は重複を許容するため部分インデックスで保護（H2）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_duty_number ON shifts(date, duty_number) WHERE duty_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yearMonth);
 CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);

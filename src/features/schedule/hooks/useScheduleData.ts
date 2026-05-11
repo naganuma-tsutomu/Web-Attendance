@@ -213,7 +213,7 @@ export const useScheduleData = () => {
                 }]);
             }
             toast.success('保存しました');
-        } catch (err: any) {
+        } catch (err: unknown) {
             handleApiError(err, 'シフトの保存に失敗しました');
             throw err;
         }
@@ -226,7 +226,7 @@ export const useScheduleData = () => {
         const yearMonthOfDate = dateStr.slice(0, 7);
         const datesForMonth = Array.from(next).filter(d => d.startsWith(yearMonthOfDate));
         saveFixedDatesMutation.mutate({ yearMonth: yearMonthOfDate, dates: datesForMonth }, {
-            onError: (err: any) => handleApiError(err, '固定日の保存に失敗しました')
+            onError: (err: Error) => handleApiError(err, '固定日の保存に失敗しました')
         });
     };
 

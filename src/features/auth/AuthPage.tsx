@@ -17,8 +17,8 @@ const AuthPage = () => {
 
         try {
             await login(password);
-        } catch (err: any) {
-            setError(err.message || 'ログインに失敗しました。');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'ログインに失敗しました。');
         } finally {
             setIsLoading(false);
         }

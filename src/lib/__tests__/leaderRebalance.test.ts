@@ -45,7 +45,7 @@ describe('applyLeaderRebalance', () => {
             makeShift({ id: 's3', date: '2026-01-01', staffId: 'f2', classType: 'class_b' }),
         ];
         const staffList: Staff[] = [
-            makeStaff({ id: 'p1', name: 'パート1', role: '正社員' === '正社員' ? 'パート' : '' }),
+            makeStaff({ id: 'p1', name: 'パート1', role: 'パート' }),
             makeStaff({ id: 'f1', name: '正社員1', role: '正社員' }),
             makeStaff({ id: 'f2', name: '正社員2', role: '正社員' }),
         ];

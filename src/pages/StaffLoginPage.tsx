@@ -54,8 +54,8 @@ const StaffLoginPage = () => {
             }
 
             navigate('/staff/preference');
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'ログインに失敗しました');
         } finally {
             setLoading(false);
         }

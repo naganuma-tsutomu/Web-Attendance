@@ -205,7 +205,7 @@ describe('assignWeekdayShifts', () => {
         const settings = makeRotationSettings({ weekdayEarlyCount: 2, weekdayLateCount: 2 }); // 要件4名だが1人しかいない
 
         const date = new Date('2025-07-01');
-        const sort = (_a: Staff, _b: Staff) => 0;
+        const sort = () => 0;
 
         expect(() => {
             assignWeekdayShifts(

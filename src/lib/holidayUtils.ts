@@ -1,4 +1,4 @@
-import type { Holiday } from '../types';
+import type { Holiday, AvailableDayConfig } from '../types';
 
 /**
  * 指定された年月の祝日マップを作成する
@@ -61,7 +61,7 @@ export const isFixedHoliday = (
     holidays: Holiday[],
     closedDays: number[],
     closedDayHoliday: number,
-    availableDays: any[]
+    availableDays: Array<number | AvailableDayConfig>
 ): boolean => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const holiday = holidays.find(h => h.date === dateStr);
@@ -70,7 +70,7 @@ export const isFixedHoliday = (
     if (!availableDays || availableDays.length === 0) return false;
     const dow = date.getDay();
     const nthWeek = Math.ceil(date.getDate() / 7);
-    const config = availableDays.find((d: any) => (typeof d === 'number' ? d : d.day) === dow);
+    const config = availableDays.find(d => (typeof d === 'number' ? d : d.day) === dow);
     if (!config) return true;
     if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return true;
     return false;

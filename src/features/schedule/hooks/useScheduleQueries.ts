@@ -29,78 +29,79 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
         return Array.from(months);
     }, [currentDate, view]);
 
-    const shiftQueries = useQueries({
+    const { rawShifts, isFetchingShifts, isErrorShifts, refetchShifts } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.shifts(month),
             queryFn: () => getShiftsByMonth(month),
-        }))
+        })),
+        combine: (results) => {
+            const seen = new Set<string>();
+            const rawShifts: Shift[] = [];
+            for (const q of results) {
+                if (!q.data) continue;
+                for (const item of q.data) {
+                    if (!seen.has(item.id)) {
+                        seen.add(item.id);
+                        rawShifts.push(item);
+                    }
+                }
+            }
+            return {
+                rawShifts,
+                isFetchingShifts: results.some(q => q.isFetching),
+                isErrorShifts: results.some(q => q.isError),
+                refetchShifts: () => results.forEach(q => q.refetch()),
+            };
+        },
     });
 
-    const prefQueries = useQueries({
+    const { preferences, isFetchingPrefs, isErrorPrefs } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.preferences(month),
             queryFn: () => getPreferencesByMonth(month),
-        }))
+        })),
+        combine: (results) => {
+            const seen = new Set<string>();
+            const preferences: ShiftPreference[] = [];
+            for (const q of results) {
+                if (!q.data) continue;
+                for (const item of q.data) {
+                    if (!seen.has(item.id)) {
+                        seen.add(item.id);
+                        preferences.push(item);
+                    }
+                }
+            }
+            return {
+                preferences,
+                isFetchingPrefs: results.some(q => q.isFetching),
+                isErrorPrefs: results.some(q => q.isError),
+            };
+        },
     });
 
-    const fixedDatesQueries = useQueries({
+    const { fixedDates, isFetchingFixed } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.fixedDates(month),
             queryFn: () => getFixedDates(month),
-        }))
+        })),
+        combine: (results) => {
+            const fixedDates = new Set<string>();
+            for (const q of results) {
+                if (!q.data) continue;
+                for (const item of q.data) {
+                    fixedDates.add(item);
+                }
+            }
+            return {
+                fixedDates,
+                isFetchingFixed: results.some(q => q.isFetching),
+            };
+        },
     });
 
-    const rawShifts = useMemo(() => {
-        const result: Shift[] = [];
-        const seen = new Set<string>();
-        for (const q of shiftQueries) {
-            if (!q.data) continue;
-            for (const item of q.data) {
-                if (!seen.has(item.id)) {
-                    seen.add(item.id);
-                    result.push(item);
-                }
-            }
-        }
-        return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [shiftQueries.map(q => q.dataUpdatedAt).join(',')]);
+    const isFetching = isFetchingShifts || isFetchingPrefs || isFetchingFixed;
+    const isError = isErrorShifts || isErrorPrefs;
 
-    const preferences = useMemo(() => {
-        const result: ShiftPreference[] = [];
-        const seen = new Set<string>();
-        for (const q of prefQueries) {
-            if (!q.data) continue;
-            for (const item of q.data) {
-                if (!seen.has(item.id)) {
-                    seen.add(item.id);
-                    result.push(item);
-                }
-            }
-        }
-        return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [prefQueries.map(q => q.dataUpdatedAt).join(',')]);
-
-    const fixedDates = useMemo(() => {
-        const result = new Set<string>();
-        for (const q of fixedDatesQueries) {
-            if (!q.data) continue;
-            for (const item of q.data) {
-                result.add(item);
-            }
-        }
-        return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fixedDatesQueries.map(q => q.dataUpdatedAt).join(',')]);
-
-    const isFetching = shiftQueries.some(q => q.isFetching) || prefQueries.some(q => q.isFetching) || fixedDatesQueries.some(q => q.isFetching);
-    const isError = shiftQueries.some(q => q.isError) || prefQueries.some(q => q.isError);
-
-    const refetch = () => {
-        shiftQueries.forEach(q => q.refetch());
-        prefQueries.forEach(q => q.refetch());
-    };
-
-    return { rawShifts, preferences, fixedDates, isFetching, isError, refetch };
+    return { rawShifts, preferences, fixedDates, isFetching, isError, refetch: refetchShifts };
 };

@@ -12,7 +12,7 @@ interface ScheduleHeaderProps {
     view: View;
     generating: boolean;
     errorCount: number;
-    errorDates: { date: string; count: number }[];
+    errorDates?: { date: string; count: number }[];
     loadError: string | null;
     isFetching: boolean;
     isSummaryOpen: boolean;

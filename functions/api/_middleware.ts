@@ -13,6 +13,13 @@ import type { Env } from '../types';
  * CSRF 防御:
  *   - 状態変更メソッド (POST/PUT/DELETE) は Content-Type: application/json を必須とする
  *   - ブラウザのフォーム送信やシンプルリクエストを遮断
+ *
+ * CORS:
+ *   - このアプリは Cloudflare Pages で同一ホスト配信を前提としており、
+ *     CORS ヘッダは意図的に設定していない。
+ *   - 別オリジンからの API 呼び出しは SameSite=Strict Cookie により
+ *     認証が通らないため実質的にブロックされる。
+ *   - 将来的に別ドメインからアクセスする場合は Access-Control-Allow-Origin を追加すること。
  */
 export const onRequest: PagesFunction<Env> = async (context) => {
     const url = new URL(context.request.url);

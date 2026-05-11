@@ -1,19 +1,29 @@
 import React from 'react';
 import { X, Clock, Loader2, UserCheck, Calendar, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { DynamicRole } from '../../../types';
+import Modal from '../../../components/ui/Modal';
+
+export type DayKey = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday';
+
+export interface TimePatternFormData extends Record<DayKey, number> {
+    name: string;
+    startTime: string;
+    endTime: string;
+    roleIds: string[];
+}
 
 interface TimePatternEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => Promise<void>;
-    formData: any;
-    setFormData: React.Dispatch<React.SetStateAction<any>>;
+    formData: TimePatternFormData;
+    setFormData: React.Dispatch<React.SetStateAction<TimePatternFormData>>;
     roles: DynamicRole[];
     isSubmitting: boolean;
     title?: string;
 }
 
-const DAYS = [
+const DAYS: { key: DayKey; label: string }[] = [
     { key: 'sun', label: '日' },
     { key: 'mon', label: '月' },
     { key: 'tue', label: '火' },
@@ -34,39 +44,18 @@ const TimePatternEditModal = ({
     isSubmitting,
     title = '勤務パターンの編集'
 }: TimePatternEditModalProps) => {
-    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = React.useState(false);
-
-    if (!isOpen) return null;
-
-    const handleBackdropMouseDown = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            setMouseDownOnBackdrop(true);
-        }
-    };
-
-    const handleBackdropMouseUp = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
-            onClose();
-        }
-        setMouseDownOnBackdrop(false);
-    };
-
     const toggleRole = (roleId: string) => {
-        setFormData((prev: any) => ({
+        setFormData(prev => ({
             ...prev,
             roleIds: prev.roleIds.includes(roleId)
-                ? prev.roleIds.filter((id: string) => id !== roleId)
+                ? prev.roleIds.filter(id => id !== roleId)
                 : [...prev.roleIds, roleId]
         }));
     };
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto"
-            onMouseDown={handleBackdropMouseDown}
-            onMouseUp={handleBackdropMouseUp}
-        >
-            <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center">
                         <span className="w-1.5 h-6 bg-indigo-500 rounded-full mr-3"></span>
@@ -158,7 +147,7 @@ const TimePatternEditModal = ({
                                         <button
                                             key={d.key}
                                             type="button"
-                                            onClick={() => setFormData((prev: any) => ({ ...prev, [d.key]: prev[d.key] === 1 ? 0 : 1 }))}
+                                            onClick={() => setFormData(prev => ({ ...prev, [d.key]: prev[d.key] === 1 ? 0 : 1 }))}
                                             className={`h-14 rounded-2xl flex flex-col items-center justify-center transition-all border ${formData[d.key] === 1
                                                 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-emerald-500/20'
                                                 : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-300 hover:border-slate-300'
@@ -198,7 +187,7 @@ const TimePatternEditModal = ({
                     </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     );
 };
 

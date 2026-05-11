@@ -7,7 +7,7 @@ import { useBusinessHours, QUERY_KEYS } from '../../../lib/hooks';
 import type { ShiftTimePattern, DynamicRole } from '../../../types';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
 import { useQueryClient } from '@tanstack/react-query';
-import TimePatternEditModal from './TimePatternEditModal';
+import TimePatternEditModal, { type DayKey } from './TimePatternEditModal';
 import {
     DndContext,
     closestCenter,
@@ -37,7 +37,7 @@ interface TimePatternsSettingsProps {
     onUpdate: () => void;
 }
 
-const DAYS = [
+const DAYS: { key: DayKey; label: string }[] = [
     { key: 'sun', label: '日' },
     { key: 'mon', label: '月' },
     { key: 'tue', label: '火' },
@@ -100,7 +100,7 @@ const SortablePatternRow = ({ pattern, roles, onDelete, onEdit, isOverlay = fals
                         <p className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{pattern.name}</p>
                         <div className="flex space-x-1">
                             {DAYS.map(d => (
-                                <span key={d.key} className={`text-[10px] md:text-[9px] w-5 h-5 md:w-4 md:h-4 rounded-full flex items-center justify-center font-bold ${(pattern as any)[d.key] === 1 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600'}`}>
+                                <span key={d.key} className={`text-[10px] md:text-[9px] w-5 h-5 md:w-4 md:h-4 rounded-full flex items-center justify-center font-bold ${pattern[d.key] === 1 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600'}`}>
                                     {d.label}
                                 </span>
                             ))}

@@ -10,7 +10,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         if (results.length === 0) {
             return Response.json({
-                excludeHolidayStaffOnSaturdays: false,
+                excludeHolidayStaffOnSaturdays: true,
                 highlightRules: []
             });
         }

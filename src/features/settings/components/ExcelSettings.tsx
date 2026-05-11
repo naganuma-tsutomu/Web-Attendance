@@ -9,7 +9,7 @@ const ExcelSettings = () => {
     const { data: staffs = [] } = useStaffList();
     const updateSettingsMutation = useUpdateExcelSettings();
 
-    const [excludeHolidayStaffOnSaturdays, setExcludeHolidayStaffOnSaturdays] = useState(false);
+    const [excludeHolidayStaffOnSaturdays, setExcludeHolidayStaffOnSaturdays] = useState(true);
     const [showDutyNumbers, setShowDutyNumbers] = useState(false);
     const [highlightRules, setHighlightRules] = useState<ExcelHighlightRule[]>([]);
     const [modified, setModified] = useState(false);

@@ -60,7 +60,7 @@ export const useScheduleData = () => {
     const { rawShifts, preferences, fixedDates, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
 
     // カレンダーイベント構築
-    const { events, summaryEvents, errorCount, eventStyleGetter } = useCalendarEvents(
+    const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(
         rawShifts, staffList, classes, preferences, currentDate, view, targetYearMonth, businessHours
     );
 
@@ -251,6 +251,7 @@ export const useScheduleData = () => {
         isFetching,
         generating,
         errorCount,
+        errorDates,
         loadError,
         currentDate,
         view,

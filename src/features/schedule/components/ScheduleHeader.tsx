@@ -12,6 +12,7 @@ interface ScheduleHeaderProps {
     view: View;
     generating: boolean;
     errorCount: number;
+    errorDates: { date: string; count: number }[];
     loadError: string | null;
     isFetching: boolean;
     isSummaryOpen: boolean;
@@ -28,6 +29,7 @@ interface ScheduleHeaderProps {
     onClearShifts: () => void;
     onToggleSummary: () => void;
     onRetry: () => void;
+    onErrorDateClick?: (date: Date) => void;
     businessHours?: BusinessHours;
     excelSettings?: ExcelSettings;
     breakSettings?: BreakSettings;
@@ -39,6 +41,7 @@ const ScheduleHeader = ({
     view,
     generating,
     errorCount,
+    errorDates = [],
     loadError,
     isFetching,
     isSummaryOpen,
@@ -55,6 +58,7 @@ const ScheduleHeader = ({
     onClearShifts,
     onToggleSummary,
     onRetry,
+    onErrorDateClick,
     businessHours,
     excelSettings,
     breakSettings,
@@ -173,8 +177,27 @@ const ScheduleHeader = ({
             {errorCount > 0 && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl p-4 flex items-start space-x-3 animate-in fade-in">
                     <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm border-l-2 border-red-500 pl-3">
+                    <div className="text-sm border-l-2 border-red-500 pl-3 flex-1 min-w-0">
                         <p className="text-red-900 dark:text-red-200 font-medium">シフトエラーがあります ({errorCount}件)</p>
+                        {errorDates.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {errorDates.map(({ date, count }) => {
+                                    const d = new Date(`${date}T00:00:00`);
+                                    const label = format(d, 'M/d(E)', { locale: ja });
+                                    return (
+                                        <button
+                                            key={date}
+                                            type="button"
+                                            onClick={() => onErrorDateClick?.(d)}
+                                            className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-red-200 dark:border-red-700 text-xs text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors cursor-pointer"
+                                            title={`${label} の未割り当て ${count}件を確認`}
+                                        >
+                                            {label}{count > 1 ? ` (${count})` : ''}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

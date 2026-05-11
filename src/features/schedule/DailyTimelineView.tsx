@@ -14,7 +14,6 @@ import OffDutySection from './components/OffDutySection';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
 import { buildLeaderMatcher } from '../../utils/roleMatch';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
-import { updateShift } from '../../lib/api';
 import { getEffectiveDutyNumber } from '../../utils/dutyNumber';
 
 // ── DutyNumberCell ──
@@ -23,7 +22,7 @@ const DutyNumberCell: React.FC<{
     value: number;
     isAuto: boolean;
     groupSize: number;
-    onUpdate: (shiftId: string, value: number | null) => Promise<void>;
+    onUpdate: (shiftId: string, value: number | null) => void;
 }> = ({ shiftId, value, isAuto, groupSize, onUpdate }) => {
     const [editing, setEditing] = useState(false);
     const options = Array.from({ length: groupSize }, (_, i) => i + 1);
@@ -35,8 +34,8 @@ const DutyNumberCell: React.FC<{
                     autoFocus
                     className="w-full text-[10px] text-center bg-white dark:bg-slate-800 border-0 focus:ring-1 focus:ring-indigo-400 rounded"
                     value={value}
-                    onChange={async (e) => {
-                        await onUpdate(shiftId, Number(e.target.value));
+                    onChange={(e) => {
+                        onUpdate(shiftId, Number(e.target.value));
                         setEditing(false);
                     }}
                     onBlur={() => setEditing(false)}
@@ -52,7 +51,7 @@ const DutyNumberCell: React.FC<{
             className="hidden sm:flex w-8 flex-shrink-0 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 items-center justify-center gap-0.5 group/duty cursor-pointer"
             title={isAuto ? '自動計算（クリックで変更）' : 'クリックで変更 / 右クリックでリセット'}
             onClick={() => setEditing(true)}
-            onContextMenu={async (e) => { e.preventDefault(); await onUpdate(shiftId, null); }}
+            onContextMenu={(e) => { e.preventDefault(); onUpdate(shiftId, null); }}
         >
             <span className={`text-xs font-bold ${isAuto ? 'text-slate-400 dark:text-slate-500 italic' : 'text-indigo-600 dark:text-indigo-400'}`}>
                 {value}
@@ -208,18 +207,11 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         return 'none';
     };
 
-    const handleDutyNumberUpdate = useCallback(async (shiftId: string, value: number | null) => {
-        if (value === null) {
-            await updateShift(shiftId, { duty_number: null });
-            onShiftUpdate?.();
-            return;
-        }
-
+    const handleDutyNumberUpdate = useCallback((shiftId: string, value: number | null) => {
         const sourceShift = dayShifts.find(s => s.id === shiftId);
         if (!sourceShift) return;
         const effectiveClassType = localShifts[shiftId]?.classType ?? sourceShift.classType;
 
-        // レンダリングと同じ方法でグループを構築
         const groupShifts = dayShifts.filter(s => {
             const local = localShifts[s.id];
             const cls = local ? local.classType : s.classType;
@@ -235,20 +227,44 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             })
             : undefined;
 
-        const sourceEffective = getEffectiveDutyNumber(sourceShift.staffId, sourceShift.duty_number, date, groupStaffIds, fullTimeGroupIds);
+        // ローカル変更を考慮した実効当番番号を返すヘルパー
+        const getPendingDutyNumber = (s: Shift): number | null | undefined => {
+            const localDuty = localShifts[s.id]?.dutyNumber;
+            return localDuty !== undefined ? localDuty : s.duty_number;
+        };
+
+        const getEffective = (s: Shift) =>
+            getEffectiveDutyNumber(s.staffId, getPendingDutyNumber(s), date, groupStaffIds, fullTimeGroupIds);
+
+        if (value === null) {
+            // 右クリックリセット: 既にautoなら何もしない
+            const pendingSource = getPendingDutyNumber(sourceShift);
+            if (pendingSource == null) return;
+
+            // リセット後の自動計算番号を求める
+            const autoNumber = getEffectiveDutyNumber(sourceShift.staffId, null, date, groupStaffIds, fullTimeGroupIds);
+            const sourceEffective = getEffective(sourceShift);
+
+            // 同じ番号を持つ他のシフトと入れ替え
+            const targetShift = groupShifts.find(s => s.id !== shiftId && getEffective(s) === autoNumber);
+            edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: null } });
+            if (targetShift) {
+                edit.dispatch({ type: 'UPDATE_LOCAL', id: targetShift.id, data: { dutyNumber: sourceEffective } });
+            }
+            return;
+        }
+
+        // 通常の番号変更
+        const sourceEffective = getEffective(sourceShift);
         if (sourceEffective === value) return;
 
         // 対象番号をすでに持っているシフトを探してスワップ
-        const targetShift = groupShifts.find(s => s.id !== shiftId &&
-            getEffectiveDutyNumber(s.staffId, s.duty_number, date, groupStaffIds, fullTimeGroupIds) === value
-        );
-
-        await Promise.all([
-            updateShift(shiftId, { duty_number: value }),
-            ...(targetShift ? [updateShift(targetShift.id, { duty_number: sourceEffective })] : []),
-        ]);
-        onShiftUpdate?.();
-    }, [onShiftUpdate, dayShifts, localShifts, date, staffList, roles, leaderRoleId]);
+        const targetShift = groupShifts.find(s => s.id !== shiftId && getEffective(s) === value);
+        edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: value } });
+        if (targetShift) {
+            edit.dispatch({ type: 'UPDATE_LOCAL', id: targetShift.id, data: { dutyNumber: sourceEffective } });
+        }
+    }, [dayShifts, localShifts, date, staffList, roles, leaderRoleId, edit]);
 
     const calculateDuration = (startMins: number, endMins: number) => {
         const diff = endMins - startMins;
@@ -389,11 +405,17 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                 return s ? matcher(s) : false;
                             })
                             : undefined;
+                        // ローカル変更を考慮した実効当番番号
+                        const getPendingDuty = (s: Shift): number | null | undefined => {
+                            const localDuty = localShifts[s.id]?.dutyNumber;
+                            return localDuty !== undefined ? localDuty : s.duty_number;
+                        };
+
                         // 番号カラム表示時は番号順にソート
                         const sortedGroupShifts = showDutyNumbers
                             ? [...groupShifts].sort((a, b) =>
-                                getEffectiveDutyNumber(a.staffId, a.duty_number, date, groupStaffIds, fullTimeGroupIds) -
-                                getEffectiveDutyNumber(b.staffId, b.duty_number, date, groupStaffIds, fullTimeGroupIds)
+                                getEffectiveDutyNumber(a.staffId, getPendingDuty(a), date, groupStaffIds, fullTimeGroupIds) -
+                                getEffectiveDutyNumber(b.staffId, getPendingDuty(b), date, groupStaffIds, fullTimeGroupIds)
                             )
                             : groupShifts;
 
@@ -459,8 +481,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                 {!readOnly ? (
                                                     <div className={`flex flex-col sm:flex-row w-[110px] ${showDutyNumbers ? 'sm:w-[512px]' : 'sm:w-[480px]'} flex-shrink-0 text-xs sm:text-sm bg-white dark:bg-slate-800`}>
                                                         {showDutyNumbers && (() => {
-                                                            const effective = getEffectiveDutyNumber(shift.staffId, shift.duty_number, date, groupStaffIds, fullTimeGroupIds);
-                                                            const isAuto = shift.duty_number == null;
+                                                            const pendingDuty = getPendingDuty(shift);
+                                                            const effective = getEffectiveDutyNumber(shift.staffId, pendingDuty, date, groupStaffIds, fullTimeGroupIds);
+                                                            const isAuto = pendingDuty == null;
                                                             return (
                                                                 <DutyNumberCell
                                                                     shiftId={shift.id}

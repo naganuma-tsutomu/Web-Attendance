@@ -45,6 +45,7 @@ export type LocalShiftData = {
     end: number;
     classType: ClassType;
     isError: boolean;
+    dutyNumber?: number | null; // undefined=未変更, null=自動リセット, number=手動設定
 };
 
 export interface DragState {
@@ -184,7 +185,8 @@ export function useShiftEdit({
             current.start !== initial.start ||
             current.end !== initial.end ||
             current.classType !== initial.classType ||
-            current.isError !== initial.isError
+            current.isError !== initial.isError ||
+            current.dutyNumber !== undefined
         );
     });
 
@@ -232,7 +234,8 @@ export function useShiftEdit({
                     current.start !== initial.start ||
                     current.end !== initial.end ||
                     current.classType !== initial.classType ||
-                    current.isError !== initial.isError
+                    current.isError !== initial.isError ||
+                    current.dutyNumber !== undefined
                 );
             });
 
@@ -244,6 +247,7 @@ export function useShiftEdit({
                         endTime: toTimeStr(s.end),
                         classType: s.classType,
                         isError: s.isError,
+                        ...(s.dutyNumber !== undefined ? { duty_number: s.dutyNumber } : {}),
                     });
                 }));
             }

@@ -13,6 +13,7 @@ import {
     deleteStaff,
     getShiftsByMonth,
     saveShiftsBatch,
+    replaceShiftsForMonth,
     updateShift,
     deleteShiftsByMonth,
     getPreferencesByMonth,
@@ -183,6 +184,29 @@ describe('API - Shift functions', () => {
                 expect.objectContaining({
                     method: 'POST',
                     body: JSON.stringify(shifts)
+                })
+            );
+        });
+    });
+
+    describe('replaceShiftsForMonth', () => {
+        it('月別シフトを安全な置換APIで保存できる', async () => {
+            const shifts = [
+                { date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isError: false }
+            ];
+            const fixedDates = ['2025-06-10'];
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 204, json: () => Promise.resolve({})
+            });
+
+            await expect(replaceShiftsForMonth('2025-06', shifts, fixedDates)).resolves.not.toThrow();
+            expect(mockFetch).toHaveBeenCalledWith(
+                '/api/shifts/replace',
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({ yearMonth: '2025-06', shifts, fixedDates })
                 })
             );
         });

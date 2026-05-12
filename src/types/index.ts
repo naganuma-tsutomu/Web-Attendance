@@ -16,6 +16,7 @@ import type {
     ShiftPreferenceDetailInferred,
     ShiftPreferenceInferred,
     ShiftInferred,
+    ShiftSnapshotMetadataInferred,
     ShiftTimePatternInferred,
     DynamicRoleInferred,
     ShiftRequirementInferred,
@@ -61,6 +62,9 @@ export interface Shift extends Omit<ShiftInferred, 'isError' | 'isEarlyShift' | 
     isEarlyShift?: boolean;
     isError?: boolean;
 }
+
+/** シフトバックアップ */
+export type ShiftSnapshotMetadata = ShiftSnapshotMetadataInferred;
 
 /** 勤務時間パターン */
 export interface ShiftTimePattern extends Omit<ShiftTimePatternInferred, 'display_order' | 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday'> {

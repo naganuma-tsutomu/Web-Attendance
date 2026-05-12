@@ -59,6 +59,15 @@ export const ShiftSchema = z.object({
   duty_number: z.number().int().nullable().optional(),
 });
 
+export const ShiftSnapshotMetadataSchema = z.object({
+  id: z.string(),
+  yearMonth: z.string(),
+  label: z.string().nullable().optional(),
+  reason: z.string(),
+  shiftCount: z.number().int(),
+  createdAt: z.string(),
+});
+
 export const ShiftTimePatternSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -157,6 +166,7 @@ export type ShiftClassInferred = z.infer<typeof ShiftClassSchema>;
 export type ShiftPreferenceDetailInferred = z.infer<typeof ShiftPreferenceDetailSchema>;
 export type ShiftPreferenceInferred = z.infer<typeof ShiftPreferenceSchema>;
 export type ShiftInferred = z.infer<typeof ShiftSchema>;
+export type ShiftSnapshotMetadataInferred = z.infer<typeof ShiftSnapshotMetadataSchema>;
 export type ShiftTimePatternInferred = z.infer<typeof ShiftTimePatternSchema>;
 export type DynamicRoleInferred = z.infer<typeof DynamicRoleSchema>;
 export type ShiftRequirementInferred = z.infer<typeof ShiftRequirementSchema>;

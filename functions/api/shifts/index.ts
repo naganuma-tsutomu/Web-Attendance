@@ -99,7 +99,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             }
             // duty_number の UNIQUE 制約違反は 409 で返す（PUT 側と同様）
             if (batchError instanceof Error && batchError.message.includes('UNIQUE constraint failed') && batchError.message.includes('duty_number')) {
-                return new Response(JSON.stringify({ error: '同じ日付に同じ当番番号が既に存在します' }), {
+                return new Response(JSON.stringify({ error: '同じ日付・クラスに同じ当番番号が既に存在します' }), {
                     status: 409,
                     headers: { 'Content-Type': 'application/json' },
                 });

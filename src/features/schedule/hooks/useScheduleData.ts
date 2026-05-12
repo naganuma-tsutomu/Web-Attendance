@@ -9,8 +9,8 @@ import {
 } from '../../../lib/api';
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
-    useSaveShiftsBatch, useUpdateShift, useDeleteShiftsByMonth, useSaveFixedDates,
-    useBusinessHours, useExcelSettings, useBreakSettings
+    useSaveShiftsBatch, useReplaceShiftsForMonth, useUpdateShift, useDeleteShiftsByMonth, useSaveFixedDates,
+    useBusinessHours, useExcelSettings, useBreakSettings, useCreateShiftSnapshot
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
@@ -84,9 +84,11 @@ export const useScheduleData = () => {
 
     // Mutations
     const saveShiftsMutation = useSaveShiftsBatch();
+    const replaceShiftsMutation = useReplaceShiftsForMonth();
     const updateShiftMutation = useUpdateShift();
     const deleteShiftsMutation = useDeleteShiftsByMonth();
     const saveFixedDatesMutation = useSaveFixedDates();
+    const createShiftSnapshotMutation = useCreateShiftSnapshot();
 
     // 初期化と同期
     useEffect(() => {
@@ -109,6 +111,12 @@ export const useScheduleData = () => {
                 getRotationSettings()
             ]);
 
+            await createShiftSnapshotMutation.mutateAsync({
+                yearMonth: targetYearMonth,
+                reason: 'before-generate',
+                label: `${format(currentDate, 'yyyy年M月')} 自動生成前`,
+            });
+
             const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
             const nextMonth = format(addMonths(currentDate, 1), 'yyyy-MM');
             const existingContextShifts = await Promise.all([
@@ -121,7 +129,6 @@ export const useScheduleData = () => {
 
             const datesForTargetMonth = Array.from(fixedDates).filter(d => d.startsWith(targetYearMonth));
             await saveFixedDatesMutation.mutateAsync({ yearMonth: targetYearMonth, dates: datesForTargetMonth });
-            await deleteShiftsMutation.mutateAsync({ yearMonth: targetYearMonth, exceptDates: Array.from(fixedDates) });
 
             const generatedShifts = generateShiftsForMonth(
                 targetYearMonth,
@@ -141,7 +148,11 @@ export const useScheduleData = () => {
             );
             const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
 
-            await saveShiftsMutation.mutateAsync(generatedShifts);
+            await replaceShiftsMutation.mutateAsync({
+                yearMonth: targetYearMonth,
+                shifts: generatedShifts,
+                fixedDates: datesForTargetMonth,
+            });
             setConfirmAction(null);
 
             if (errCount > 0) {
@@ -173,6 +184,11 @@ export const useScheduleData = () => {
             onConfirm: async () => {
                 setIsActionExecuting(true);
                 try {
+                    await createShiftSnapshotMutation.mutateAsync({
+                        yearMonth: targetYearMonth,
+                        reason: 'before-clear',
+                        label: `${format(currentDate, 'yyyy年M月')} 消去前`,
+                    });
                     await deleteShiftsMutation.mutateAsync({ yearMonth: targetYearMonth });
                     toast.success('削除しました');
                     setConfirmAction(null);

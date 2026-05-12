@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, ShiftSnapshotMetadata } from '../types';
 import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
     DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
-    BreakSettingsSchema, RotationSettingsSchema
+    BreakSettingsSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
 import { ApiError } from './errorHandler';
@@ -132,6 +132,13 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     });
 };
 
+export const replaceShiftsForMonth = async (yearMonth: string, shifts: Omit<Shift, 'id'>[], fixedDates: string[] = []): Promise<void> => {
+    await apiFetch('/shifts/replace', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, shifts, fixedDates })
+    });
+};
+
 export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
     await apiFetch('/shifts/clear', {
         method: 'POST',
@@ -150,6 +157,47 @@ export const deleteShift = async (id: string): Promise<void> => {
     await apiFetch(`/shifts/${encodeURIComponent(id)}`, {
         method: 'DELETE'
     });
+};
+
+// ==========================================
+// Shift Snapshot API (シフトバックアップ)
+// ==========================================
+
+export const getShiftSnapshots = async (yearMonth: string): Promise<ShiftSnapshotMetadata[]> => {
+    return apiFetch<ShiftSnapshotMetadata[]>(
+        `/shifts/snapshots?yearMonth=${yearMonth}`,
+        {},
+        z.array(ShiftSnapshotMetadataSchema)
+    );
+};
+
+export const createShiftSnapshot = async (
+    yearMonth: string,
+    reason: string,
+    label?: string | null
+): Promise<{ id: string; yearMonth: string; label: string | null; reason: string; shiftCount: number; fixedDateCount: number }> => {
+    return apiFetch('/shifts/snapshots', {
+        method: 'POST',
+        body: JSON.stringify({ yearMonth, reason, label })
+    });
+};
+
+export const restoreShiftSnapshot = async (
+    id: string
+): Promise<{ success: boolean; yearMonth: string; restoredShiftCount: number; restoredFixedDateCount: number }> => {
+    return apiFetch(`/shifts/snapshots/${encodeURIComponent(id)}/restore`, {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+};
+
+export const downloadShiftSnapshotCsv = async (id: string): Promise<Blob> => {
+    const response = await fetch(`${API_BASE}/shifts/snapshots/${encodeURIComponent(id)}/export`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new ApiError(response.status, errorData.error || errorData.message || `API Error: ${response.status} ${response.statusText}`);
+    }
+    return response.blob();
 };
 
 // ==========================================

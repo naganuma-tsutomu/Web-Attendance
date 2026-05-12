@@ -2,13 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
-    getPreferencesByMonth, getShiftRequirements, saveShiftsBatch,
+    getPreferencesByMonth, getShiftRequirements, saveShiftsBatch, replaceShiftsForMonth,
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference, updatePreferenceSubmitted,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
     getFacilityName, updateFacilityName,
     getRotationSettings, updateRotationSettings,
-    getBreakSettings, updateBreakSettings
+    getBreakSettings, updateBreakSettings,
+    getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot
 } from './api';
 import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, RotationSettings, BreakSettings } from '../types';
 
@@ -18,6 +19,7 @@ export const QUERY_KEYS = {
     roles: ['roles'],
     classes: ['classes'],
     shifts: (monthStr: string) => ['shifts', monthStr],
+    shiftSnapshots: (monthStr: string) => ['shiftSnapshots', monthStr],
     timePatterns: ['timePatterns'],
     holidays: (year: number) => ['holidays', year],
     preferences: (monthStr: string) => ['preferences', monthStr],
@@ -59,6 +61,13 @@ export const useShiftsByMonth = (monthStr: string) => {
     return useQuery({
         queryKey: QUERY_KEYS.shifts(monthStr),
         queryFn: () => getShiftsByMonth(monthStr),
+    });
+};
+
+export const useShiftSnapshots = (monthStr: string) => {
+    return useQuery({
+        queryKey: QUERY_KEYS.shiftSnapshots(monthStr),
+        queryFn: () => getShiftSnapshots(monthStr),
     });
 };
 
@@ -146,6 +155,17 @@ export const useSaveShiftsBatch = () => {
     });
 };
 
+export const useReplaceShiftsForMonth = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ yearMonth, shifts, fixedDates }: { yearMonth: string; shifts: Omit<Shift, 'id'>[]; fixedDates?: string[] }) =>
+            replaceShiftsForMonth(yearMonth, shifts, fixedDates ?? []),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['shifts'] });
+        },
+    });
+};
+
 export const useUpdateShift = () => {
     const queryClient = useQueryClient();
     return useMutation({
@@ -172,6 +192,29 @@ export const useSaveFixedDates = () => {
         mutationFn: ({ yearMonth, dates }: { yearMonth: string, dates: string[] }) => saveFixedDates(yearMonth, dates),
         onSuccess: (_, { yearMonth }) => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(yearMonth) });
+        },
+    });
+};
+
+export const useCreateShiftSnapshot = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ yearMonth, reason, label }: { yearMonth: string; reason: string; label?: string | null }) =>
+            createShiftSnapshot(yearMonth, reason, label),
+        onSuccess: (_, { yearMonth }) => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftSnapshots(yearMonth) });
+        },
+    });
+};
+
+export const useRestoreShiftSnapshot = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id }: { id: string }) => restoreShiftSnapshot(id),
+        onSuccess: (result) => {
+            queryClient.invalidateQueries({ queryKey: ['shifts'] });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(result.yearMonth) });
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftSnapshots(result.yearMonth) });
         },
     });
 };

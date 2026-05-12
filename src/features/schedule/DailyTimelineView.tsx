@@ -263,6 +263,17 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: value } });
         if (targetShift) {
             edit.dispatch({ type: 'UPDATE_LOCAL', id: targetShift.id, data: { dutyNumber: sourceEffective } });
+            // swap 後: targetShift が受け取った番号（sourceEffective）を手動設定済みの別シフトが
+            // 持っていると UI 上で重複して見えるため、そのシフトも null にリセットする。
+            // auto 計算のみで同じ番号になっているシフト（dutyNumber が null）は
+            // DB 保存時に duty_number=null として扱われ UNIQUE 制約違反にならないため対象外。
+            const afterSwapConflict = groupShifts.find(s =>
+                s.id !== shiftId && s.id !== targetShift.id &&
+                getPendingDutyNumber(s) === sourceEffective
+            );
+            if (afterSwapConflict) {
+                edit.dispatch({ type: 'UPDATE_LOCAL', id: afterSwapConflict.id, data: { dutyNumber: null } });
+            }
         }
     }, [dayShifts, localShifts, date, staffList, roles, leaderRoleId, edit]);
 

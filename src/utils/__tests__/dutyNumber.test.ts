@@ -95,4 +95,43 @@ describe('getEffectiveDutyNumber', () => {
                 .not.toBe(getEffectiveDutyNumber('b', null, date, after));
         });
     });
+
+    describe('リセット後の視覚的重複と DB UNIQUE 制約', () => {
+        // 背景: duty_number=null のシフトは DB 保存時に NULL として扱われる。
+        // UNIQUE INDEX は "WHERE duty_number IS NOT NULL" 付き部分インデックスのため
+        // NULL は何件でも許容される。よって、auto 計算で同じ番号に見えても保存時に衝突しない。
+
+        it('storedNumber=null のシフトは auto 計算値を返すが、DB 保存は NULL になる', () => {
+            const group = ['a', 'b', 'c'];
+            // auto 計算で a=1, b=2, c=3
+            expect(getEffectiveDutyNumber('a', null, date, group)).toBe(1);
+            expect(getEffectiveDutyNumber('c', null, date, group)).toBe(3);
+            // 両者とも storedNumber=null → DB では duty_number=NULL → UNIQUE 違反なし
+        });
+
+        it('手動設定値は storedNumber として優先され auto 計算を上書きする', () => {
+            const group = ['a', 'b', 'c'];
+            // b を手動で 1 に設定（a の auto 番号と衝突）
+            expect(getEffectiveDutyNumber('b', 1, date, group)).toBe(1);
+            // a は null のまま → auto=1 と表示されるが DB では NULL
+            expect(getEffectiveDutyNumber('a', null, date, group)).toBe(1);
+            // → UI 上は a=1, b=1 と見えるが DB では b.duty_number=1, a.duty_number=NULL
+            //   UNIQUE 対象は b のみなので制約違反にならない
+        });
+
+        it('swap 後: targetShift が新番号を受け取り、auto と視覚的重複しても DB 問題なし', () => {
+            // a=手動3, b=手動1, c=auto3 のグループで a をリセットするシナリオ
+            // a のauto=1, b のauto=2, c のauto=3
+            const group = ['a', 'b', 'c'];
+            // a をリセット → auto=1
+            const aAuto = getEffectiveDutyNumber('a', null, date, group);
+            expect(aAuto).toBe(1);
+            // b が手動1を持っていたため swap → b=手動3（a の元の値）
+            // c は手動なし → auto=3 と表示
+            const cAuto = getEffectiveDutyNumber('c', null, date, group);
+            expect(cAuto).toBe(3);
+            // b=手動3, c=auto3 → 表示上は重複するが
+            // DB 保存: b.duty_number=3, c.duty_number=NULL → UNIQUE 違反なし
+        });
+    });
 });

@@ -185,3 +185,11 @@ CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yea
 CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
 
+-- ============================================================
+-- 既存 DB へのスキーマ変更について
+-- ============================================================
+-- このファイルは新規環境の初期化にのみ使用する。
+-- 既存 D1 データベースへのスキーマ変更 (FK 追加・インデックス追加等) は
+-- migrations/ ディレクトリ内のマイグレーション SQL を実行すること。
+-- 詳細は README.md の「スキーマ変更時のマイグレーション」を参照。
+

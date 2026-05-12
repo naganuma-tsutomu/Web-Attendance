@@ -69,6 +69,40 @@ npm run build
 wrangler pages deploy dist
 ```
 
+### スキーマ変更時のマイグレーション
+
+**既存 D1 データベース**に対してスキーマ変更を反映する場合は、`schema.sql` を直接流すのではなく `migrations/` 内のスクリプトを使う。
+
+#### 手順
+
+1. **重複チェック**（インデックス追加前に必ず実行）
+
+   ```bash
+   # access_key 重複確認
+   wrangler d1 execute web-attendance-db \
+     --command "SELECT access_key, COUNT(*) AS c FROM staffs WHERE access_key IS NOT NULL GROUP BY access_key HAVING c > 1;"
+
+   # (date, duty_number) 重複確認
+   wrangler d1 execute web-attendance-db \
+     --command "SELECT date, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, duty_number HAVING c > 1;"
+   ```
+
+   結果が 0 件であることを確認すること。重複が見つかった場合は手動で修正してから次のステップへ進む。
+
+2. **マイグレーション実行**
+
+   ```bash
+   wrangler d1 execute web-attendance-db --file=migrations/0001_add_fk_and_unique.sql
+   ```
+
+   ローカルで事前検証する場合:
+
+   ```bash
+   wrangler d1 execute web-attendance-db --local --file=migrations/0001_add_fk_and_unique.sql
+   ```
+
+> **注意**: 新規環境（初回セットアップ）は `schema.sql` のみで OK。マイグレーションは不要。
+
 ### 環境
 
 `wrangler.toml` で本番・プレビューの2環境を管理しています。

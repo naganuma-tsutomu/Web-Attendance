@@ -82,9 +82,9 @@ wrangler pages deploy dist
    wrangler d1 execute web-attendance-db \
      --command "SELECT access_key, COUNT(*) AS c FROM staffs WHERE access_key IS NOT NULL GROUP BY access_key HAVING c > 1;"
 
-   # (date, duty_number) 重複確認
+   # (date, classType, duty_number) 重複確認
    wrangler d1 execute web-attendance-db \
-     --command "SELECT date, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, duty_number HAVING c > 1;"
+     --command "SELECT date, classType, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, classType, duty_number HAVING c > 1;"
    ```
 
    結果が 0 件であることを確認すること。重複が見つかった場合は手動で修正してから次のステップへ進む。
@@ -93,12 +93,16 @@ wrangler pages deploy dist
 
    ```bash
    wrangler d1 execute web-attendance-db --file=migrations/0001_add_fk_and_unique.sql
+   wrangler d1 execute web-attendance-db --file=migrations/0002_add_shift_snapshots.sql
+   wrangler d1 execute web-attendance-db --file=migrations/0003_scope_duty_number_by_class.sql
    ```
 
    ローカルで事前検証する場合:
 
    ```bash
    wrangler d1 execute web-attendance-db --local --file=migrations/0001_add_fk_and_unique.sql
+   wrangler d1 execute web-attendance-db --local --file=migrations/0002_add_shift_snapshots.sql
+   wrangler d1 execute web-attendance-db --local --file=migrations/0003_scope_duty_number_by_class.sql
    ```
 
 > **注意**: 新規環境（初回セットアップ）は `schema.sql` のみで OK。マイグレーションは不要。
@@ -117,6 +121,17 @@ wrangler pages deploy dist
 ```bash
 wrangler pages deploy dist --env preview
 ```
+
+## 運用上のセキュリティ設定
+
+スタッフログインはスタッフ名と6桁アクセスキーを使います。アクセスキーは運用都合により6桁を維持するため、Cloudflare 側で `/api/auth/staff-login` に Rate Limiting を設定してください。
+
+推奨の初期設定:
+
+- 対象: `POST /api/auth/staff-login`
+- 条件: 同一IPからの短時間の連続失敗を制限
+- アクション: 一時ブロックまたは Managed Challenge
+- 管理者ログイン `/api/auth/login` も同様に制限
 
 ## プロジェクト構成
 

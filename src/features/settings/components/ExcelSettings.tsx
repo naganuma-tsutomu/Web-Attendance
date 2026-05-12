@@ -96,6 +96,9 @@ const ExcelSettings = () => {
                         </div>
                         <button
                             onClick={handleToggleSaturdayOff}
+                            role="switch"
+                            aria-checked={excludeHolidayStaffOnSaturdays}
+                            aria-label="土曜日の休日スタッフを非表示にする"
                             className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${excludeHolidayStaffOnSaturdays ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${excludeHolidayStaffOnSaturdays ? 'translate-x-6' : 'translate-x-1'}`} />

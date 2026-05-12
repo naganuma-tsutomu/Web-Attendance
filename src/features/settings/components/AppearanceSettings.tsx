@@ -386,6 +386,9 @@ const AppearanceSettings = () => {
                         </div>
                         <button
                             onClick={() => { setShowDutyNumbers(v => !v); setDutyModified(true); }}
+                            role="switch"
+                            aria-checked={showDutyNumbers}
+                            aria-label="当番番号カラムを表示する"
                             className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${showDutyNumbers ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showDutyNumbers ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -494,6 +497,9 @@ const BreakSettingsSection = () => {
                                 </div>
                                 <button
                                     onClick={() => handleBreakChange({ exceptionEnabled: !breakSettings.exceptionEnabled })}
+                                    role="switch"
+                                    aria-checked={breakSettings.exceptionEnabled}
+                                    aria-label="例外休憩ルールを有効にする"
                                     className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                                         breakSettings.exceptionEnabled
                                             ? 'bg-indigo-600'
@@ -557,6 +563,9 @@ const BreakSettingsSection = () => {
                                     </div>
                                     <button
                                         onClick={() => handleBreakChange({ displayActualHoursInModal: !breakSettings.displayActualHoursInModal })}
+                                        role="switch"
+                                        aria-checked={breakSettings.displayActualHoursInModal}
+                                        aria-label="シフトモーダルの時間表示を実労働時間にする"
                                         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                                             breakSettings.displayActualHoursInModal
                                                 ? 'bg-indigo-600'
@@ -577,6 +586,9 @@ const BreakSettingsSection = () => {
                                     </div>
                                     <button
                                         onClick={() => handleBreakChange({ displayActualHoursInExcel: !breakSettings.displayActualHoursInExcel })}
+                                        role="switch"
+                                        aria-checked={breakSettings.displayActualHoursInExcel}
+                                        aria-label="Excel出力を実労働時間にする"
                                         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
                                             breakSettings.displayActualHoursInExcel
                                                 ? 'bg-indigo-600'

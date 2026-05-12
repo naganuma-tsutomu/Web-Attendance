@@ -20,7 +20,7 @@ import SubmitConfirmDialog from './components/SubmitConfirmDialog';
 const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
-    const [preferences, setPreferences] = useState<ReturnType<typeof generateMonthDays>>([]);
+    const [draftEdits, setDraftEdits] = useState<Record<string, { status: string; startTime?: string | null; endTime?: string | null; type?: string | null }>>({});
     const [syncingHolidays, setSyncingHolidays] = useState(false);
     const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
     const [isEditingModalMode, setIsEditingModalMode] = useState(false);
@@ -63,33 +63,37 @@ const PreferencesPage = () => {
     }, [targetDate]);
 
     useEffect(() => {
+        setDraftEdits({});
+    }, [selectedStaffId, yearMonth]);
+
+    const basePreferences = useMemo(() => {
         const baseDays = generateMonthDays(targetDate, holidays);
-        if (selectedStaffId) {
-            const staff = staffList.find(s => s.id === selectedStaffId);
-            const unavailable = allPrefsForMonth[selectedStaffId]?.details || [];
-
-            setPreferences(baseDays.map(day => {
-                let isFixedHoliday = false;
-                if (staff) {
-                    isFixedHoliday = isStaffFixedHoliday(staff, new Date(day.dateStr), closedDays, !!day.isNationalHoliday);
-                }
-
-                if (isFixedHoliday) return { ...day, status: 'fixed' };
-
-                const pref = unavailable.find(u => u.date === day.dateStr);
-
-                return {
-                    ...day,
-                    status: pref ? 'unavailable' : 'available',
-                    startTime: pref?.startTime,
-                    endTime: pref?.endTime,
-                    type: pref?.type
-                };
-            }));
-        } else {
-            setPreferences(baseDays);
-        }
+        if (!selectedStaffId) return baseDays;
+        const staff = staffList.find(s => s.id === selectedStaffId);
+        const unavailable = allPrefsForMonth[selectedStaffId]?.details || [];
+        return baseDays.map(day => {
+            const isFixedHoliday = staff
+                ? isStaffFixedHoliday(staff, new Date(day.dateStr), closedDays, !!day.isNationalHoliday)
+                : false;
+            if (isFixedHoliday) return { ...day, status: 'fixed' };
+            const pref = unavailable.find(u => u.date === day.dateStr);
+            return {
+                ...day,
+                status: pref ? 'unavailable' : 'available',
+                startTime: pref?.startTime,
+                endTime: pref?.endTime,
+                type: pref?.type,
+            };
+        });
     }, [selectedStaffId, targetDate, allPrefsForMonth, staffList, holidays, closedDays]);
+
+    const preferences = useMemo(() => {
+        if (Object.keys(draftEdits).length === 0) return basePreferences;
+        return basePreferences.map(day => {
+            const edit = draftEdits[day.dateStr];
+            return edit ? { ...day, ...edit } : day;
+        });
+    }, [basePreferences, draftEdits]);
 
     const handleDateClick = (index: number) => {
         const item = preferences[index];
@@ -107,29 +111,16 @@ const PreferencesPage = () => {
 
     const applyDatePreference = (type: 'full' | 'partial' | 'clear' | 'training') => {
         if (editingDateIndex === null) return;
-        const newPrefs = [...preferences];
-        if (type === 'clear') {
-            newPrefs[editingDateIndex].status = 'available';
-            newPrefs[editingDateIndex].startTime = null;
-            newPrefs[editingDateIndex].endTime = null;
-            newPrefs[editingDateIndex].type = null;
-        } else if (type === 'full') {
-            newPrefs[editingDateIndex].status = 'unavailable';
-            newPrefs[editingDateIndex].startTime = null;
-            newPrefs[editingDateIndex].endTime = null;
-            newPrefs[editingDateIndex].type = null;
-        } else if (type === 'training') {
-            newPrefs[editingDateIndex].status = 'unavailable';
-            newPrefs[editingDateIndex].startTime = null;
-            newPrefs[editingDateIndex].endTime = null;
-            newPrefs[editingDateIndex].type = 'training';
-        } else {
-            newPrefs[editingDateIndex].status = 'unavailable';
-            newPrefs[editingDateIndex].startTime = editStartTime;
-            newPrefs[editingDateIndex].endTime = editEndTime;
-            newPrefs[editingDateIndex].type = null;
-        }
-        setPreferences(newPrefs);
+        const dateStr = basePreferences[editingDateIndex]?.dateStr;
+        if (!dateStr) return;
+        const edit = type === 'clear'
+            ? { status: 'available', startTime: null, endTime: null, type: null }
+            : type === 'full'
+            ? { status: 'unavailable', startTime: null, endTime: null, type: null }
+            : type === 'training'
+            ? { status: 'unavailable', startTime: null, endTime: null, type: 'training' }
+            : { status: 'unavailable', startTime: editStartTime, endTime: editEndTime, type: null };
+        setDraftEdits(prev => ({ ...prev, [dateStr]: edit }));
         setEditingDateIndex(null);
     };
 
@@ -198,6 +189,7 @@ const PreferencesPage = () => {
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-sm">
                         <button
                             onClick={() => setTargetDate(d => subMonths(d, 1))}
+                            aria-label="前月へ"
                             className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         >
                             <ChevronLeft className="w-5 h-5" />
@@ -207,7 +199,8 @@ const PreferencesPage = () => {
                         </span>
                         <button
                             onClick={() => setTargetDate(d => addMonths(d, 1))}
-                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            aria-label="翌月へ"
+                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         >
                             <ChevronRight className="w-5 h-5" />
                         </button>

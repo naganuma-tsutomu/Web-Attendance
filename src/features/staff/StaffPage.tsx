@@ -310,7 +310,7 @@ const StaffPage = () => {
                                 <table className="w-full text-left border-collapse min-w-[700px]">
                                     <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                                         <tr>
-                                            <th className="w-8 sm:w-12 px-2 sm:px-4 py-3 sm:py-4"></th>
+                                            <th aria-label="並び替え" className="w-8 sm:w-12 px-2 sm:px-4 py-3 sm:py-4"></th>
                                             <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">名前</th>
                                             <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">スタッフ区分</th>
                                             <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">アクセスキー</th>
@@ -322,8 +322,9 @@ const StaffPage = () => {
                                     </thead>
                                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                                     {loading ? (
+                                        /* eslint-disable jsx-a11y/control-has-associated-label */
                                         Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="animate-pulse border-b border-slate-50 dark:border-slate-700">
+                                            <tr key={i} aria-hidden="true" className="animate-pulse border-b border-slate-50 dark:border-slate-700">
                                                 <td className="pl-4 pr-2 py-4 w-10">
                                                     <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded-md" />
                                                 </td>
@@ -357,6 +358,7 @@ const StaffPage = () => {
                                                 </td>
                                             </tr>
                                         ))
+                                        /* eslint-enable jsx-a11y/control-has-associated-label */
                                     ) : filteredStaff.length === 0 ? (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-medium">

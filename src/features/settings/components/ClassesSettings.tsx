@@ -42,6 +42,7 @@ const ColorPicker = ({ value, onChange }: { value: string; onChange: (c: string)
                 key={c}
                 type="button"
                 onClick={() => onChange(c)}
+                aria-label={`色 ${c} を選択`}
                 className={`w-7 h-7 rounded-full transition-all ${value === c ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`}
                 style={{ backgroundColor: c }}
                 title={c}
@@ -376,6 +377,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                                     }`}
                                     role="switch"
                                     aria-checked={editForm.auto_allocate === 1}
+                                    aria-label="自動割り当てを有効にする"
                                 >
                                     <span
                                         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${

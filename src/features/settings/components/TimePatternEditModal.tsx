@@ -61,7 +61,7 @@ const TimePatternEditModal = ({
                         <span className="w-1.5 h-6 bg-indigo-500 rounded-full mr-3"></span>
                         {title}
                     </h3>
-                    <button onClick={onClose} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                    <button onClick={onClose} aria-label="閉じる" className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
                         <X className="w-5 h-5" />
                     </button>
                 </div>

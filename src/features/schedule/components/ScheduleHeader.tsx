@@ -1,7 +1,7 @@
 import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
+import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
@@ -27,6 +27,8 @@ interface ScheduleHeaderProps {
     onViewChange: (view: View) => void;
     onGenerate: () => void;
     onClearShifts: () => void;
+    onOpenBackups: () => void;
+    onOpenImport: () => void;
     onToggleSummary: () => void;
     onRetry: () => void;
     onErrorDateClick?: (date: Date) => void;
@@ -56,6 +58,8 @@ const ScheduleHeader = ({
     onViewChange,
     onGenerate,
     onClearShifts,
+    onOpenBackups,
+    onOpenImport,
     onToggleSummary,
     onRetry,
     onErrorDateClick,
@@ -76,6 +80,7 @@ const ScheduleHeader = ({
                                 else if (view === Views.WEEK) onDateChange(subWeeks(currentDate, 1));
                                 else onDateChange(subDays(currentDate, 1));
                             }}
+                            aria-label={view === Views.MONTH ? '前月へ' : view === Views.WEEK ? '前週へ' : '前日へ'}
                             className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                         >
                             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -101,6 +106,7 @@ const ScheduleHeader = ({
                                 else if (view === Views.WEEK) onDateChange(addWeeks(currentDate, 1));
                                 else onDateChange(addDays(currentDate, 1));
                             }}
+                            aria-label={view === Views.MONTH ? '翌月へ' : view === Views.WEEK ? '翌週へ' : '翌日へ'}
                             className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                         >
                             <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -140,6 +146,20 @@ const ScheduleHeader = ({
                     >
                         <Trash2 className="w-5 h-5 text-red-500" />
                         <span className="whitespace-nowrap">消去</span>
+                    </button>
+                    <button
+                        onClick={onOpenBackups}
+                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
+                    >
+                        <Archive className="w-5 h-5 text-indigo-500" />
+                        <span className="whitespace-nowrap">バックアップ</span>
+                    </button>
+                    <button
+                        onClick={onOpenImport}
+                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
+                    >
+                        <FileUp className="w-5 h-5 text-emerald-600" />
+                        <span className="whitespace-nowrap">取込</span>
                     </button>
 
                     <div className="flex flex-wrap gap-2 w-full sm:w-auto">

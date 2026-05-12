@@ -86,6 +86,9 @@ const RotationSettings = () => {
                     </div>
                     <button
                         onClick={() => update({ enabled: !settings.enabled })}
+                        role="switch"
+                        aria-checked={settings.enabled}
+                        aria-label="ローテーション設定を有効にする"
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
                             settings.enabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
                         }`}
@@ -212,6 +215,9 @@ const RotationSettings = () => {
                             </div>
                             <button
                                 onClick={() => update({ saturdayEnabled: !settings.saturdayEnabled })}
+                                role="switch"
+                                aria-checked={settings.saturdayEnabled}
+                                aria-label="土曜日設定を有効にする"
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
                                     settings.saturdayEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
                                 }`}
@@ -257,6 +263,9 @@ const RotationSettings = () => {
                                 <div className="flex items-start gap-3">
                                     <button
                                         onClick={() => update({ saturdayPreferFridayLate: !settings.saturdayPreferFridayLate })}
+                                        role="switch"
+                                        aria-checked={settings.saturdayPreferFridayLate}
+                                        aria-label="金曜日の遅番を土曜に優先する"
                                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 mt-0.5 ${
                                             settings.saturdayPreferFridayLate ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
                                         }`}

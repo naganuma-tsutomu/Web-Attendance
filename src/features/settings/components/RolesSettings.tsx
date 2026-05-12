@@ -394,7 +394,12 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
 
             {/* Add Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto">
+                <div
+                    className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setIsAddModalOpen(false);
+                    }}
+                >
                     <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                         <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                             <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center">

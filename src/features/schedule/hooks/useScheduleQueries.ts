@@ -55,7 +55,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
         },
     });
 
-    const { preferences, isFetchingPrefs, isErrorPrefs } = useQueries({
+    const { preferences, isFetchingPrefs, isErrorPrefs, refetchPrefs } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.preferences(month),
             queryFn: () => getPreferencesByMonth(month),
@@ -76,11 +76,12 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
                 preferences,
                 isFetchingPrefs: results.some(q => q.isFetching),
                 isErrorPrefs: results.some(q => q.isError),
+                refetchPrefs: () => results.forEach(q => q.refetch()),
             };
         },
     });
 
-    const { fixedDates, isFetchingFixed } = useQueries({
+    const { fixedDates, isFetchingFixed, refetchFixed } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.fixedDates(month),
             queryFn: () => getFixedDates(month),
@@ -96,6 +97,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
             return {
                 fixedDates,
                 isFetchingFixed: results.some(q => q.isFetching),
+                refetchFixed: () => results.forEach(q => q.refetch()),
             };
         },
     });
@@ -103,5 +105,8 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
     const isFetching = isFetchingShifts || isFetchingPrefs || isFetchingFixed;
     const isError = isErrorShifts || isErrorPrefs;
 
-    return { rawShifts, preferences, fixedDates, isFetching, isError, refetch: refetchShifts };
+    return {
+        rawShifts, preferences, fixedDates, isFetching, isError,
+        refetch: () => { refetchShifts(); refetchPrefs(); refetchFixed(); },
+    };
 };

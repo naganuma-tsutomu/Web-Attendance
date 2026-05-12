@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 0001: shifts テーブルへの FK 追加 + UNIQUE INDEX 追加
+-- Migration 0001: shifts テーブル再作成・各種インデックス追加・スナップショットテーブル追加
 -- ============================================================
 --
 -- 対象環境: v2.4.4 以前から運用している既存 D1 データベース
@@ -20,12 +20,10 @@
 -- 重複が見つかった場合は手動で修正してから実行すること。
 --
 -- 【実行コマンド】
---   wrangler d1 execute web-attendance-db --file=migrations/0001_add_fk_and_unique.sql
+--   wrangler d1 execute web-attendance-db --file=migrations/0001_initial_schema_updates.sql
 --
--- 【注意】
---   - Cloudflare D1 は部分インデックス (WHERE 句付き) をサポートしている。
---   - PRAGMA foreign_keys は D1 でも有効。shifts テーブル再作成中は OFF にして
---     shifts_old → shifts への INSERT がスムーズに行えるようにする。
+-- ローカルで事前検証する場合:
+--   wrangler d1 execute web-attendance-db --local --file=migrations/0001_initial_schema_updates.sql
 -- ============================================================
 
 -- 外部キー制約を一時無効化（テーブルコピー中の参照エラーを防ぐ）
@@ -67,6 +65,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_class_duty_number ON shifts(da
 -- ============================================================
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_staffs_access_key ON staffs(access_key) WHERE access_key IS NOT NULL;
+
+-- ============================================================
+-- Step 3: シフトスナップショットテーブル追加
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS shift_snapshots (
+    id TEXT PRIMARY KEY,
+    yearMonth TEXT NOT NULL,
+    label TEXT,
+    reason TEXT NOT NULL,
+    shifts_json TEXT NOT NULL,
+    fixed_dates_json TEXT NOT NULL DEFAULT '[]',
+    shift_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_shift_snapshots_ym_created
+ON shift_snapshots(yearMonth, created_at DESC);
 
 -- 外部キー制約を再有効化
 PRAGMA foreign_keys = ON;

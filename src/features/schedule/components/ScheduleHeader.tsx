@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp } from 'lucide-react';
+import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
@@ -68,6 +69,8 @@ const ScheduleHeader = ({
     breakSettings,
     roles = []
 }: ScheduleHeaderProps) => {
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+
     return (
         <div className="flex-shrink-0 p-4 sm:p-6 md:p-8 pb-4 md:pb-4 space-y-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -140,47 +143,103 @@ const ScheduleHeader = ({
                         {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings2 className="w-5 h-5" />}
                         <span className="whitespace-nowrap">{generating ? '生成中...' : '自動生成'}</span>
                     </button>
+
+                    {/* デスクトップ: 個別ボタン */}
                     <button
                         onClick={onClearShifts}
-                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
+                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
                     >
                         <Trash2 className="w-5 h-5 text-red-500" />
                         <span className="whitespace-nowrap">消去</span>
                     </button>
                     <button
                         onClick={onOpenBackups}
-                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
+                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
                     >
                         <Archive className="w-5 h-5 text-indigo-500" />
                         <span className="whitespace-nowrap">バックアップ</span>
                     </button>
                     <button
                         onClick={onOpenImport}
-                        className="flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center hover:cursor-pointer"
+                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
                     >
                         <FileUp className="w-5 h-5 text-emerald-600" />
                         <span className="whitespace-nowrap">取込</span>
                     </button>
+                    <button
+                        onClick={onToggleSummary}
+                        className={`hidden sm:flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer ${isSummaryOpen
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                            }`}
+                        title="スタッフ別労働時間を表示"
+                    >
+                        <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
+                        <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
+                    </button>
+                    <button
+                        onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles)}
+                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+                    >
+                        <Download className="w-5 h-5 text-green-600" />
+                        <span className="text-xs font-bold whitespace-nowrap">Excel</span>
+                    </button>
 
-                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    {/* モバイル: 労働時間 + バックアップ + ⋯ドロップダウン */}
+                    <button
+                        onClick={onOpenBackups}
+                        className="sm:hidden flex items-center justify-center px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl shadow-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        title="バックアップ"
+                    >
+                        <Archive className="w-5 h-5 text-indigo-500" />
+                    </button>
+                    <button
+                        onClick={onToggleSummary}
+                        className={`sm:hidden flex items-center justify-center px-3 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer ${isSummaryOpen
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+                            }`}
+                        title="スタッフ別労働時間を表示"
+                    >
+                        <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
+                    </button>
+                    <div className="sm:hidden relative">
                         <button
-                            onClick={onToggleSummary}
-                            className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl shadow-sm transition-all flex-1 cursor-pointer ${isSummaryOpen
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                }`}
-                            title="スタッフ別労働時間を表示"
+                            onClick={() => setShowMoreMenu(v => !v)}
+                            className="flex items-center justify-center px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            title="その他の操作"
                         >
-                            <BarChart2 className={`w-5 h-5 ${isSummaryOpen ? 'text-white' : 'text-indigo-500'}`} />
-                            <span className="hidden sm:inline text-sm font-bold whitespace-nowrap">労働時間</span>
+                            <MoreHorizontal className="w-5 h-5" />
                         </button>
-                        <button
-                            onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles)}
-                            className="flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors flex-1 cursor-pointer"
-                        >
-                            <Download className="w-5 h-5 text-green-600" />
-                            <span className="hidden sm:inline text-xs font-bold whitespace-nowrap">Excel</span>
-                        </button>
+                        {showMoreMenu && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                                <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 animate-in fade-in zoom-in-95 duration-150">
+                                    <button
+                                        onClick={() => { onClearShifts(); setShowMoreMenu(false); }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                        消去
+                                    </button>
+                                    <button
+                                        onClick={() => { onOpenImport(); setShowMoreMenu(false); }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                    >
+                                        <FileUp className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                        取込
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                    <button
+                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles); setShowMoreMenu(false); }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                        Excel
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

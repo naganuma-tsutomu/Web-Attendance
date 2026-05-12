@@ -17,7 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const yearMonth = url.searchParams.get('yearMonth');
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
-        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD ?? '');
+        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD!);
 
         const staffFilter = buildStaffFilter(authState);
 
@@ -68,7 +68,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const pref: Omit<ShiftPreference, 'id'> = await context.request.json();
         const ymError = validateYearMonth(pref?.yearMonth);
         if (ymError) return createValidationError(ymError);
-        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD ?? '');
+        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD!);
         if (authState.kind === 'staff' && pref.staffId !== authState.staffId) {
             return new Response(
                 JSON.stringify({ error: '自分の希望休のみ変更できます' }),

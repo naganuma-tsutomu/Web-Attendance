@@ -108,6 +108,7 @@ const SortableRequirementRow = ({
             {/* xl+: 1行レイアウト */}
             <div className="hidden xl:flex items-center gap-2">
                 <button {...attributes} {...listeners}
+                    aria-label="ドラッグして並び替え"
                     className="p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded flex-shrink-0">
                     <GripVertical className="w-4 h-4" />
                 </button>
@@ -155,6 +156,7 @@ const SortableRequirementRow = ({
                 {/* 1行目: grip + 番号 + 曜日 + 優先度 + 削除 */}
                 <div className="flex items-center gap-2">
                     <button {...attributes} {...listeners}
+                        aria-label="ドラッグして並び替え"
                         className="p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded flex-shrink-0">
                         <GripVertical className="w-4 h-4" />
                     </button>

@@ -39,7 +39,7 @@ const MobileWorkHoursPanel = ({
                     <div className="h-full flex flex-col">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                             <h3 className="font-bold text-slate-800 dark:text-white">労働時間サマリー</h3>
-                            <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                            <button onClick={onClose} aria-label="閉じる" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
                                 <X className="w-5 h-5 text-slate-500" />
                             </button>
                         </div>

@@ -16,6 +16,7 @@ import CalendarGrid from './components/CalendarGrid';
 import CalendarFooter from './components/CalendarFooter';
 import DateEditModal from './components/DateEditModal';
 import SubmitConfirmDialog from './components/SubmitConfirmDialog';
+import Modal from '../../components/ui/Modal';
 
 const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -267,21 +268,23 @@ const PreferencesPage = () => {
                                     handleDateClick={handleDateClick}
                                 />
 
-                                {editingDateIndex !== null && (
-                                    <DateEditModal
-                                        editingDateIndex={editingDateIndex}
-                                        preferences={preferences}
-                                        selectedStaff={selectedStaff}
-                                        isEditingModalMode={isEditingModalMode}
-                                        setIsEditingModalMode={setIsEditingModalMode}
-                                        editStartTime={editStartTime}
-                                        editEndTime={editEndTime}
-                                        setEditStartTime={setEditStartTime}
-                                        setEditEndTime={setEditEndTime}
-                                        applyDatePreference={applyDatePreference}
-                                        setEditingDateIndex={setEditingDateIndex}
-                                    />
-                                )}
+                                <Modal isOpen={editingDateIndex !== null} onClose={() => setEditingDateIndex(null)}>
+                                    {editingDateIndex !== null && (
+                                        <DateEditModal
+                                            editingDateIndex={editingDateIndex}
+                                            preferences={preferences}
+                                            selectedStaff={selectedStaff}
+                                            isEditingModalMode={isEditingModalMode}
+                                            setIsEditingModalMode={setIsEditingModalMode}
+                                            editStartTime={editStartTime}
+                                            editEndTime={editEndTime}
+                                            setEditStartTime={setEditStartTime}
+                                            setEditEndTime={setEditEndTime}
+                                            applyDatePreference={applyDatePreference}
+                                            setEditingDateIndex={setEditingDateIndex}
+                                        />
+                                    )}
+                                </Modal>
 
                                 <CalendarFooter
                                     preferences={preferences}
@@ -299,16 +302,15 @@ const PreferencesPage = () => {
                 </div>
             </div>
 
-            {confirmSubmit && (
-                <SubmitConfirmDialog
-                    confirmSubmit={confirmSubmit}
-                    setConfirmSubmit={setConfirmSubmit}
-                    selectedStaff={selectedStaff}
-                    targetDate={targetDate}
-                    handleConfirmSubmitted={handleConfirmSubmitted}
-                    updatingSubmitted={updatingSubmitted}
-                />
-            )}
+            <SubmitConfirmDialog
+                isOpen={!!confirmSubmit}
+                confirmSubmit={confirmSubmit ?? { submitted: false }}
+                setConfirmSubmit={setConfirmSubmit}
+                selectedStaff={selectedStaff}
+                targetDate={targetDate}
+                handleConfirmSubmitted={handleConfirmSubmitted}
+                updatingSubmitted={updatingSubmitted}
+            />
         </>
     );
 };

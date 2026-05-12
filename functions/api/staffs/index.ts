@@ -6,7 +6,7 @@ import { getRequestAuthState } from '../../utils';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
-        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD ?? '');
+        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD!);
 
         // staffs と available_days を JOIN して一括取得
         const { results: staffRows } = await context.env.DB.prepare(

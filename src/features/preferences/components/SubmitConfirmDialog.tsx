@@ -2,8 +2,10 @@ import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import type { Staff } from '../../../types';
+import Modal from '../../../components/ui/Modal';
 
 interface SubmitConfirmDialogProps {
+    isOpen: boolean;
     confirmSubmit: { submitted: boolean };
     setConfirmSubmit: (v: { submitted: boolean } | null) => void;
     selectedStaff: Staff | undefined;
@@ -13,6 +15,7 @@ interface SubmitConfirmDialogProps {
 }
 
 const SubmitConfirmDialog = ({
+    isOpen,
     confirmSubmit,
     setConfirmSubmit,
     selectedStaff,
@@ -20,9 +23,13 @@ const SubmitConfirmDialog = ({
     handleConfirmSubmitted,
     updatingSubmitted,
 }: SubmitConfirmDialogProps) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setConfirmSubmit(null)} />
-        <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-sm">
+    <Modal isOpen={isOpen} onClose={() => setConfirmSubmit(null)} zIndex="z-[100]">
+        <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-confirm-title"
+            className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-sm"
+        >
             <div className="flex items-center gap-3 mb-4">
                 {confirmSubmit.submitted ? (
                     <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
@@ -34,7 +41,7 @@ const SubmitConfirmDialog = ({
                     </div>
                 )}
                 <div>
-                    <p className="font-semibold text-slate-800 dark:text-slate-100">
+                    <p id="submit-confirm-title" className="font-semibold text-slate-800 dark:text-slate-100">
                         {confirmSubmit.submitted ? '提出済みにする' : '未提出に戻す'}
                     </p>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -68,7 +75,7 @@ const SubmitConfirmDialog = ({
                 </button>
             </div>
         </div>
-    </div>
+    </Modal>
 );
 
 export default SubmitConfirmDialog;

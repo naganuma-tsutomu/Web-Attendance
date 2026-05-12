@@ -406,7 +406,7 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
                                 <span className="w-1.5 h-6 bg-indigo-500 rounded-full mr-3"></span>
                                 新しいスタッフ区分
                             </h3>
-                            <button onClick={() => setIsAddModalOpen(false)} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                            <button onClick={() => setIsAddModalOpen(false)} aria-label="閉じる" className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>

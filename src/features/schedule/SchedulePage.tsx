@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
 import Modal from '../../components/ui/Modal';
 import { useCalendarInteractions } from './hooks/useCalendarInteractions';
-import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View, type DateHeaderProps, type DateCellWrapperProps } from 'react-big-calendar';
+import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, type Locale } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { toast } from 'sonner';
-import { Loader2, Save, Lock, Unlock } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import DailyTimelineModal from './DailyTimelineModal';
 import DailyTimelineView from './DailyTimelineView';
 import WeeklyTimelineView from './WeeklyTimelineView';
@@ -17,6 +17,9 @@ import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
 import ShiftBackupModal from './components/ShiftBackupModal';
 import ShiftImportModal from './components/ShiftImportModal';
+import CalendarDateHeader from './components/CalendarDateHeader';
+import CalendarDateCellWrapper from './components/CalendarDateCellWrapper';
+import { CalendarDisplayContext } from './context/CalendarDisplayContext';
 import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/useScheduleData';
 import { getWeekStartsOn } from '../../utils/dateUtils';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
@@ -59,67 +62,20 @@ const SchedulePage = () => {
     );
 
     const { fixedDates, getHolidayNameForDate, isHolidayDate, toggleFixedDate } = schedule;
+    const calendarDisplayValue = useMemo(() => ({
+        fixedDates,
+        toggleFixedDate,
+        getHolidayNameForDate,
+        isHolidayDate,
+        handleOpenTimeline,
+        lastTouchOpenRef,
+    }), [fixedDates, toggleFixedDate, getHolidayNameForDate, isHolidayDate, handleOpenTimeline, lastTouchOpenRef]);
+
     const calendarComponents = useMemo(() => ({
         toolbar: () => null,
-        month: {
-            dateHeader: (props: DateHeaderProps) => {
-                const dateStr = format(props.date, 'yyyy-MM-dd');
-                const isFixed = fixedDates.has(dateStr);
-                const holidayName = getHolidayNameForDate(props.date);
-                const openTimeline = () => {
-                    if (Date.now() - lastTouchOpenRef.current < 500) return;
-                    handleOpenTimeline(props.date);
-                };
-                return (
-                    <div
-                        role="button"
-                        tabIndex={0}
-                        className="flex justify-between items-center w-full px-1 py-0.5 cursor-pointer"
-                        onClick={openTimeline}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTimeline(); } }}
-                    >
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toggleFixedDate(dateStr);
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                            className={`p-1 hidden sm:flex items-center justify-center rounded transition-colors shrink-0 ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                            title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
-                            aria-label={isFixed ? 'シフトのロックを解除する' : 'シフトをロックする'}
-                        >
-                            {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                        </button>
-                        {holidayName && (
-                            <span className="hidden sm:inline text-xs text-red-600 dark:text-red-400 font-medium truncate flex-1 text-center px-1" title={holidayName}>
-                                {holidayName}
-                            </span>
-                        )}
-                        <span className="font-medium text-slate-700 dark:text-slate-300 pr-1 shrink-0">{props.label}</span>
-                    </div>
-                );
-            },
-        },
-        dateCellWrapper: (props: DateCellWrapperProps) => {
-            const date = props.value;
-            const isHoliday = isHolidayDate(date);
-            const dayOfWeek = getDay(date);
-            let bgColorClass = '';
-            if (dayOfWeek === 0 || isHoliday) {
-                bgColorClass = 'bg-red-50 dark:bg-red-900/10';
-            } else if (dayOfWeek === 6) {
-                bgColorClass = 'bg-blue-50 dark:bg-blue-900/10';
-            }
-            return (
-                <div className={`rbc-day-bg ${bgColorClass}`} style={{ height: '100%' }}>
-                    {props.children}
-                </div>
-            );
-        },
-    }), [fixedDates, getHolidayNameForDate, isHolidayDate, toggleFixedDate, handleOpenTimeline, lastTouchOpenRef]);
+        month: { dateHeader: CalendarDateHeader },
+        dateCellWrapper: CalendarDateCellWrapper,
+    }), []);
 
     const handleEventSelect = (event: CalendarEvent) => {
         setSelectedEvent(event);
@@ -255,6 +211,7 @@ const SchedulePage = () => {
                                 />
                             </div>
                         ) : (
+                            <CalendarDisplayContext.Provider value={calendarDisplayValue}>
                             <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 hidden-scrollbar" ref={calendarContainerRef}>
                                 <div className="rb-calendar-container h-full">
                                     <BigCalendar
@@ -299,6 +256,7 @@ const SchedulePage = () => {
                                 />
                                 </div>
                             </div>
+                            </CalendarDisplayContext.Provider>
                         )}
                     </div>
                 </div>

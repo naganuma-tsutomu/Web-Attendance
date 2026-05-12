@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, CheckCircle, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { Staff, DynamicRole, ShiftClass, AvailableDayConfig } from '../../../types';
+import Modal from '../../../components/ui/Modal';
 
 interface StaffFormModalProps {
     isOpen: boolean;
@@ -29,39 +30,24 @@ const StaffFormModal = ({
     handleRoleChange,
     closedDays = []
 }: StaffFormModalProps) => {
-    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = React.useState(false);
     const [showKeyConfirm, setShowKeyConfirm] = React.useState(false);
-
-    if (!isOpen) return null;
 
     // 営業日（closedDays）に含まれていない曜日のみをデフォルトにする
     const defaultAvailableDays = [1, 2, 3, 4, 5, 6].filter(day => !closedDays.includes(day));
 
-    const handleBackdropMouseDown = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            setMouseDownOnBackdrop(true);
-        }
-    };
-
-    const handleBackdropMouseUp = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
-            onClose();
-        }
-        setMouseDownOnBackdrop(false);
-    };
-
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto"
-            onMouseDown={handleBackdropMouseDown}
-            onMouseUp={handleBackdropMouseUp}
-        >
-            <div className="relative bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="staff-form-title"
+                className="relative bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700"
+            >
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                    <h3 id="staff-form-title" className="text-xl font-bold text-slate-800 dark:text-white">
                         {editingStaff ? '情報を更新' : 'スタッフ登録'}
                     </h3>
-                    <button onClick={onClose} className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
+                    <button onClick={onClose} aria-label="閉じる" className="bg-white dark:bg-slate-700 p-2 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">
                         <Plus className="w-5 h-5 transform rotate-45" />
                     </button>
                 </div>
@@ -382,7 +368,7 @@ const StaffFormModal = ({
                     </div>
                 )}
             </div>
-        </div>
+        </Modal>
     );
 };
 

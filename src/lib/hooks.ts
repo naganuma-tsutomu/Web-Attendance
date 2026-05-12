@@ -144,6 +144,8 @@ export const useUpdateStaffOrder = () => {
 };
 
 // Schedule Mutations
+// useSaveShiftsBatch: 単発シフト追加用 (POST /shifts)。ShiftEditModal 経由の1件追加で使用。
+// useReplaceShiftsForMonth: 月次一括置換用 (POST /shifts/replace)。自動生成時に月全体を原子的に置換。
 export const useSaveShiftsBatch = () => {
     const queryClient = useQueryClient();
     return useMutation({

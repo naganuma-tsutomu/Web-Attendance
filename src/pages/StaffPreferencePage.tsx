@@ -135,7 +135,7 @@ const StaffPreferencePage = () => {
                 <div className="sticky top-[68px] z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-800/50 px-4 sm:px-6 py-3">
                     <div className="max-w-4xl mx-auto">
                         <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
-                            <button onClick={() => setCurrentMonth(prev => subMonths(prev, 1))} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500">
+                            <button onClick={() => setCurrentMonth(prev => subMonths(prev, 1))} aria-label="前月へ" className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500">
                                 <ChevronLeft className="w-6 h-6" />
                             </button>
                             <div className="flex items-center space-x-2">
@@ -144,7 +144,7 @@ const StaffPreferencePage = () => {
                                 </span>
                                 {loading && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
                             </div>
-                            <button onClick={() => setCurrentMonth(prev => addMonths(prev, 1))} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500">
+                            <button onClick={() => setCurrentMonth(prev => addMonths(prev, 1))} aria-label="翌月へ" className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500">
                                 <ChevronRight className="w-6 h-6" />
                             </button>
                         </div>

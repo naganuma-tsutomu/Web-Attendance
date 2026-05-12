@@ -35,6 +35,12 @@ test-algo.mjs
 # Test coverage
 coverage/
 
+# Local DB scripts (backups, resets — not for version control)
+data_backup.sql
+data_inserts.sql
+schema_backup.sql
+reset.sql
+
 # Work reports (saved to Obsidian instead)
 work_report.md
 uiux-test-coverage-report.md

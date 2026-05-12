@@ -97,7 +97,7 @@ export const SwapStaffMenu: React.FC<SwapStaffMenuProps> = ({
                 </div>
                 {availableStaff.length === 0 ? (
                     <div className="px-3 py-4 text-[11px] text-slate-400 text-center italic">
-                        {currentStaff ? '同じスタッフ区分の待機スタッフはいません' : '待機スタッフはいません'}
+                        {currentStaff ? '同じ区分の待機スタッフはいません' : '待機スタッフはいません'}
                     </div>
                 ) : (
                     availableStaff.map(({ staff, reason, isFullDayPref, isPartialPref, isTraining, timeStr }) => {
@@ -115,13 +115,13 @@ export const SwapStaffMenu: React.FC<SwapStaffMenuProps> = ({
                                     <span className="font-medium group-hover/candidate:text-indigo-600 dark:group-hover/candidate:text-indigo-400">{staff.name}</span>
                                     {(reason === 'preference' || isFullDayPref || isTraining || reason === 'fixed') && (
                                         <span className={`text-[8px] ${
-                                            isTraining ? 'text-amber-500' : 
-                                            reason === 'fixed' ? 'text-slate-500 dark:text-slate-400' : 
+                                            isTraining ? 'text-amber-500' :
+                                            reason === 'fixed' ? 'text-slate-500 dark:text-slate-400' :
                                             'text-red-500'
                                         } font-bold mt-0.5 flex items-center gap-0.5`}>
                                             <CalendarX className="w-2 h-2" /> {
-                                                isTraining ? '研修' : 
-                                                reason === 'fixed' ? '固定休' : 
+                                                isTraining ? '研修' :
+                                                reason === 'fixed' ? '固定休' :
                                                 '希望休(終日)'
                                             }
                                         </span>
@@ -204,7 +204,7 @@ interface ShiftRowActionsProps {
 export const ShiftRowActions: React.FC<ShiftRowActionsProps> = ({
     shiftId, showSwapMenu, deleteConfirmId, onToggleSwap, onToggleDelete
 }) => (
-    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-20 group-hover/name:opacity-100 transition-all bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-0.5 py-0.5 rounded shadow border border-slate-200 dark:border-slate-700/80">
+    <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-0.5 opacity-20 group-hover/name:opacity-100 transition-all bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm px-0.5 py-0.5 rounded shadow border border-slate-200 dark:border-slate-700/80">
         <button
             onClick={(e) => { e.stopPropagation(); onToggleSwap(showSwapMenu === shiftId ? null : shiftId); onToggleDelete(null); }}
             className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"

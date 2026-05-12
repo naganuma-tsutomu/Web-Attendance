@@ -63,7 +63,7 @@ const OffDutySection: React.FC<OffDutySectionProps> = ({
                                 <span className="text-[9px] bg-orange-100 dark:bg-orange-900/50 px-1 rounded font-bold">※シフトあり</span>
                             )}
                             {!readOnly && !isOnShift && (
-                                <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
+                                <Plus className="w-3 h-3 hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
                             )}
                         </button>
 

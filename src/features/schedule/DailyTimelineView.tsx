@@ -9,6 +9,7 @@ import type { LocalShiftData } from './hooks/useShiftEdit';
 import { useTimelineDrag } from './hooks/useTimelineDrag';
 import TimelineBar, { hexToRgba } from './components/TimelineBar';
 import { AddStaffMenu, SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions } from './components/ShiftActionMenus';
+import MobileShiftEditModal from './components/MobileShiftEditModal';
 import type { OffDutyStaffInfo } from './components/ShiftActionMenus';
 import OffDutySection from './components/OffDutySection';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
@@ -101,6 +102,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
     const [showSwapMenu, setShowSwapMenu] = useState<string | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [mobileEditShiftId, setMobileEditShiftId] = useState<string | null>(null);
 
     // ── Drag state ──
     const {
@@ -332,7 +334,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className={`select-none ${activeDragId ? 'touch-none overflow-hidden' : 'touch-pan-y overflow-auto'} flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 min-h-0'}`}
+            className={`select-none ${activeDragId ? 'touch-none overflow-hidden' : 'touch-pan-y overflow-y-auto overflow-x-hidden'} flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
@@ -506,7 +508,27 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                             );
                                                         })()}
                                                         <div className="w-full sm:w-28 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
-                                                            <div className="font-medium text-[11px] sm:text-[13px] text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
+                                                            {/* モバイル: 名前 + 編集ボタン + 時間 の2段 */}
+                                                            <div className="flex sm:hidden items-center justify-between gap-1">
+                                                                <div className="font-medium text-[11px] text-slate-800 dark:text-slate-200 truncate flex items-center gap-1" title={staffName}>
+                                                                    {staffName}
+                                                                    {highlightStaffId === shift.staffId && (
+                                                                        <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0">My</span>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => setMobileEditShiftId(shift.id)}
+                                                                    className="flex-shrink-0 text-[10px] px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700 rounded font-medium"
+                                                                >
+                                                                    編集
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex sm:hidden text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                                                                {toTimeStr(s.start)}〜{toTimeStr(s.end)}
+                                                            </div>
+
+                                                            {/* デスクトップ: 名前のみ */}
+                                                            <div className="hidden sm:block font-medium text-[13px] text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
                                                                 {staffName}
                                                                 {highlightStaffId === shift.staffId && (
                                                                     <span className="ml-1 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>
@@ -535,9 +557,9 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                 onSwapStaff={(oldId, newId) => { edit.handleSwapStaff(oldId, newId); setShowSwapMenu(null); }}
                                                             />
                                                         </div>
-                                                        <div className="w-full sm:w-36 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex items-center px-1 py-1 sm:py-0">
+                                                        <div className="hidden sm:flex w-36 border-r border-slate-200 dark:border-slate-700 items-center px-1">
                                                             <select
-                                                                className="w-full text-[10px] sm:text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded pl-1 pr-5 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+                                                                className="w-full text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded pl-1 pr-5 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
                                                                 value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
                                                                 onChange={(e) => edit.handlePatternChange(shift.id, e.target.value)}
                                                             >
@@ -547,12 +569,12 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                                                                 ))}
                                                             </select>
                                                         </div>
-                                                        <div className="flex flex-row w-full sm:w-40 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-slate-700">
-                                                            <div className="flex-1 sm:w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-0.5 sm:px-1 py-1 sm:py-0">
-                                                                <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => edit.handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-[10px] sm:text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                        <div className="hidden sm:flex flex-row w-40 border-r border-slate-200 dark:border-slate-700">
+                                                            <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
+                                                                <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => edit.handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
                                                             </div>
-                                                            <div className="flex-1 sm:w-20 flex items-center justify-center px-0.5 sm:px-1 py-1 sm:py-0">
-                                                                <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => edit.handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-[10px] sm:text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
+                                                            <div className="w-20 flex items-center justify-center px-1">
+                                                                <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => edit.handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
                                                             </div>
                                                         </div>
                                                         <div className="hidden sm:flex w-14 p-2 border-r border-slate-200 dark:border-slate-700 items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
@@ -599,6 +621,52 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     })}
                 </div>
             </div>
+
+            {/* Mobile shift edit modal */}
+            {mobileEditShiftId && (() => {
+                const mShift = dayShifts.find(s => s.id === mobileEditShiftId);
+                if (!mShift) return null;
+                const mStaff = staffList.find(s => s.id === mShift.staffId);
+                const mStaffName = mStaff ? mStaff.name : '不明';
+                const mLocal = localShifts[mShift.id] ?? { start: timeToMinutes(mShift.startTime), end: timeToMinutes(mShift.endTime), classType: mShift.classType, isError: mShift.isError ?? false } as LocalShiftData;
+                const mPatterns = roles.find(r => r.name === mStaff?.role)?.patterns || [];
+                const mGroupShifts = dayShifts.filter(s => {
+                    const loc = localShifts[s.id];
+                    const cls = loc ? loc.classType : s.classType;
+                    const err = loc ? loc.isError : s.isError;
+                    return cls === (localShifts[mShift.id]?.classType ?? mShift.classType) && !err;
+                });
+                const mGroupStaffIds = mGroupShifts.map(s => s.staffId);
+                const matcher = buildLeaderMatcher(leaderRoleId, roles);
+                const mFullTimeIds = leaderRoleId
+                    ? mGroupStaffIds.filter(id => { const st = staffList.find(st2 => st2.id === id); return st ? matcher(st) : false; })
+                    : undefined;
+                const mPendingDuty = localShifts[mShift.id]?.dutyNumber !== undefined
+                    ? localShifts[mShift.id]?.dutyNumber
+                    : mShift.duty_number;
+                const mDutyValue = getEffectiveDutyNumber(mShift.staffId, mPendingDuty, date, mGroupStaffIds, mFullTimeIds);
+                return (
+                    <MobileShiftEditModal
+                        key={mobileEditShiftId}
+                        isOpen={true}
+                        onClose={() => setMobileEditShiftId(null)}
+                        staffName={mStaffName}
+                        currentStaff={mStaff}
+                        localData={mLocal}
+                        allowedPatterns={mPatterns}
+                        showDutyNumbers={showDutyNumbers}
+                        dutyValue={mDutyValue}
+                        dutyGroupSize={mGroupShifts.length}
+                        offDutyStaff={offDutyStaff}
+                        staffMonthlyHours={staffMonthlyHours}
+                        onPatternChange={(patternId) => edit.handlePatternChange(mShift.id, patternId)}
+                        onTimeChange={(field, value) => edit.handleTimeInputChange(mShift.id, field, value)}
+                        onDutyNumberChange={(value) => handleDutyNumberUpdate(mShift.id, value)}
+                        onSwapStaff={(newStaffId) => edit.handleSwapStaff(mShift.id, newStaffId)}
+                        onDeleteShift={() => edit.handleRemoveShift(mShift.id)}
+                    />
+                );
+            })()}
 
             {/* Off-duty staff section */}
             <OffDutySection

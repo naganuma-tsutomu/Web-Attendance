@@ -6,6 +6,7 @@ import { X, Save, Lock, Unlock } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import DailyTimelineView from './DailyTimelineView';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import Modal from '../../components/ui/Modal';
 
 interface DailyTimelineModalProps {
     date: Date;
@@ -70,42 +71,26 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
         }
     }, [isModified, onClose]);
 
-    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
-
-    const handleBackdropMouseDown = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            setMouseDownOnBackdrop(true);
-        }
-    };
-
-    const handleBackdropMouseUp = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget && mouseDownOnBackdrop) {
-            handleClose();
-        }
-        setMouseDownOnBackdrop(false);
-    };
-
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-auto select-none"
-            onMouseDown={handleBackdropMouseDown}
-            onMouseUp={handleBackdropMouseUp}
-        >
+        <Modal isOpen={true} onClose={handleClose} className="select-none">
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="daily-timeline-title"
                 className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700 max-h-[85dvh] sm:max-h-[calc(100dvh-4rem)]"
             >
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl flex-shrink-0">
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800 dark:text-white">
-                            {format(date, 'yyyy年M月d日 (E)', { locale: ja })}
-                            <span className="text-slate-500 dark:text-slate-400 text-base font-normal ml-2">のタイムライン</span>
+                        <h3 id="daily-timeline-title" className="text-xl font-bold text-slate-800 dark:text-white leading-snug">
+                            <span className="block">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-base font-normal">のタイムライン</span>
                         </h3>
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                             バーをドラッグ・または左の入力欄で時間を変更できます（15分スナップ）
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 ml-6">
                         {onToggleFixed && (
                             <button
                                 onClick={onToggleFixed}
@@ -119,14 +104,14 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                                 {isFixed ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
                             </button>
                         )}
-                        <button onClick={handleClose} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                        <button onClick={handleClose} aria-label="閉じる" className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
                             <X className="w-6 h-6" />
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto p-6 min-h-0 flex flex-col">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 min-h-0 flex flex-col">
                     <DailyTimelineView
                         date={date}
                         shifts={shifts}
@@ -194,7 +179,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                 onCancel={() => setShowCloseConfirm(false)}
                 variant="danger"
             />
-        </div >
+        </Modal>
     );
 };
 

@@ -13,9 +13,9 @@
 --   wrangler d1 execute web-attendance-db \
 --     --command "SELECT access_key, COUNT(*) AS c FROM staffs WHERE access_key IS NOT NULL GROUP BY access_key HAVING c > 1;"
 --
---   # (date, duty_number) 重複チェック
+--   # (date, classType, duty_number) 重複チェック
 --   wrangler d1 execute web-attendance-db \
---     --command "SELECT date, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, duty_number HAVING c > 1;"
+--     --command "SELECT date, classType, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, classType, duty_number HAVING c > 1;"
 --
 -- 重複が見つかった場合は手動で修正してから実行すること。
 --
@@ -59,8 +59,8 @@ DROP TABLE shifts_old;
 -- shifts に付随するインデックスを再作成（DROP TABLE で消えるため）
 CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
 CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);
--- duty_number は NULL 可で NULL は重複許容のため部分インデックスで保護
-CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_duty_number ON shifts(date, duty_number) WHERE duty_number IS NOT NULL;
+-- duty_number は NULL 可で、同一日付・同一クラス内のみ重複を防ぐ
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_class_duty_number ON shifts(date, classType, duty_number) WHERE duty_number IS NOT NULL;
 
 -- ============================================================
 -- Step 2: staffs.access_key の UNIQUE INDEX 追加

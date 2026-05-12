@@ -81,6 +81,18 @@ CREATE TABLE IF NOT EXISTS fixed_dates (
     yearMonth TEXT NOT NULL -- e.g. "2024-04"
 );
 
+-- Shift Snapshots (Monthly backups)
+CREATE TABLE IF NOT EXISTS shift_snapshots (
+    id TEXT PRIMARY KEY,
+    yearMonth TEXT NOT NULL, -- e.g. "2024-04"
+    label TEXT,
+    reason TEXT NOT NULL,
+    shifts_json TEXT NOT NULL,
+    fixed_dates_json TEXT NOT NULL DEFAULT '[]',
+    shift_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- ======================================================
 -- 新設計: 勤務時間パターン + 役職のDB管理
 -- ======================================================
@@ -179,8 +191,9 @@ CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
 -- シフト・希望休検索用インデックス
 CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
 CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);
--- duty_number は NULL 可で、NULL は重複を許容するため部分インデックスで保護（H2）
-CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_duty_number ON shifts(date, duty_number) WHERE duty_number IS NOT NULL;
+-- duty_number は NULL 可で、同一日付・同一クラス内のみ重複を防ぐ
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_class_duty_number ON shifts(date, classType, duty_number) WHERE duty_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shift_snapshots_ym_created ON shift_snapshots(yearMonth, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yearMonth);
 CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
@@ -192,4 +205,3 @@ CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences
 -- 既存 D1 データベースへのスキーマ変更 (FK 追加・インデックス追加等) は
 -- migrations/ ディレクトリ内のマイグレーション SQL を実行すること。
 -- 詳細は README.md の「スキーマ変更時のマイグレーション」を参照。
-

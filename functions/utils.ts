@@ -2,6 +2,38 @@ export const TOKEN_MAX_AGE_SECONDS = 86400; // 24 hours
 export const ADMIN_COOKIE_NAME = 'auth_token';
 export const STAFF_COOKIE_NAME = 'staff_token';
 
+export type RequestAuthState =
+    | { kind: 'admin' }
+    | { kind: 'staff'; staffId: string }
+    | { kind: 'anonymous' };
+
+export function extractCookieValue(request: Request, name: string): string | null {
+    const cookieHeader = request.headers.get('Cookie') || '';
+    const cookies = cookieHeader.split(';');
+    for (const cookie of cookies) {
+        const [rawName, ...rawValueParts] = cookie.trim().split('=');
+        if (rawName === name) {
+            return rawValueParts.join('=') || null;
+        }
+    }
+    return null;
+}
+
+export async function getRequestAuthState(request: Request, secret: string): Promise<RequestAuthState> {
+    const adminToken = extractCookieValue(request, ADMIN_COOKIE_NAME);
+    if (adminToken && await verifyCookie(adminToken, secret)) {
+        return { kind: 'admin' };
+    }
+
+    const staffToken = extractCookieValue(request, STAFF_COOKIE_NAME);
+    const staffId = staffToken ? await verifyStaffCookie(staffToken, secret) : null;
+    if (staffId) {
+        return { kind: 'staff', staffId };
+    }
+
+    return { kind: 'anonymous' };
+}
+
 // ==========================================
 // Staff session token utilities
 // ==========================================

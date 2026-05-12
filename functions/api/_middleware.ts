@@ -89,6 +89,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         : null;
 
     if (staffId) {
+        // バックアップ管理はシフト本文の読み取りとは別扱いで、管理者専用にする。
+        if (url.pathname.startsWith('/api/shifts/snapshots')) {
+            return new Response(
+                JSON.stringify({ error: '認証が必要です。ログインしてください。' }),
+                { status: 401, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
         // スタッフが GET できる読み取り専用エンドポイント
         const staffReadEndpoints = [
             '/api/preferences',

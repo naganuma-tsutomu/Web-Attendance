@@ -2,9 +2,12 @@
 import type { Staff } from '../../../src/types';
 import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
+import { getRequestAuthState } from '../../utils';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
+        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD ?? '');
+
         // staffs と available_days を JOIN して一括取得
         const { results: staffRows } = await context.env.DB.prepare(
             "SELECT * FROM staffs ORDER BY display_order ASC"
@@ -47,12 +50,26 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         const staffs = (staffRows as D1Row[]).map((row) => {
             const staffId = row.id as string;
-            return {
-                ...row,
+            const base = {
+                id: row.id,
+                name: row.name,
+                role: row.role,
+                hoursTarget: row.hoursTarget,
+                weeklyHoursTarget: row.weeklyHoursTarget,
+                defaultWorkingHoursStart: row.defaultWorkingHoursStart,
+                defaultWorkingHoursEnd: row.defaultWorkingHoursEnd,
+                display_order: row.display_order,
                 availableDays: availableDaysMap.get(staffId) ?? [],
                 classIds: classIdsMap.get(staffId) ?? [],
-                accessKey: row.access_key,
             };
+            if (authState.kind === 'admin') {
+                return {
+                    ...base,
+                    access_key: row.access_key,
+                    accessKey: row.access_key,
+                };
+            }
+            return base;
         });
 
         return Response.json(staffs);
@@ -150,6 +167,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 }
             }
         }
+        return new Response(JSON.stringify({ error: 'アクセスキーの生成に失敗しました。再度お試しください。' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
     } catch (e) {
         return handleServerError(e, 'Database error creating staff');
     }

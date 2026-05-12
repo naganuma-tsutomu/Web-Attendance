@@ -2,6 +2,14 @@
 import type { ShiftPreference } from '../../../src/types';
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
+import { getRequestAuthState, type RequestAuthState } from '../../utils';
+
+function buildStaffFilter(authState: RequestAuthState): { where: string; extra: string[] } {
+    if (authState.kind === 'staff') {
+        return { where: 'AND staffId = ?', extra: [authState.staffId] };
+    }
+    return { where: '', extra: [] };
+}
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -9,16 +17,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const yearMonth = url.searchParams.get('yearMonth');
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
+        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD ?? '');
+
+        const staffFilter = buildStaffFilter(authState);
 
         // Get legacy records (table kept for grouping but unavailableDates removed)
         const { results: legacyResults } = await context.env.DB.prepare(
-            "SELECT id, staffId, yearMonth, submitted FROM shift_preferences WHERE yearMonth = ?"
-        ).bind(yearMonth).all();
+            `SELECT id, staffId, yearMonth, submitted FROM shift_preferences WHERE yearMonth = ? ${staffFilter.where}`
+        ).bind(yearMonth!, ...staffFilter.extra).all();
 
         // Get normalized records
         const { results: normalizedDates } = await context.env.DB.prepare(
-            "SELECT * FROM shift_preference_dates WHERE yearMonth = ?"
-        ).bind(yearMonth).all();
+            `SELECT * FROM shift_preference_dates WHERE yearMonth = ? ${staffFilter.where}`
+        ).bind(yearMonth!, ...staffFilter.extra).all();
 
         // Map normalized data
         const staffIds = Array.from(new Set([
@@ -57,6 +68,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const pref: Omit<ShiftPreference, 'id'> = await context.request.json();
         const ymError = validateYearMonth(pref?.yearMonth);
         if (ymError) return createValidationError(ymError);
+        const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD ?? '');
+        if (authState.kind === 'staff' && pref.staffId !== authState.staffId) {
+            return new Response(
+                JSON.stringify({ error: '自分の希望休のみ変更できます' }),
+                { status: 403, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
 
         const details = pref.details || [];
         const hasSubmittedFlag = typeof pref.submitted === 'boolean';
@@ -97,7 +115,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             statements.push(
                 context.env.DB.prepare(
                     "INSERT INTO shift_preference_dates (id, staffId, yearMonth, date, startTime, endTime, type) VALUES (?, ?, ?, ?, ?, ?, ?)"
-                ).bind(crypto.randomUUID(), pref.staffId, pref.yearMonth, d.date, d.startTime, d.endTime, d.type || null)
+                ).bind(crypto.randomUUID(), pref.staffId, pref.yearMonth, d.date, d.startTime ?? null, d.endTime ?? null, d.type || null)
             );
         });
 

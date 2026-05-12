@@ -92,17 +92,13 @@ wrangler pages deploy dist
 2. **マイグレーション実行**
 
    ```bash
-   wrangler d1 execute web-attendance-db --file=migrations/0001_add_fk_and_unique.sql
-   wrangler d1 execute web-attendance-db --file=migrations/0002_add_shift_snapshots.sql
-   wrangler d1 execute web-attendance-db --file=migrations/0003_scope_duty_number_by_class.sql
+   wrangler d1 execute web-attendance-db --file=migrations/0001_initial_schema_updates.sql
    ```
 
    ローカルで事前検証する場合:
 
    ```bash
-   wrangler d1 execute web-attendance-db --local --file=migrations/0001_add_fk_and_unique.sql
-   wrangler d1 execute web-attendance-db --local --file=migrations/0002_add_shift_snapshots.sql
-   wrangler d1 execute web-attendance-db --local --file=migrations/0003_scope_duty_number_by_class.sql
+   wrangler d1 execute web-attendance-db --local --file=migrations/0001_initial_schema_updates.sql
    ```
 
 > **注意**: 新規環境（初回セットアップ）は `schema.sql` のみで OK。マイグレーションは不要。
@@ -121,6 +117,17 @@ wrangler pages deploy dist
 ```bash
 wrangler pages deploy dist --env preview
 ```
+
+## 主な機能
+
+| 機能 | 概要 |
+|------|------|
+| 希望休管理 | スタッフ別に希望休・部分休・研修日を月単位で収集・提出管理 |
+| シフト自動生成 | 希望休・ローテーションルール・固定日設定を考慮してシフトを自動生成 |
+| Excel 出力 | 月次シフト表を Excel ファイルで出力。スタッフ別ハイライト・当番番号表示に対応 |
+| バックアップ / 復元 | 月次シフトをスナップショットとして保存し、任意の時点に復元可能 |
+| CSV インポート | 外部で作成したシフトデータを CSV 形式でインポート |
+| ローテーション設定 | 早番・遅番のローテーションルール（平日・土曜別）を設定画面から管理 |
 
 ## 運用上のセキュリティ設定
 

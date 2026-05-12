@@ -16,7 +16,6 @@ import ScheduleHeader from './components/ScheduleHeader';
 import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
 import ShiftBackupModal from './components/ShiftBackupModal';
-import GenerateReportModal from './components/GenerateReportModal';
 import ShiftImportModal from './components/ShiftImportModal';
 import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/useScheduleData';
 import { getWeekStartsOn } from '../../utils/dateUtils';
@@ -385,15 +384,6 @@ const SchedulePage = () => {
                 fixedDates={schedule.fixedDates}
                 onClose={() => setIsImportModalOpen(false)}
                 onImported={schedule.loadShifts}
-            />
-
-            <GenerateReportModal
-                isOpen={schedule.generateReport !== null}
-                onClose={() => schedule.setGenerateReport(null)}
-                reportData={schedule.generateReport}
-                staffList={schedule.staffList}
-                classes={schedule.classes}
-                breakSettings={schedule.breakSettings}
             />
         </div>
     );

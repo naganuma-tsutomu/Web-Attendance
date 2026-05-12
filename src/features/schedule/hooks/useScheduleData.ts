@@ -17,8 +17,7 @@ import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
 import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import { useScheduleQueries } from './useScheduleQueries';
 import { useCalendarEvents } from './useCalendarEvents';
-import type { ShiftPreference, Shift } from '../../../types';
-import type { GenerateReportData } from '../components/GenerateReportModal';
+import type { ShiftPreference } from '../../../types';
 
 export type { CalendarEvent } from './useCalendarEvents';
 
@@ -40,8 +39,6 @@ export const useScheduleData = () => {
     const [isDayModified, setIsDayModified] = useState(false);
     const daySaveRef = useRef<(() => Promise<void>) | null>(null);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
-    const [generateReport, setGenerateReport] = useState<GenerateReportData | null>(null);
-
     const [confirmAction, setConfirmAction] = useState<{
         title: string;
         message: string;
@@ -157,11 +154,6 @@ export const useScheduleData = () => {
                 fixedDates: datesForTargetMonth,
             });
             setConfirmAction(null);
-            setGenerateReport({
-                generatedShifts: generatedShifts as Shift[],
-                unassignedCount: errCount,
-                yearMonth: targetYearMonth,
-            });
 
             if (errCount > 0) {
                 toast.warning(`自動生成完了: ${errCount}件の割り当て不足があります。`);
@@ -274,8 +266,6 @@ export const useScheduleData = () => {
         loading,
         isFetching,
         generating,
-        generateReport,
-        setGenerateReport,
         errorCount,
         errorDates,
         loadError,

@@ -81,64 +81,75 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             return (100000 + (buf[0] % 900000)).toString();
         };
 
-        // access_key が UNIQUE 制約違反の場合は最大 5 回リトライする（H4）
-        const resolvedAccessKey = staffData.accessKey || generateAccessKey();
-        let accessKey = resolvedAccessKey;
-        const MAX_RETRIES = 5;
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            const existing = await context.env.DB.prepare(
-                "SELECT id FROM staffs WHERE access_key = ? LIMIT 1"
-            ).bind(accessKey).first();
-            if (!existing) break;
-            if (attempt === MAX_RETRIES - 1) {
-                return new Response(JSON.stringify({ error: 'アクセスキーの生成に失敗しました。再度お試しください。' }), { status: 500 });
+        const isUserProvidedKey = !!staffData.accessKey;
+        let accessKey = staffData.accessKey || generateAccessKey();
+        const MAX_RETRIES = isUserProvidedKey ? 1 : 5;
+
+        const buildStatements = (key: string) => {
+            const stmts = [
+                context.env.DB.prepare(
+                    `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
+                ).bind(
+                    id,
+                    staffData.name!.trim(),
+                    staffData.role!,
+                    staffData.hoursTarget ?? null,
+                    staffData.weeklyHoursTarget ?? null,
+                    staffData.defaultWorkingHoursStart || null,
+                    staffData.defaultWorkingHoursEnd || null,
+                    key
+                )
+            ];
+            if (staffData.availableDays && staffData.availableDays.length > 0) {
+                staffData.availableDays.forEach((d) => {
+                    const day = typeof d === 'number' ? d : d.day;
+                    const weeks = typeof d === 'number' ? null : (d.weeks ? JSON.stringify(d.weeks) : null);
+                    stmts.push(
+                        context.env.DB.prepare(
+                            "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
+                        ).bind(crypto.randomUUID(), id, day, weeks)
+                    );
+                });
             }
-            accessKey = generateAccessKey();
+            if (staffData.classIds && staffData.classIds.length > 0) {
+                staffData.classIds.forEach((classId: string) => {
+                    stmts.push(
+                        context.env.DB.prepare(
+                            "INSERT INTO staff_classes (staffId, classId) VALUES (?, ?)"
+                        ).bind(id, classId)
+                    );
+                });
+            }
+            return stmts;
+        };
+
+        // DB の UNIQUE 制約エラーを catch してリトライする（レース条件対応）
+        // ユーザー指定キーが衝突した場合は 409 を返す（サイレント書き換えはしない）
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+                await context.env.DB.batch(buildStatements(accessKey));
+                return Response.json({ id });
+            } catch (e) {
+                if (e instanceof Error && e.message.includes('UNIQUE constraint failed: staffs.access_key')) {
+                    if (isUserProvidedKey) {
+                        return new Response(JSON.stringify({ error: '指定されたアクセスキーは既に使用されています' }), {
+                            status: 409,
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+                    }
+                    if (attempt === MAX_RETRIES - 1) {
+                        return new Response(JSON.stringify({ error: 'アクセスキーの生成に失敗しました。再度お試しください。' }), {
+                            status: 500,
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+                    }
+                    accessKey = generateAccessKey();
+                } else {
+                    throw e;
+                }
+            }
         }
-
-        const statements = [
-            context.env.DB.prepare(
-                `INSERT INTO staffs (id, name, role, hoursTarget, weeklyHoursTarget, defaultWorkingHoursStart, defaultWorkingHoursEnd, display_order, access_key)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
-            ).bind(
-                id,
-                staffData.name!.trim(),
-                staffData.role!,
-                staffData.hoursTarget ?? null,
-                staffData.weeklyHoursTarget ?? null,
-                staffData.defaultWorkingHoursStart || null,
-                staffData.defaultWorkingHoursEnd || null,
-                accessKey
-            )
-        ];
-
-        // Add statements for normalized available days
-        if (staffData.availableDays && staffData.availableDays.length > 0) {
-            staffData.availableDays.forEach((d) => {
-                const day = typeof d === 'number' ? d : d.day;
-                const weeks = typeof d === 'number' ? null : (d.weeks ? JSON.stringify(d.weeks) : null);
-                statements.push(
-                    context.env.DB.prepare(
-                        "INSERT INTO staff_available_days (id, staffId, dayOfWeek, weeks) VALUES (?, ?, ?, ?)"
-                    ).bind(crypto.randomUUID(), id, day, weeks)
-                );
-            });
-        }
-
-        // Add statements for staff classes
-        if (staffData.classIds && staffData.classIds.length > 0) {
-            staffData.classIds.forEach((classId: string) => {
-                statements.push(
-                    context.env.DB.prepare(
-                        "INSERT INTO staff_classes (staffId, classId) VALUES (?, ?)"
-                    ).bind(id, classId)
-                );
-            });
-        }
-
-        await context.env.DB.batch(statements);
-
-        return Response.json({ id });
     } catch (e) {
         return handleServerError(e, 'Database error creating staff');
     }

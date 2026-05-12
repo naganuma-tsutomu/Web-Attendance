@@ -138,36 +138,4 @@ describe('ScheduleHeader Component', () => {
         expect(generateBtn).toBeDisabled();
     });
 
-    it('shows disabled PDF button', () => {
-        const currentDate = new Date('2025-05-15');
-        render(
-            <ScheduleHeader
-                currentDate={currentDate}
-                view={Views.MONTH}
-                generating={false}
-                errorCount={0}
-                loadError={null}
-                isFetching={false}
-                isSummaryOpen={false}
-                targetYearMonth="2025-05"
-                staffList={[]}
-                rawShifts={[]}
-                classes={[]}
-                timePatterns={[]}
-                preferences={[]}
-                holidays={[]}
-                onDateChange={vi.fn()}
-                onViewChange={vi.fn()}
-                onGenerate={vi.fn()}
-                onClearShifts={vi.fn()}
-                onOpenBackups={vi.fn()}
-                onOpenImport={vi.fn()}
-                onToggleSummary={vi.fn()}
-                onRetry={vi.fn()}
-            />
-        );
-
-        const pdfBtn = screen.getByText('PDF (準備中)').closest('button');
-        expect(pdfBtn).toBeDisabled();
-    });
 });

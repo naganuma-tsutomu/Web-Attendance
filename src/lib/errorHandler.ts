@@ -1,29 +1,38 @@
 import { toast } from 'sonner';
 
+export class ApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+        this.name = 'ApiError';
+    }
+}
+
 type ApiErrorKind = 'network' | 'auth' | 'validation' | 'conflict' | 'server' | 'unknown';
 
 function classifyError(err: unknown): { kind: ApiErrorKind; message: string } {
+    // ネットワーク到達前エラー（fetch 自体が TypeError を投げる）
+    if (err instanceof TypeError) {
+        return { kind: 'network', message: 'ネットワークエラーが発生しました。接続を確認してください。' };
+    }
+
+    if (err instanceof ApiError) {
+        if (err.status === 401) return { kind: 'auth', message: '認証が必要です。再ログインしてください。' };
+        if (err.status === 409) return { kind: 'conflict', message: err.message };
+        if (err.status === 400 || err.status === 422) return { kind: 'validation', message: err.message };
+        if (err.status >= 500) return { kind: 'server', message: 'サーバーエラーが発生しました。しばらく後に再試行してください。' };
+        return { kind: 'unknown', message: err.message };
+    }
+
     if (!(err instanceof Error)) {
         return { kind: 'unknown', message: String(err) };
     }
 
+    // ApiError に移行できていない呼び出し箇所向けのフォールバック
     const msg = err.message;
-
-    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('net::')) {
-        return { kind: 'network', message: 'ネットワークエラーが発生しました。接続を確認してください。' };
-    }
-    if (msg.includes('401') || msg.includes('認証')) {
-        return { kind: 'auth', message: '認証が必要です。再ログインしてください。' };
-    }
-    if (msg.includes('409')) {
-        return { kind: 'conflict', message: msg };
-    }
-    if (msg.includes('400') || msg.includes('422') || msg.includes('型が不正')) {
-        return { kind: 'validation', message: msg };
-    }
-    if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
-        return { kind: 'server', message: 'サーバーエラーが発生しました。しばらく後に再試行してください。' };
-    }
+    if (msg.includes('型が不正')) return { kind: 'validation', message: msg };
+    if (msg.includes('認証')) return { kind: 'auth', message: '認証が必要です。再ログインしてください。' };
 
     return { kind: 'unknown', message: msg };
 }

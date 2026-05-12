@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2, GripVertical, UserCheck, Save } from 'lucide-react';
+import { Plus, Trash2, Loader2, UserCheck, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,7 +9,6 @@ import {
 import { handleApiError } from '../../../lib/errorHandler';
 import { useShiftRequirements, QUERY_KEYS } from '../../../lib/hooks';
 import type { ShiftClass, Staff, ShiftRequirement } from '../../../types';
-import { SHIFT_DAY } from '../../../constants';
 import {
     DndContext,
     closestCenter,
@@ -23,38 +22,13 @@ import {
     SortableContext,
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
-    useSortable,
     arrayMove,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
-
-// ─── constants ────────────────────────────────────────────────────────────────
-
-const CLASS_COLORS = [
-    '#818cf8', '#60a5fa', '#34d399', '#fbbf24',
-    '#f87171', '#c084fc', '#fb923c', '#f472b6',
-    '#2dd4bf', '#94a3b8',
-];
-
-const dayOfWeekOptions = [
-    { value: SHIFT_DAY.WEEKDAYS, label: '平日（月〜金）' },
-    { value: 1, label: '月曜日' },
-    { value: 2, label: '火曜日' },
-    { value: 3, label: '水曜日' },
-    { value: 4, label: '木曜日' },
-    { value: 5, label: '金曜日' },
-    { value: 6, label: '土曜日' },
-    { value: 0, label: '日曜日' },
-];
-
-const priorityOptions = [
-    { value: 1, label: '低', color: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700' },
-    { value: 2, label: '中低', color: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30' },
-    { value: 3, label: '中', color: 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30' },
-    { value: 4, label: '中高', color: 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30' },
-    { value: 5, label: '高', color: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30' },
-];
+import ClassColorPicker, { CLASS_COLORS } from './ClassColorPicker';
+import SortableRequirementRow from './SortableRequirementRow';
+import NewClassModal from './NewClassModal';
+import { SHIFT_DAY } from '../../../constants';
 
 const createEmptyRequirement = (classId: string): ShiftRequirement => ({
     id: `temp-${crypto.randomUUID()}`,
@@ -65,148 +39,6 @@ const createEmptyRequirement = (classId: string): ShiftRequirement => ({
     minStaffCount: 1,
     priority: 3,
 });
-
-// ─── ColorPicker ──────────────────────────────────────────────────────────────
-
-const ColorPicker = ({ value, onChange }: { value: string; onChange: (c: string) => void }) => (
-    <div className="flex flex-wrap gap-2">
-        {CLASS_COLORS.map(c => (
-            <button
-                key={c}
-                type="button"
-                onClick={() => onChange(c)}
-                aria-label={`色 ${c} を選択`}
-                className={`w-7 h-7 rounded-full transition-all ${value === c ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`}
-                style={{ backgroundColor: c }}
-            />
-        ))}
-    </div>
-);
-
-// ─── SortableRequirementRow ───────────────────────────────────────────────────
-
-const SortableRequirementRow = ({
-    req, index, onUpdate, onDeleteRequest,
-}: {
-    req: ShiftRequirement;
-    index: number;
-    onUpdate: (id: string, updates: Partial<ShiftRequirement>) => void;
-    onDeleteRequest: (id: string) => void;
-}) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: req.id });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-        zIndex: isDragging ? 10 : undefined,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style}
-            className="px-4 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-
-            {/* xl+: 1行レイアウト */}
-            <div className="hidden xl:flex items-center gap-2">
-                <button {...attributes} {...listeners}
-                    aria-label="ドラッグして並び替え"
-                    className="p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded flex-shrink-0">
-                    <GripVertical className="w-4 h-4" />
-                </button>
-                <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {index + 1}
-                </div>
-                <select value={req.dayOfWeek}
-                    onChange={(e) => onUpdate(req.id, { dayOfWeek: parseInt(e.target.value) })}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                    {dayOfWeekOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                </select>
-                <input type="time" value={req.startTime}
-                    onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
-                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                <span className="text-slate-400 text-sm flex-shrink-0">〜</span>
-                <input type="time" value={req.endTime}
-                    onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
-                    className="flex-1 min-w-0 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                <div className="flex items-center gap-1 flex-shrink-0">
-                    <input type="number" min={1} max={20} value={req.minStaffCount}
-                        onChange={(e) => onUpdate(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
-                        className="w-14 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center" />
-                    <span className="text-sm text-slate-500 dark:text-slate-400">名</span>
-                </div>
-                <select value={req.priority}
-                    onChange={(e) => onUpdate(req.id, { priority: parseInt(e.target.value) })}
-                    className={`w-16 h-[38px] px-1 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer flex-shrink-0 ${
-                        priorityOptions.find(p => p.value === req.priority)?.color || priorityOptions[2].color
-                    }`}>
-                    {priorityOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                </select>
-                <button onClick={() => onDeleteRequest(req.id)}
-                    className="ml-auto p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                    title="削除">
-                    <Trash2 className="w-4 h-4" />
-                </button>
-            </div>
-
-            {/* ～xl: 2行レイアウト */}
-            <div className="xl:hidden space-y-2">
-                {/* 1行目: grip + 番号 + 曜日 + 優先度 + 削除 */}
-                <div className="flex items-center gap-2">
-                    <button {...attributes} {...listeners}
-                        aria-label="ドラッグして並び替え"
-                        className="p-1 text-slate-300 hover:text-slate-500 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing rounded flex-shrink-0">
-                        <GripVertical className="w-4 h-4" />
-                    </button>
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {index + 1}
-                    </div>
-                    <select value={req.dayOfWeek}
-                        onChange={(e) => onUpdate(req.id, { dayOfWeek: parseInt(e.target.value) })}
-                        className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                        {dayOfWeekOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                    <select value={req.priority}
-                        onChange={(e) => onUpdate(req.id, { priority: parseInt(e.target.value) })}
-                        className={`w-16 h-[38px] px-1 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer flex-shrink-0 ${
-                            priorityOptions.find(p => p.value === req.priority)?.color || priorityOptions[2].color
-                        }`}>
-                        {priorityOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                    <button onClick={() => onDeleteRequest(req.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                        title="削除">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-                {/* 2行目: 開始〜終了 + 人数 */}
-                <div className="flex items-center gap-2 pl-9">
-                    <input type="time" value={req.startTime}
-                        onChange={(e) => onUpdate(req.id, { startTime: e.target.value })}
-                        className="flex-1 min-w-0 px-1 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                    <span className="text-slate-400 text-sm flex-shrink-0">〜</span>
-                    <input type="time" value={req.endTime}
-                        onChange={(e) => onUpdate(req.id, { endTime: e.target.value })}
-                        className="flex-1 min-w-0 px-1 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                        <input type="number" min={1} max={20} value={req.minStaffCount}
-                            onChange={(e) => onUpdate(req.id, { minStaffCount: parseInt(e.target.value) || 1 })}
-                            className="w-14 px-2 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-center" />
-                        <span className="text-sm text-slate-500 dark:text-slate-400">名</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ─── ClassManagement ─────────────────────────────────────────────────────────
 
 interface ClassManagementProps {
     classes: ShiftClass[];
@@ -248,14 +80,12 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
         setSavedRequirements(requirementsData);
     }, [requirementsData]);
 
-    // select first class on load
     useEffect(() => {
         if (classes.length > 0 && !selectedClassId) {
             setSelectedClassId(classes[0].id);
         }
     }, [classes, selectedClassId]);
 
-    // sync basic form when selection changes
     useEffect(() => {
         const cls = classes.find(c => c.id === selectedClassId);
         if (cls) {
@@ -482,7 +312,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
 
                             <div className="space-y-3">
                                 <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラスカラー</label>
-                                <ColorPicker value={basicForm.color} onChange={c => setBasicForm({ ...basicForm, color: c })} />
+                                <ClassColorPicker value={basicForm.color} onChange={c => setBasicForm({ ...basicForm, color: c })} />
                             </div>
 
                             <div className="space-y-3">
@@ -580,84 +410,14 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
             )}
 
             {/* ④ New class modal */}
-            {showNewModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowNewModal(false)} />
-                    <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm animate-in fade-in zoom-in-95">
-                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                            <div
-                                className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-white flex-shrink-0"
-                                style={{ backgroundColor: newForm.color }}
-                            >
-                                {newForm.name.charAt(0) || '＋'}
-                            </div>
-                            <h3 className="font-bold text-slate-800 dark:text-white">新規クラス追加</h3>
-                        </div>
-
-                        <div className="px-6 py-8 space-y-8">
-                            <div className="space-y-2.5">
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラス名</label>
-                                <input
-                                    type="text"
-                                    value={newForm.name}
-                                    onChange={e => setNewForm({ ...newForm, name: e.target.value })}
-                                    className="w-full px-4 py-3.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-base dark:text-white transition-all outline-none font-bold"
-                                    autoFocus={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleCreateClass(); }}
-                                    placeholder="例：虹組"
-                                />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラスカラー</label>
-                                <ColorPicker value={newForm.color} onChange={c => setNewForm({ ...newForm, color: c })} />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">自動割り当て</label>
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewForm({ ...newForm, auto_allocate: newForm.auto_allocate === 1 ? 0 : 1 })}
-                                        className={`relative inline-flex h-7 w-13 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 flex-shrink-0 ${
-                                            newForm.auto_allocate === 1 ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-600'
-                                        }`}
-                                        role="switch"
-                                        aria-checked={newForm.auto_allocate === 1}
-                                        aria-label="自動割り当てを有効にする"
-                                    >
-                                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
-                                            newForm.auto_allocate === 1 ? 'translate-x-7' : 'translate-x-1'
-                                        }`} />
-                                    </button>
-                                    <span className="text-sm text-slate-500 dark:text-slate-400 leading-snug">
-                                        {newForm.auto_allocate === 1
-                                            ? 'ON：シフト自動生成の対象になります'
-                                            : 'OFF：手動配置専用（自動生成でスキップ）'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="px-6 pb-6 flex gap-3 justify-end">
-                            <button
-                                onClick={() => setShowNewModal(false)}
-                                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                キャンセル
-                            </button>
-                            <button
-                                onClick={handleCreateClass}
-                                disabled={isCreating || !newForm.name.trim()}
-                                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
-                                追加
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <NewClassModal
+                isOpen={showNewModal}
+                onClose={() => setShowNewModal(false)}
+                newForm={newForm}
+                setNewForm={setNewForm}
+                isCreating={isCreating}
+                onSubmit={handleCreateClass}
+            />
 
             {/* Delete class confirm */}
             <ConfirmModal

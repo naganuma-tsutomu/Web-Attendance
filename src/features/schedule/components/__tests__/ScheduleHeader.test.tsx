@@ -26,6 +26,8 @@ describe('ScheduleHeader Component', () => {
                 onViewChange={vi.fn()}
                 onGenerate={vi.fn()}
                 onClearShifts={vi.fn()}
+                onOpenBackups={vi.fn()}
+                onOpenImport={vi.fn()}
                 onToggleSummary={vi.fn()}
                 onRetry={vi.fn()}
             />
@@ -56,6 +58,8 @@ describe('ScheduleHeader Component', () => {
                 onViewChange={vi.fn()}
                 onGenerate={vi.fn()}
                 onClearShifts={vi.fn()}
+                onOpenBackups={vi.fn()}
+                onOpenImport={vi.fn()}
                 onToggleSummary={vi.fn()}
                 onRetry={vi.fn()}
             />
@@ -88,6 +92,8 @@ describe('ScheduleHeader Component', () => {
                 onViewChange={vi.fn()}
                 onGenerate={mockOnGenerate}
                 onClearShifts={vi.fn()}
+                onOpenBackups={vi.fn()}
+                onOpenImport={vi.fn()}
                 onToggleSummary={vi.fn()}
                 onRetry={vi.fn()}
             />
@@ -120,6 +126,8 @@ describe('ScheduleHeader Component', () => {
                 onViewChange={vi.fn()}
                 onGenerate={vi.fn()}
                 onClearShifts={vi.fn()}
+                onOpenBackups={vi.fn()}
+                onOpenImport={vi.fn()}
                 onToggleSummary={vi.fn()}
                 onRetry={vi.fn()}
             />
@@ -152,6 +160,8 @@ describe('ScheduleHeader Component', () => {
                 onViewChange={vi.fn()}
                 onGenerate={vi.fn()}
                 onClearShifts={vi.fn()}
+                onOpenBackups={vi.fn()}
+                onOpenImport={vi.fn()}
                 onToggleSummary={vi.fn()}
                 onRetry={vi.fn()}
             />

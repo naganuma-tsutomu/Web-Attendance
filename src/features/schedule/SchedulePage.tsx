@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import Modal from '../../components/ui/Modal';
 import { useCalendarInteractions } from './hooks/useCalendarInteractions';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View, type DateHeaderProps, type DateCellWrapperProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, type Locale } from 'date-fns';
@@ -14,6 +15,8 @@ import StaffWorkHoursSummary from './components/StaffWorkHoursSummary';
 import ScheduleHeader from './components/ScheduleHeader';
 import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
+import ShiftBackupModal from './components/ShiftBackupModal';
+import ShiftImportModal from './components/ShiftImportModal';
 import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/useScheduleData';
 import { getWeekStartsOn } from '../../utils/dateUtils';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
@@ -41,6 +44,8 @@ const SchedulePage = () => {
     const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
     const [selectedDateForTimeline, setSelectedDateForTimeline] = useState<Date | null>(null);
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+    const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     const handleOpenTimeline = useCallback((date: Date) => {
         setSelectedDateForTimeline(date);
@@ -52,6 +57,69 @@ const SchedulePage = () => {
         schedule.view,
         handleOpenTimeline
     );
+
+    const { fixedDates, getHolidayNameForDate, isHolidayDate, toggleFixedDate } = schedule;
+    const calendarComponents = useMemo(() => ({
+        toolbar: () => null,
+        month: {
+            dateHeader: (props: DateHeaderProps) => {
+                const dateStr = format(props.date, 'yyyy-MM-dd');
+                const isFixed = fixedDates.has(dateStr);
+                const holidayName = getHolidayNameForDate(props.date);
+                const openTimeline = () => {
+                    if (Date.now() - lastTouchOpenRef.current < 500) return;
+                    handleOpenTimeline(props.date);
+                };
+                return (
+                    <div
+                        role="button"
+                        tabIndex={0}
+                        className="flex justify-between items-center w-full px-1 py-0.5 cursor-pointer"
+                        onClick={openTimeline}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTimeline(); } }}
+                    >
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleFixedDate(dateStr);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
+                            className={`p-1 hidden sm:flex items-center justify-center rounded transition-colors shrink-0 ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                            title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
+                            aria-label={isFixed ? 'シフトのロックを解除する' : 'シフトをロックする'}
+                        >
+                            {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                        </button>
+                        {holidayName && (
+                            <span className="hidden sm:inline text-xs text-red-600 dark:text-red-400 font-medium truncate flex-1 text-center px-1" title={holidayName}>
+                                {holidayName}
+                            </span>
+                        )}
+                        <span className="font-medium text-slate-700 dark:text-slate-300 pr-1 shrink-0">{props.label}</span>
+                    </div>
+                );
+            },
+        },
+        dateCellWrapper: (props: DateCellWrapperProps) => {
+            const date = props.value;
+            const isHoliday = isHolidayDate(date);
+            const dayOfWeek = getDay(date);
+            let bgColorClass = '';
+            if (dayOfWeek === 0 || isHoliday) {
+                bgColorClass = 'bg-red-50 dark:bg-red-900/10';
+            } else if (dayOfWeek === 6) {
+                bgColorClass = 'bg-blue-50 dark:bg-blue-900/10';
+            }
+            return (
+                <div className={`rbc-day-bg ${bgColorClass}`} style={{ height: '100%' }}>
+                    {props.children}
+                </div>
+            );
+        },
+    }), [fixedDates, getHolidayNameForDate, isHolidayDate, toggleFixedDate, handleOpenTimeline, lastTouchOpenRef]);
 
     const handleEventSelect = (event: CalendarEvent) => {
         setSelectedEvent(event);
@@ -77,16 +145,6 @@ const SchedulePage = () => {
         }
     };
 
-    // バックドロップクリックでモーダルを閉じるためのヘルパー
-    const [mouseDownOnBackdrop, setMouseDownOnBackdrop] = useState(false);
-    const handleBackdropMouseDown = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) setMouseDownOnBackdrop(true);
-    };
-    const handleBackdropMouseUp = (e: React.MouseEvent, onClose: () => void) => {
-        if (e.target === e.currentTarget && mouseDownOnBackdrop) onClose();
-        setMouseDownOnBackdrop(false);
-    };
-
     return (
         <div className="h-full flex flex-col min-h-0 bg-slate-50/50 dark:bg-slate-900/50 max-w-7xl mx-auto w-full">
             {/* Header Area */}
@@ -110,6 +168,8 @@ const SchedulePage = () => {
                 onViewChange={schedule.setView}
                 onGenerate={schedule.handleGenerate}
                 onClearShifts={schedule.handleClearShifts}
+                onOpenBackups={() => setIsBackupModalOpen(true)}
+                onOpenImport={() => setIsImportModalOpen(true)}
                 onToggleSummary={() => setIsSummaryOpen(!isSummaryOpen)}
                 onRetry={schedule.loadShifts}
                 onErrorDateClick={handleOpenTimeline}
@@ -224,67 +284,7 @@ const SchedulePage = () => {
                                     date={schedule.currentDate}
                                     onNavigate={(newDate) => schedule.setCurrentDate(newDate)}
                                     onDrillDown={(date) => handleOpenTimeline(date)}
-                                    components={{
-                                        toolbar: () => null,
-                                        month: {
-                                            dateHeader: (props: DateHeaderProps) => {
-                                                const dateStr = format(props.date, 'yyyy-MM-dd');
-                                                const isFixed = schedule.fixedDates.has(dateStr);
-                                                const holidayName = schedule.getHolidayNameForDate(props.date);
-                                                return (
-                                                    <div
-                                                        className="flex justify-between items-center w-full px-1 py-0.5 cursor-pointer"
-                                                        onClick={() => {
-                                                            if (Date.now() - lastTouchOpenRef.current < 500) return;
-                                                            handleOpenTimeline(props.date);
-                                                        }}
-                                                    >
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                schedule.toggleFixedDate(dateStr);
-                                                            }}
-                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                            onDoubleClick={(e) => e.stopPropagation()}
-                                                            className={`p-1 hidden sm:flex items-center justify-center rounded transition-colors shrink-0 ${isFixed ? 'text-red-500 bg-red-100 hover:bg-red-200' : 'text-slate-300 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                                                            title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
-                                                        >
-                                                            {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                                                        </button>
-                                                        {holidayName && (
-                                                            <span className="hidden sm:inline text-xs text-red-600 dark:text-red-400 font-medium truncate flex-1 text-center px-1" title={holidayName}>
-                                                                {holidayName}
-                                                            </span>
-                                                        )}
-                                                        <span className="font-medium text-slate-700 dark:text-slate-300 pr-1 shrink-0">{props.label}</span>
-                                                    </div>
-                                                );
-                                            }
-                                        },
-                                        dateCellWrapper: (props: DateCellWrapperProps) => {
-                                            const date = props.value;
-                                            const isHoliday = schedule.isHolidayDate(date);
-                                            const dayOfWeek = getDay(date);
-
-                                            let bgColorClass = '';
-                                            if (dayOfWeek === 0 || isHoliday) {
-                                                bgColorClass = 'bg-red-50 dark:bg-red-900/10';
-                                            } else if (dayOfWeek === 6) {
-                                                bgColorClass = 'bg-blue-50 dark:bg-blue-900/10';
-                                            }
-
-                                            return (
-                                                <div
-                                                    className={`rbc-day-bg ${bgColorClass}`}
-                                                    style={{ height: '100%' }}
-                                                >
-                                                    {props.children}
-                                                </div>
-                                            );
-                                        }
-                                    }}
+                                    components={calendarComponents}
                                     messages={{
                                         next: "次",
                                         previous: "前",
@@ -324,23 +324,17 @@ const SchedulePage = () => {
             />
 
             {/* Shift Edit Modal */}
-            {isEditModalOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
-                    onMouseDown={handleBackdropMouseDown}
-                    onMouseUp={(e) => handleBackdropMouseUp(e, () => setIsEditModalOpen(false))}
-                >
-                    <ShiftEditModal
-                        selectedEvent={selectedEvent}
-                        editFormData={editFormData}
-                        currentDate={schedule.currentDate}
-                        staffList={schedule.staffList}
-                        onFormChange={setEditFormData}
-                        onSubmit={handleUpdateShift}
-                        onClose={() => setIsEditModalOpen(false)}
-                    />
-                </div>
-            )}
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+                <ShiftEditModal
+                    selectedEvent={selectedEvent}
+                    editFormData={editFormData}
+                    currentDate={schedule.currentDate}
+                    staffList={schedule.staffList}
+                    onFormChange={setEditFormData}
+                    onSubmit={handleUpdateShift}
+                    onClose={() => setIsEditModalOpen(false)}
+                />
+            </Modal>
 
             {/* Daily Timeline Modal */}
             {isTimelineModalOpen && selectedDateForTimeline && (
@@ -372,6 +366,24 @@ const SchedulePage = () => {
                 onCancel={() => schedule.setConfirmAction(null)}
                 isLoading={schedule.isActionExecuting}
                 variant={schedule.confirmAction?.variant || 'info'}
+            />
+
+            <ShiftBackupModal
+                isOpen={isBackupModalOpen}
+                yearMonth={schedule.targetYearMonth}
+                onClose={() => setIsBackupModalOpen(false)}
+                onRestored={schedule.loadShifts}
+            />
+
+            <ShiftImportModal
+                isOpen={isImportModalOpen}
+                yearMonth={schedule.targetYearMonth}
+                staffList={schedule.staffList}
+                classes={schedule.classes}
+                existingShifts={schedule.rawShifts}
+                fixedDates={schedule.fixedDates}
+                onClose={() => setIsImportModalOpen(false)}
+                onImported={schedule.loadShifts}
             />
         </div>
     );

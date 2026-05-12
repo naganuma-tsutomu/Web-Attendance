@@ -8,6 +8,8 @@ interface ModalProps {
     zIndex?: string;
 }
 
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 const Modal: React.FC<ModalProps> = ({
     isOpen,
     onClose,
@@ -16,11 +18,28 @@ const Modal: React.FC<ModalProps> = ({
     zIndex = 'z-50',
 }) => {
     const mouseDownOnBackdrop = useRef(false);
+    const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!isOpen) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { onClose(); return; }
+            if (e.key !== 'Tab') return;
+            const focusable = Array.from(
+                contentRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []
+            );
+            if (focusable.length === 0) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey) {
+                if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+            } else {
+                if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+        };
         document.addEventListener('keydown', onKey);
+        const firstFocusable = contentRef.current?.querySelector<HTMLElement>(FOCUSABLE);
+        firstFocusable?.focus();
         return () => document.removeEventListener('keydown', onKey);
     }, [isOpen, onClose]);
 
@@ -35,8 +54,10 @@ const Modal: React.FC<ModalProps> = ({
                 mouseDownOnBackdrop.current = false;
             }}
         >
-            <div className="my-auto w-full flex justify-center">
-                {children}
+            <div ref={contentRef} className="my-auto w-full flex justify-center pointer-events-none">
+                <div className="pointer-events-auto">
+                    {children}
+                </div>
             </div>
         </div>
     );

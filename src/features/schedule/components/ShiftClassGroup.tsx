@@ -6,6 +6,7 @@ import ShiftRow from './ShiftRow';
 import { getEffectiveDutyNumber } from '../../../utils/dutyNumber';
 import { hexToRgba } from './TimelineBar';
 import { buildLeaderMatcher } from '../../../utils/roleMatch';
+import type { BreakSettings } from '../../../types';
 
 interface ShiftClassGroupProps {
     cls: ShiftClass;
@@ -27,6 +28,7 @@ interface ShiftClassGroupProps {
     highlightStaffId?: string;
     classColorMap: Record<string, string>;
     timePatterns: ShiftTimePattern[];
+    breakSettings?: BreakSettings;
     hours: BusinessHoursConfig;
     groupRef: (el: HTMLDivElement | null) => void;
     onToggleAddMenu: (id: string | null) => void;
@@ -36,6 +38,8 @@ interface ShiftClassGroupProps {
     onSwapStaff: (oldId: string, newId: string) => void;
     onRemoveShift: (id: string) => void;
     onDutyNumberUpdate: (id: string, value: number | null) => void;
+    onPatternChange: (id: string, patternId: string) => void;
+    onTimeChange: (id: string, field: 'start' | 'end', value: string) => void;
     onPointerDown: (e: React.PointerEvent, id: string, type: DragType, trackEl: HTMLElement) => void;
     onPointerUp: (e: React.PointerEvent) => void;
     renderGridLines: () => React.ReactNode;
@@ -48,9 +52,9 @@ interface ShiftClassGroupProps {
 const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
     cls, dayShifts, localShifts, staffList, classes, roles, leaderRoleId, date,
     readOnly, showDutyNumbers, hoveredGroup, activeDragId, dragDeltaY, showAddMenu,
-    showSwapMenu, deleteConfirmId, highlightStaffId, classColorMap, timePatterns, hours,
+    showSwapMenu, deleteConfirmId, highlightStaffId, classColorMap, timePatterns, breakSettings, hours,
     groupRef, onToggleAddMenu, onAddStaff, onToggleSwapMenu, onToggleDeleteConfirm,
-    onSwapStaff, onRemoveShift, onDutyNumberUpdate, onPointerDown, onPointerUp, renderGridLines, onMobileEdit,
+    onSwapStaff, onRemoveShift, onDutyNumberUpdate, onPatternChange, onTimeChange, onPointerDown, onPointerUp, renderGridLines, onMobileEdit,
     getShiftConflictType, offDutyStaff, staffMonthlyHours
 }) => {
     const groupShifts = dayShifts.filter(shift => {
@@ -146,6 +150,8 @@ const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
                             conflictType={!s.isError ? getShiftConflictType(shift.staffId, s.start, s.end) : 'none'}
                             classColorMap={classColorMap}
                             timePatterns={timePatterns}
+                            roles={roles}
+                            breakSettings={breakSettings}
                             hours={hours}
                             onPointerDown={onPointerDown}
                             onPointerUp={onPointerUp}
@@ -157,6 +163,8 @@ const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
                             onSwapStaff={onSwapStaff}
                             onRemoveShift={onRemoveShift}
                             onDutyNumberUpdate={onDutyNumberUpdate}
+                            onPatternChange={onPatternChange}
+                            onTimeChange={onTimeChange}
                             onMobileEdit={onMobileEdit}
                             groupShiftsCount={groupShifts.length}
                             effectiveDutyNumber={getEffectiveDutyNumber(shift.staffId, pendingDuty, date, groupStaffIds, fullTimeGroupIds)}

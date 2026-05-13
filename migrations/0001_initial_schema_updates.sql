@@ -30,9 +30,12 @@
 PRAGMA foreign_keys = OFF;
 
 -- ============================================================
--- Step 1: shifts テーブルを再作成して FK を追加
+-- Step 1: shifts テーブルを再作成
 --   (SQLite は ALTER TABLE ADD CONSTRAINT をサポートしないため
 --    RENAME → CREATE → INSERT → DROP の手順が必要)
+--
+-- NOTE: 未割り当て/エラーシフトは staffId='UNASSIGNED' として保存するため、
+-- shifts.staffId には staffs(id) への FK を張らない。
 -- ============================================================
 
 ALTER TABLE shifts RENAME TO shifts_old;
@@ -46,8 +49,7 @@ CREATE TABLE shifts (
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
     isError INTEGER DEFAULT 0,
-    duty_number INTEGER DEFAULT NULL,
-    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
+    duty_number INTEGER DEFAULT NULL
 );
 
 INSERT INTO shifts SELECT * FROM shifts_old;

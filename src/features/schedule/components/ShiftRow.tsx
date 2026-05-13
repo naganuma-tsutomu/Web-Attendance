@@ -84,6 +84,11 @@ const ShiftRow: React.FC<ShiftRowProps> = ({
                         <div className="flex sm:hidden items-center justify-between gap-1">
                             <div className="font-medium text-[11px] text-slate-800 dark:text-slate-200 truncate flex items-center gap-1" title={staffName}>
                                 {staffName}
+                                {showDutyNumbers && (
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-bold ${isDutyAuto ? 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300'}`}>
+                                        {effectiveDutyNumber}
+                                    </span>
+                                )}
                                 {highlightStaffId === shift.staffId && (
                                     <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0">My</span>
                                 )}

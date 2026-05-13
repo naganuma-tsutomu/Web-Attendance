@@ -71,8 +71,7 @@ CREATE TABLE IF NOT EXISTS shifts (
     classType TEXT NOT NULL,
     isEarlyShift INTEGER DEFAULT 0,
     isError INTEGER DEFAULT 0,
-    duty_number INTEGER DEFAULT NULL,
-    FOREIGN KEY(staffId) REFERENCES staffs(id) ON DELETE CASCADE
+    duty_number INTEGER DEFAULT NULL
 );
 
 -- Fixed Dates (Locked shifts) Table

@@ -213,7 +213,7 @@ const ScheduleHeader = ({
                         </button>
                         {showMoreMenu && (
                             <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                                <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
                                 <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 animate-in fade-in zoom-in-95 duration-150">
                                     <button
                                         onClick={() => { onClearShifts(); setShowMoreMenu(false); }}

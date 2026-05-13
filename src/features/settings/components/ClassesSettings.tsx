@@ -328,7 +328,7 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
             {/* Edit Modal */}
             {editingClass && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setEditingClass(null)} />
+                    <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={() => setEditingClass(null)} />
                     <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm animate-in fade-in zoom-in-95">
                         {/* Header */}
                         <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
@@ -347,26 +347,26 @@ const ClassesSettings = ({ classes, staffs, loading, onUpdate, setClasses }: Cla
                         <div className="px-6 py-5 space-y-5">
                             {/* クラス名 */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400">クラス名</label>
+                                <label htmlFor="edit-class-name" className="text-xs font-bold text-slate-500 dark:text-slate-400">クラス名</label>
                                 <input
+                                    id="edit-class-name"
                                     type="text"
                                     value={editForm.name}
                                     onChange={e => setEditForm({ ...editForm, name: e.target.value })}
                                     className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-base dark:text-white transition-all outline-none font-bold"
-                                    autoFocus={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
                                     onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(); }}
                                 />
                             </div>
 
                             {/* クラスカラー */}
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400">クラスカラー</label>
+                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">クラスカラー</p>
                                 <ColorPicker value={editForm.color} onChange={c => setEditForm({ ...editForm, color: c })} />
                             </div>
 
                             {/* 自動割り当て */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400">自動割り当て</label>
+                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">自動割り当て</p>
                                 <button
                                     type="button"
                                     onClick={() => setEditForm({ ...editForm, auto_allocate: editForm.auto_allocate === 1 ? 0 : 1 })}

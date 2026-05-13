@@ -50,10 +50,13 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
                 const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
                 return (
-                    <div 
-                        key={dateStr} 
+                    <div
+                        key={dateStr}
+                        role="button"
+                        tabIndex={0}
                         className="flex-shrink-0 flex flex-col space-y-0 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => onDateClick(day)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onDateClick(day); }}
                     >
                         <div
                             className={`flex items-center justify-between px-4 py-1.5 transition-colors border-b

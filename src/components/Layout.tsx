@@ -79,6 +79,7 @@ const Layout = () => {
             {/* Mobile Menu Overlay */}
             {isMenuOpen && (
                 <div
+                    aria-hidden="true"
                     className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
                     onClick={() => setIsMenuOpen(false)}
                 />

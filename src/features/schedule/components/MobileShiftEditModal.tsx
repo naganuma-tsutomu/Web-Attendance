@@ -51,6 +51,7 @@ const MobileShiftEditModal: React.FC<MobileShiftEditModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStartTime(toTimeStr(localData.start));
             setEndTime(toTimeStr(localData.end));
             setShowSwap(false);
@@ -81,10 +82,11 @@ const MobileShiftEditModal: React.FC<MobileShiftEditModalProps> = ({
                 <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
                     {/* シフトパターン */}
                     <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label htmlFor="mobile-shift-pattern" className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                             シフトパターン
                         </label>
                         <select
+                            id="mobile-shift-pattern"
                             className="w-full text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                             value={selectedPatternId}
                             onChange={(e) => onPatternChange(e.target.value)}
@@ -100,11 +102,12 @@ const MobileShiftEditModal: React.FC<MobileShiftEditModalProps> = ({
 
                     {/* 時間変更 */}
                     <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <p className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                             時間
-                        </label>
+                        </p>
                         <div className="flex items-center gap-2">
                             <input
+                                aria-label="開始時刻"
                                 type="time"
                                 step="900"
                                 value={startTime}
@@ -116,6 +119,7 @@ const MobileShiftEditModal: React.FC<MobileShiftEditModalProps> = ({
                             />
                             <span className="text-slate-400 text-sm">〜</span>
                             <input
+                                aria-label="終了時刻"
                                 type="time"
                                 step="900"
                                 value={endTime}
@@ -131,10 +135,11 @@ const MobileShiftEditModal: React.FC<MobileShiftEditModalProps> = ({
                     {/* 当番番号 */}
                     {showDutyNumbers && dutyOptions.length > 0 && (
                         <div>
-                            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                            <label htmlFor="mobile-duty-number" className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
                                 当番番号
                             </label>
                             <select
+                                id="mobile-duty-number"
                                 className="w-full text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                                 value={dutyValue ?? ''}
                                 onChange={(e) => onDutyNumberChange(Number(e.target.value))}

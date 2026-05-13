@@ -43,7 +43,7 @@ export const AddStaffMenu: React.FC<AddStaffMenuProps> = ({
 
             {showAddMenu === classId && (
                 <>
-                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onToggle(null); }} />
+                    <div aria-hidden="true" className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onToggle(null); }} />
                     <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto">
                         {available.length === 0 ? (
                             <div className="px-3 py-2 text-[11px] text-slate-400 text-center">追加可能な従業員はいません</div>
@@ -89,7 +89,7 @@ export const SwapStaffMenu: React.FC<SwapStaffMenuProps> = ({
 
     return (
         <>
-            <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onToggle(null); }} />
+            <div aria-hidden="true" className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onToggle(null); }} />
             <div className="absolute left-full top-0 ml-1 z-[60] w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 mb-1 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10 flex justify-between">
                     <span>入れ替え候補 {currentStaff ? `(${currentStaff.role})` : '(全職種)'}</span>
@@ -167,7 +167,7 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
 
     return (
         <>
-            <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onCancel(); }} />
+            <div aria-hidden="true" className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onCancel(); }} />
             <div className="absolute left-full top-0 ml-1 z-[60] w-56 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/50 rounded-lg shadow-2xl py-3 px-3 animate-in fade-in zoom-in-95 duration-200">
                 <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-3">
                     このシフトを削除しますか？

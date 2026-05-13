@@ -66,10 +66,11 @@ const RoleEditModal = ({
                         <div className="space-y-6">
                             <div className="grid grid-cols-4 gap-4">
                                 <div className="col-span-3 space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                                    <label htmlFor="role-edit-name" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
                                         スタッフ区分名 <span className="text-rose-500">*</span>
                                     </label>
                                     <input
+                                        id="role-edit-name"
                                         type="text"
                                         required
                                         placeholder="例: 正社員, パート..."
@@ -79,10 +80,11 @@ const RoleEditModal = ({
                                     />
                                 </div>
                                 <div className="col-span-1 space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                                    <label htmlFor="role-edit-order" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
                                         表示順
                                     </label>
                                     <input
+                                        id="role-edit-order"
                                         type="number"
                                         required
                                         min="1"
@@ -95,12 +97,12 @@ const RoleEditModal = ({
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between pl-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
+                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
                                         <Target className="w-3.5 h-3.5 mr-2" />
                                         月間労働時間 (目安)
-                                    </label>
+                                    </span>
                                     <div className="flex items-center space-x-2">
-                                        <label className="relative inline-flex items-center cursor-pointer">
+                                        <label aria-label="月間労働時間を設定する" className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 className="sr-only peer"
@@ -128,12 +130,12 @@ const RoleEditModal = ({
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between pl-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
+                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
                                         <Target className="w-3.5 h-3.5 mr-2" />
                                         週間労働時間 (目安)
-                                    </label>
+                                    </span>
                                     <div className="flex items-center space-x-2">
-                                        <label className="relative inline-flex items-center cursor-pointer">
+                                        <label aria-label="週間労働時間を設定する" className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 className="sr-only peer"
@@ -161,10 +163,10 @@ const RoleEditModal = ({
                         </div>
 
                         <div className="space-y-4">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
+                            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
                                 <Calendar className="w-3.5 h-3.5 mr-2" />
                                 利用可能な時間パターン
-                            </label>
+                            </p>
                             <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 min-h-[200px] flex flex-wrap gap-2 content-start">
                                 {timePatterns.length === 0 ? (
                                     <p className="text-xs text-slate-400 italic">パターンがありません</p>

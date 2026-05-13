@@ -196,8 +196,8 @@ export default function PreferenceTab({
 
             {/* Partial Selection Modal */}
             {selectedDateAction && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedDateAction(null)}>
-                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setSelectedDateAction(null); }}>
+                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-base font-black text-slate-800 dark:text-white">
                                 {format(new Date(selectedDateAction), 'M月d日 (E)', { locale: ja })} の希望
@@ -253,8 +253,8 @@ export default function PreferenceTab({
 
             {/* Cancel Confirmation Modal */}
             {showCancelConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowCancelConfirm(false)}>
-                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setShowCancelConfirm(false); }}>
+                    <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-base font-black text-slate-800 dark:text-white">変更を破棄しますか？</h3>
                             <button onClick={() => setShowCancelConfirm(false)} aria-label="閉じる" className="bg-white dark:bg-slate-700 p-1.5 rounded-full shadow-sm hover:shadow-md transition-all text-slate-400 dark:text-slate-300">

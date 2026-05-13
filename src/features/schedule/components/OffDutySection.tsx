@@ -69,7 +69,7 @@ const OffDutySection: React.FC<OffDutySectionProps> = ({
 
                         {!readOnly && !isOnShift && showAddMenu === staff.id && (
                             <>
-                                <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onToggleAddMenu(null); }} />
+                                <div aria-hidden="true" className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); onToggleAddMenu(null); }} />
                                 <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
                                     <div className="px-3 py-1.5 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700 mb-1">
                                         追加先のクラスを選択

@@ -70,10 +70,11 @@ const TimePatternEditModal = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-5">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                                <label htmlFor="pattern-name" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
                                     パターン名称 <span className="text-rose-500">*</span>
                                 </label>
                                 <input
+                                    id="pattern-name"
                                     type="text"
                                     required
                                     placeholder="例: 早番, 遅番, 9時間拘束..."
@@ -84,10 +85,11 @@ const TimePatternEditModal = ({
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">開始時間</label>
+                                    <label htmlFor="pattern-start" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">開始時間</label>
                                     <div className="relative">
                                         <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                         <input
+                                            id="pattern-start"
                                             type="time"
                                             required
                                             value={formData.startTime}
@@ -97,10 +99,11 @@ const TimePatternEditModal = ({
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">終了時間</label>
+                                    <label htmlFor="pattern-end" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">終了時間</label>
                                     <div className="relative">
                                         <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                         <input
+                                            id="pattern-end"
                                             type="time"
                                             required
                                             value={formData.endTime}
@@ -114,10 +117,10 @@ const TimePatternEditModal = ({
 
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
+                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
                                     <UserCheck className="w-3.5 h-3.5 mr-2" />
                                     連動するスタッフ区分
-                                </label>
+                                </p>
                                 <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 rounded-2xl min-h-[56px]">
                                     {roles.length === 0 ? (
                                         <span className="text-xs text-slate-400 italic">スタッフ区分がありません</span>
@@ -138,10 +141,10 @@ const TimePatternEditModal = ({
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
+                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 flex items-center">
                                     <Calendar className="w-3.5 h-3.5 mr-2" />
                                     有効な曜日・属性
-                                </label>
+                                </p>
                                 <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                                     {DAYS.map(d => (
                                         <button

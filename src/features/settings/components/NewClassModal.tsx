@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import ClassColorPicker, { CLASS_COLORS } from './ClassColorPicker';
+import ClassColorPicker from './ClassColorPicker';
 
 interface NewClassForm {
     name: string;
@@ -16,14 +16,12 @@ interface NewClassModalProps {
     onSubmit: () => void;
 }
 
-export { CLASS_COLORS };
-
 const NewClassModal = ({ isOpen, onClose, newForm, setNewForm, isCreating, onSubmit }: NewClassModalProps) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={onClose} />
             <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm animate-in fade-in zoom-in-95">
                 <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                     <div
@@ -37,25 +35,25 @@ const NewClassModal = ({ isOpen, onClose, newForm, setNewForm, isCreating, onSub
 
                 <div className="px-6 py-8 space-y-8">
                     <div className="space-y-2.5">
-                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラス名</label>
+                        <label htmlFor="new-class-name" className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラス名</label>
                         <input
+                            id="new-class-name"
                             type="text"
                             value={newForm.name}
                             onChange={e => setNewForm({ ...newForm, name: e.target.value })}
                             className="w-full px-4 py-3.5 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900 text-base dark:text-white transition-all outline-none font-bold"
-                            autoFocus={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
                             onKeyDown={e => { if (e.key === 'Enter') onSubmit(); }}
                             placeholder="例：虹組"
                         />
                     </div>
 
                     <div className="space-y-3">
-                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラスカラー</label>
+                        <p className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラスカラー</p>
                         <ClassColorPicker value={newForm.color} onChange={c => setNewForm({ ...newForm, color: c })} />
                     </div>
 
                     <div className="space-y-3">
-                        <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">自動割り当て</label>
+                        <p className="block text-sm font-bold text-slate-600 dark:text-slate-300">自動割り当て</p>
                         <div className="flex items-center gap-4">
                             <button
                                 type="button"

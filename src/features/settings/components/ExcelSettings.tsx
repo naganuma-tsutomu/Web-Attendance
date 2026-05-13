@@ -137,8 +137,9 @@ const ExcelSettings = () => {
                         highlightRules.map((rule, idx) => (
                             <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in slide-in-from-top-1">
                                 <div className="flex-1 w-full sm:w-auto">
-                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">スタッフ</label>
+                                    <label htmlFor={`excel-staff-${idx}`} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">スタッフ</label>
                                     <select
+                                        id={`excel-staff-${idx}`}
                                         value={rule.staffId}
                                         onChange={(e) => updateRule(idx, { staffId: e.target.value })}
                                         className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -147,9 +148,10 @@ const ExcelSettings = () => {
                                     </select>
                                 </div>
                                 <div className="flex-1 w-full sm:w-auto">
-                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">通常の勤務時間</label>
+                                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">通常の勤務時間</p>
                                     <div className="flex items-center gap-2">
                                         <input
+                                            aria-label="通常勤務 開始時間"
                                             type="time"
                                             value={rule.regularStartTime}
                                             onChange={(e) => updateRule(idx, { regularStartTime: e.target.value })}
@@ -157,6 +159,7 @@ const ExcelSettings = () => {
                                         />
                                         <span className="text-slate-400 text-sm shrink-0">〜</span>
                                         <input
+                                            aria-label="通常勤務 終了時間"
                                             type="time"
                                             value={rule.regularEndTime}
                                             onChange={(e) => updateRule(idx, { regularEndTime: e.target.value })}
@@ -166,9 +169,10 @@ const ExcelSettings = () => {
                                 </div>
                                 <div className="w-full flex items-end justify-between sm:w-auto sm:justify-start gap-4">
                                     <div className="w-full sm:w-24">
-                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">背景色</label>
+                                        <label htmlFor={`excel-color-${idx}`} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1 block">背景色</label>
                                         <div className="flex items-center gap-2">
                                             <input
+                                                id={`excel-color-${idx}`}
                                                 type="color"
                                                 value={`#${rule.highlightColor.slice(2)}`}
                                                 onChange={(e) => updateRule(idx, { highlightColor: 'FF' + e.target.value.slice(1).toUpperCase() })}

@@ -51,8 +51,9 @@ const ShiftEditModal = ({
             <form onSubmit={onSubmit} className="p-6 space-y-4">
                 {!selectedEvent && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">日付</label>
+                        <label htmlFor="shift-edit-date" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">日付</label>
                         <input
+                            id="shift-edit-date"
                             type="date"
                             required
                             value={editFormData.date}
@@ -64,8 +65,9 @@ const ShiftEditModal = ({
                     </div>
                 )}
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">担当スタッフ</label>
+                    <label htmlFor="shift-edit-staff" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">担当スタッフ</label>
                     <select
+                        id="shift-edit-staff"
                         value={editFormData.staffId}
                         onChange={e => onFormChange({ ...editFormData, staffId: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 dark:text-white"
@@ -76,8 +78,9 @@ const ShiftEditModal = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">開始時間</label>
+                        <label htmlFor="shift-edit-start" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">開始時間</label>
                         <input
+                            id="shift-edit-start"
                             type="time"
                             required
                             value={editFormData.startTime}
@@ -86,8 +89,9 @@ const ShiftEditModal = ({
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">終了時間</label>
+                        <label htmlFor="shift-edit-end" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">終了時間</label>
                         <input
+                            id="shift-edit-end"
                             type="time"
                             required
                             value={editFormData.endTime}

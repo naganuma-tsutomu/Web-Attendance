@@ -22,6 +22,7 @@ const MobileWorkHoursPanel = ({
     return (
         <div className="lg:hidden">
             <div
+                role="presentation"
                 className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm"
                 onMouseDown={(e) => {
                     if (e.target === e.currentTarget) {
@@ -35,7 +36,7 @@ const MobileWorkHoursPanel = ({
                     (e.currentTarget as HTMLElement).dataset.mouseDownOnBackdrop = 'false';
                 }}
             >
-                <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-800 animate-in slide-in-from-right duration-300" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                <div role="presentation" className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-slate-800 animate-in slide-in-from-right duration-300" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
                     <div className="h-full flex flex-col">
                         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                             <h3 className="font-bold text-slate-800 dark:text-white">労働時間サマリー</h3>

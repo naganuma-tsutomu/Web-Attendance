@@ -83,11 +83,12 @@ const StaffLoginPage = () => {
                 <form onSubmit={handleLogin} className="space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">お名前</label>
+                            <label htmlFor="staff-login-name" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">お名前</label>
                             <div className="relative">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 z-10" />
                                 <div className="relative">
                                     <select
+                                        id="staff-login-name"
                                         required
                                         value={name}
                                         onChange={e => setName(e.target.value)}
@@ -107,10 +108,11 @@ const StaffLoginPage = () => {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">アクセスキー</label>
+                            <label htmlFor="staff-login-key" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">アクセスキー</label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                                 <input
+                                    id="staff-login-key"
                                     type="password"
                                     required
                                     maxLength={6}

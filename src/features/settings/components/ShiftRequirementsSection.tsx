@@ -276,9 +276,9 @@ const ShiftRequirementsSection = ({ classes, classesLoading }: ShiftRequirements
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             {/* Class Selector */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <p className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                     クラスを選択
-                </label>
+                </p>
                 <div className="flex flex-wrap gap-2">
                     {classes.map((cls) => {
                         const isActive = selectedClass === cls.id;
@@ -368,7 +368,7 @@ const ShiftRequirementsSection = ({ classes, classesLoading }: ShiftRequirements
             {/* Delete Confirm Dialog */}
             {deleteTargetId && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
+                    <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
                     <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-sm animate-in fade-in zoom-in-95">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">

@@ -111,10 +111,11 @@ const RotationSettings = () => {
 
                         {/* 対象ロール */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            <label htmlFor="rotation-role" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 対象スタッフ区分
                             </label>
                             <select
+                                id="rotation-role"
                                 value={settings.roleId}
                                 onChange={e => update({ roleId: e.target.value })}
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
@@ -128,10 +129,11 @@ const RotationSettings = () => {
 
                         {/* 早番パターン */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            <label htmlFor="rotation-early" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 早番パターン
                             </label>
                             <select
+                                id="rotation-early"
                                 value={settings.earlyPatternId}
                                 onChange={e => update({ earlyPatternId: e.target.value })}
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
@@ -145,10 +147,11 @@ const RotationSettings = () => {
 
                         {/* 遅番パターン */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            <label htmlFor="rotation-late" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 遅番パターン
                             </label>
                             <select
+                                id="rotation-late"
                                 value={settings.latePatternId}
                                 onChange={e => update({ latePatternId: e.target.value })}
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
@@ -170,10 +173,11 @@ const RotationSettings = () => {
 
                         <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                <label htmlFor="rotation-weekday-early" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     早番人数
                                 </label>
                                 <input
+                                    id="rotation-weekday-early"
                                     type="number"
                                     min={1}
                                     max={10}
@@ -183,10 +187,11 @@ const RotationSettings = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                <label htmlFor="rotation-weekday-late" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     遅番人数
                                 </label>
                                 <input
+                                    id="rotation-weekday-late"
                                     type="number"
                                     min={1}
                                     max={10}
@@ -231,10 +236,11 @@ const RotationSettings = () => {
                         {settings.saturdayEnabled && (
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    <label htmlFor="rotation-saturday-count" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         土曜日の出勤人数
                                     </label>
                                     <input
+                                        id="rotation-saturday-count"
                                         type="number"
                                         min={1}
                                         max={10}
@@ -245,10 +251,11 @@ const RotationSettings = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    <label htmlFor="rotation-saturday-pattern" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                         土曜日のパターン
                                     </label>
                                     <select
+                                        id="rotation-saturday-pattern"
                                         value={settings.saturdayPatternId ?? ''}
                                         onChange={e => update({ saturdayPatternId: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"

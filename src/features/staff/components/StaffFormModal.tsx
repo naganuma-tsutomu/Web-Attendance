@@ -54,8 +54,9 @@ const StaffFormModal = ({
                 <form onSubmit={onSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
                     <div className="space-y-4">
                         <div className="space-y-1.5 pl-1">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">氏名</label>
+                            <label htmlFor="staff-form-name" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">氏名</label>
                             <input
+                                id="staff-form-name"
                                 type="text"
                                 required
                                 value={formData.name}
@@ -65,8 +66,9 @@ const StaffFormModal = ({
                             />
                         </div>
                         <div className="space-y-1.5 pl-1">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">スタッフ区分マスタから選ぶ</label>
+                            <label htmlFor="staff-form-role" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">スタッフ区分マスタから選ぶ</label>
                             <select
+                                id="staff-form-role"
                                 value={formData.role}
                                 onChange={e => handleRoleChange(e.target.value)}
                                 className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white appearance-none"
@@ -77,7 +79,7 @@ const StaffFormModal = ({
                         </div>
                         <div className="space-y-1.5 pl-1">
                             <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">アクセスキー (6桁の数字)</label>
+                                <label htmlFor="staff-form-key" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">アクセスキー (6桁の数字)</label>
                                 <button
                                     type="button"
                                     onClick={() => setShowKeyConfirm(true)}
@@ -87,6 +89,7 @@ const StaffFormModal = ({
                                 </button>
                             </div>
                             <input
+                                id="staff-form-key"
                                 type="text"
                                 required
                                 maxLength={6}
@@ -99,10 +102,10 @@ const StaffFormModal = ({
                         </div>
                         <div className="space-y-3 pl-1">
                             <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">月間労働時間 (h/月)</label>
+                                <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">月間労働時間 (h/月)</span>
                                 <div className="flex items-center space-x-2">
                                     <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{formData.hoursTarget === null ? '設定なし' : '設定する'}</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
+                                    <label aria-label="月間労働時間を設定する" className="relative inline-flex items-center cursor-pointer">
                                         <input
                                             type="checkbox"
                                             className="sr-only peer"
@@ -135,10 +138,10 @@ const StaffFormModal = ({
                         </div>
                         <div className="space-y-3 pl-1">
                             <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">週間労働時間 (h/週)</label>
+                                <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">週間労働時間 (h/週)</span>
                                 <div className="flex items-center space-x-2">
                                     <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{formData.weeklyHoursTarget === null ? '設定なし' : '設定する'}</span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
+                                    <label aria-label="週間労働時間を設定する" className="relative inline-flex items-center cursor-pointer">
                                         <input
                                             type="checkbox"
                                             className="sr-only peer"
@@ -172,7 +175,7 @@ const StaffFormModal = ({
                     </div>
 
                     <div className="space-y-4 pt-2">
-                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">固定休日設定</label>
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">固定休日設定</p>
                         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 space-y-4">
                             {['月', '火', '水', '木', '金', '土'].map((label, idx) => {
                                 const dayNum = idx + 1;
@@ -187,7 +190,7 @@ const StaffFormModal = ({
                                     <div key={dayNum} className="space-y-2">
                                         <div className="flex items-center gap-3">
                                             <span className="text-sm font-bold text-slate-700 dark:text-slate-300 w-8 shrink-0">{label}曜</span>
-                                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                            <label aria-label={`${label}曜の休日設定`} className="relative inline-flex items-center cursor-pointer shrink-0">
                                                 <input
                                                     type="checkbox"
                                                     className="sr-only peer"
@@ -266,7 +269,7 @@ const StaffFormModal = ({
                     </div>
 
                     <div className="space-y-4 pt-2">
-                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">所属クラス（複数選択可）</label>
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">所属クラス（複数選択可）</p>
                         <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-4">
                             {classes.length === 0 ? (
                                 <p className="text-xs text-slate-400 italic">クラスが登録されていません。設定画面で作成してください。</p>

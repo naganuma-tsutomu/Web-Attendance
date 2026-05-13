@@ -23,6 +23,7 @@ const RoleAddModal = ({ isOpen, onClose, onSubmit, newRole, setNewRole, timePatt
 
     return (
         <div
+            role="presentation"
             className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
@@ -41,10 +42,11 @@ const RoleAddModal = ({ isOpen, onClose, onSubmit, newRole, setNewRole, timePatt
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                                <label htmlFor="new-role-name" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
                                     スタッフ区分名 <span className="text-rose-500">*</span>
                                 </label>
                                 <input
+                                    id="new-role-name"
                                     type="text"
                                     required
                                     placeholder="例: 正社員, パート, リーダー..."
@@ -56,13 +58,13 @@ const RoleAddModal = ({ isOpen, onClose, onSubmit, newRole, setNewRole, timePatt
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between ml-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
+                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
                                         <Target className="w-3.5 h-3.5 mr-2" />
                                         月間労働時間 (目安)
-                                    </label>
+                                    </span>
                                     <div className="flex items-center space-x-2">
                                         <span className="text-[10px] font-bold text-slate-500">{newRole.hoursTarget === null ? '制限なし' : '設定する'}</span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
+                                        <label aria-label="月間労働時間を設定する" className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 className="sr-only peer"
@@ -88,13 +90,13 @@ const RoleAddModal = ({ isOpen, onClose, onSubmit, newRole, setNewRole, timePatt
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between ml-1">
-                                    <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
+                                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center">
                                         <Calendar className="w-3.5 h-3.5 mr-2" />
                                         週間労働時間 (目安)
-                                    </label>
+                                    </span>
                                     <div className="flex items-center space-x-2">
                                         <span className="text-[10px] font-bold text-slate-500">{newRole.weeklyHoursTarget === null ? '制限なし' : '設定する'}</span>
-                                        <label className="relative inline-flex items-center cursor-pointer">
+                                        <label aria-label="週間労働時間を設定する" className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 className="sr-only peer"
@@ -121,9 +123,9 @@ const RoleAddModal = ({ isOpen, onClose, onSubmit, newRole, setNewRole, timePatt
 
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
+                                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">
                                     利用可能な時間パターン
-                                </label>
+                                </p>
                                 <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 min-h-[200px]">
                                     <div className="flex flex-wrap gap-2">
                                         {timePatterns.length === 0 ? (

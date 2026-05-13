@@ -121,11 +121,12 @@ const SortableRequirementRow = ({
                         <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold">
                             {index + 1}
                         </div>
-                        <label className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <label htmlFor={`day-of-week-${req.id}`} className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                             曜日パターン
                         </label>
                     </div>
                     <select
+                        id={`day-of-week-${req.id}`}
                         value={req.dayOfWeek}
                         onChange={(e) => onUpdate(req.id, { dayOfWeek: parseInt(e.target.value) })}
                         className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -165,11 +166,12 @@ const SortableRequirementRow = ({
                 <div className="flex items-end gap-3 md:gap-4 w-full lg:w-auto">
                     {/* 必要人数 */}
                     <div className="flex-[3] sm:flex-1 sm:w-28 sm:flex-none">
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                        <label htmlFor={`min-staff-${req.id}`} className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
                             必要人数
                         </label>
                         <div className="flex items-center">
                             <input
+                                id={`min-staff-${req.id}`}
                                 type="number"
                                 min={1}
                                 max={20}
@@ -183,10 +185,11 @@ const SortableRequirementRow = ({
 
                     {/* 優先度 */}
                     <div className="flex-[4] sm:flex-1 sm:w-28 sm:flex-none">
-                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
+                        <label htmlFor={`priority-${req.id}`} className="block text-xs text-slate-500 dark:text-slate-400 mb-1 lg:hidden">
                             優先度
                         </label>
                         <select
+                            id={`priority-${req.id}`}
                             value={req.priority}
                             onChange={(e) => onUpdate(req.id, { priority: parseInt(e.target.value) })}
                             className={`w-full max-w-full truncate h-[38px] px-2 sm:px-3 py-2 rounded-lg border-0 text-sm font-medium text-center cursor-pointer ${
@@ -414,10 +417,11 @@ const ShiftRequirementsPage = () => {
 
                 {/* Class Selector */}
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    <label htmlFor="class-select" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                         クラスを選択
                     </label>
                     <select
+                        id="class-select"
                         value={selectedClass}
                         onChange={(e) => setSelectedClass(e.target.value)}
                         className="w-full md:w-80 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
@@ -517,7 +521,7 @@ const ShiftRequirementsPage = () => {
             {/* 削除確認ダイアログ */}
             {deleteTargetId && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
+                    <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={() => setDeleteTargetId(null)} />
                     <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-sm animate-in fade-in zoom-in-95">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">

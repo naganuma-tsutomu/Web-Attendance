@@ -47,6 +47,7 @@ const Modal: React.FC<ModalProps> = ({
 
     return (
         <div
+            role="presentation"
             className={`fixed inset-0 ${zIndex} flex items-start sm:items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px] overflow-y-auto ${className}`}
             onMouseDown={(e) => { if (e.target === e.currentTarget) mouseDownOnBackdrop.current = true; }}
             onMouseUp={(e) => {

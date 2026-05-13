@@ -45,10 +45,11 @@ const AuthPage = () => {
 
                 <form onSubmit={handleLogin} className="space-y-6">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">パスワード</label>
+                        <label htmlFor="admin-password" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">パスワード</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                             <input
+                                id="admin-password"
                                 type="password"
                                 required
                                 value={password}

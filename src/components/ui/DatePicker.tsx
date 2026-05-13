@@ -46,7 +46,7 @@ export const DatePicker = ({ date, onChange, trigger, align = 'left' }: DatePick
 
     return (
         <div className="relative inline-block" ref={popoverRef}>
-            <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
+            <div role="button" tabIndex={0} onClick={() => setIsOpen(!isOpen)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsOpen(v => !v); }} className="cursor-pointer">
                 {trigger}
             </div>
 

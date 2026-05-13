@@ -25,7 +25,8 @@ import {
     arrayMove,
 } from '@dnd-kit/sortable';
 import ConfirmModal from '../../../components/ui/ConfirmModal';
-import ClassColorPicker, { CLASS_COLORS } from './ClassColorPicker';
+import ClassColorPicker from './ClassColorPicker';
+import { CLASS_COLORS } from './classColors';
 import SortableRequirementRow from './SortableRequirementRow';
 import NewClassModal from './NewClassModal';
 import { SHIFT_DAY } from '../../../constants';
@@ -300,8 +301,9 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
 
                         <div className="px-6 py-8 sm:px-10 space-y-8">
                             <div className="space-y-2.5">
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラス名</label>
+                                <label htmlFor="class-name" className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラス名</label>
                                 <input
+                                    id="class-name"
                                     type="text"
                                     value={basicForm.name}
                                     onChange={e => setBasicForm({ ...basicForm, name: e.target.value })}
@@ -311,12 +313,12 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
                             </div>
 
                             <div className="space-y-3">
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラスカラー</label>
+                                <p className="block text-sm font-bold text-slate-600 dark:text-slate-300">クラスカラー</p>
                                 <ClassColorPicker value={basicForm.color} onChange={c => setBasicForm({ ...basicForm, color: c })} />
                             </div>
 
                             <div className="space-y-3">
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300">自動割り当て</label>
+                                <p className="block text-sm font-bold text-slate-600 dark:text-slate-300">自動割り当て</p>
                                 <div className="flex items-center gap-4">
                                     <button
                                         type="button"
@@ -435,7 +437,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
             {/* Delete req confirm */}
             {deleteReqId && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteReqId(null)} />
+                    <div aria-hidden="true" className="absolute inset-0 bg-black/40" onClick={() => setDeleteReqId(null)} />
                     <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-sm animate-in fade-in zoom-in-95">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">

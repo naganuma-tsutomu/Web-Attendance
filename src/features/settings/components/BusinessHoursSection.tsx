@@ -68,10 +68,11 @@ const BusinessHoursSection = () => {
                     <div className="space-y-6">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
                             <div className="flex items-center gap-3">
-                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[60px]">
+                                <label htmlFor="biz-start-hour" className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[60px]">
                                     開始時間
                                 </label>
                                 <select
+                                    id="biz-start-hour"
                                     value={startHour}
                                     onChange={(e) => { setStartHour(parseFloat(e.target.value)); setHoursModified(true); }}
                                     className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
@@ -83,10 +84,11 @@ const BusinessHoursSection = () => {
                             </div>
                             <div className="text-slate-400 hidden sm:block">〜</div>
                             <div className="flex items-center gap-3">
-                                <label className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[60px]">
+                                <label htmlFor="biz-end-hour" className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[60px]">
                                     終了時間
                                 </label>
                                 <select
+                                    id="biz-end-hour"
                                     value={endHour}
                                     onChange={(e) => { setEndHour(parseFloat(e.target.value)); setHoursModified(true); }}
                                     className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
@@ -110,9 +112,9 @@ const BusinessHoursSection = () => {
                         )}
 
                         <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
-                            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-3">
+                            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-3">
                                 休館日（定休日）
-                            </label>
+                            </p>
                             <div className="flex flex-wrap gap-2">
                                 {DAYS_OF_WEEK.map((dayName, idx) => {
                                     const isClosed = closedDays.includes(idx);

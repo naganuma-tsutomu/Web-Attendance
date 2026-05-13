@@ -89,10 +89,11 @@ const BreakSettingsSection = () => {
                                 <div className="ml-0 sm:ml-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
                                         <div className="flex items-center gap-3">
-                                            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[80px] whitespace-nowrap">
+                                            <label htmlFor="break-threshold" className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[80px] whitespace-nowrap">
                                                 判定時刻
                                             </label>
                                             <input
+                                                id="break-threshold"
                                                 type="time"
                                                 value={breakSettings.exceptionThresholdTime}
                                                 onChange={(e) => handleBreakChange({ exceptionThresholdTime: e.target.value })}
@@ -100,11 +101,12 @@ const BreakSettingsSection = () => {
                                             />
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <label className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[80px] whitespace-nowrap">
+                                            <label htmlFor="break-duration" className="text-sm font-medium text-slate-600 dark:text-slate-300 min-w-[80px] whitespace-nowrap">
                                                 休憩時間
                                             </label>
                                             <div className="flex items-center gap-2">
                                                 <input
+                                                    id="break-duration"
                                                     type="number"
                                                     min={0}
                                                     max={120}

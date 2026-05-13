@@ -21,7 +21,7 @@ import Modal from '../../components/ui/Modal';
 const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(() => loadActiveMonth());
-    const [draftEdits, setDraftEdits] = useState<Record<string, { status: string; startTime?: string | null; endTime?: string | null; type?: string | null }>>({});
+    const [draftEdits, setDraftEdits] = useState<Record<string, { status: 'fixed' | 'available' | 'unavailable'; startTime?: string | null; endTime?: string | null; type?: string | null }>>({});
     const [syncingHolidays, setSyncingHolidays] = useState(false);
     const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
     const [isEditingModalMode, setIsEditingModalMode] = useState(false);
@@ -76,11 +76,11 @@ const PreferencesPage = () => {
             const isFixedHoliday = staff
                 ? isStaffFixedHoliday(staff, new Date(day.dateStr), closedDays, !!day.isNationalHoliday)
                 : false;
-            if (isFixedHoliday) return { ...day, status: 'fixed' };
+            if (isFixedHoliday) return { ...day, status: 'fixed' as const };
             const pref = unavailable.find(u => u.date === day.dateStr);
             return {
                 ...day,
-                status: pref ? 'unavailable' : 'available',
+                status: (pref ? 'unavailable' : 'available') as 'unavailable' | 'available',
                 startTime: pref?.startTime,
                 endTime: pref?.endTime,
                 type: pref?.type,
@@ -115,12 +115,12 @@ const PreferencesPage = () => {
         const dateStr = basePreferences[editingDateIndex]?.dateStr;
         if (!dateStr) return;
         const edit = type === 'clear'
-            ? { status: 'available', startTime: null, endTime: null, type: null }
+            ? { status: 'available' as const, startTime: null, endTime: null, type: null }
             : type === 'full'
-            ? { status: 'unavailable', startTime: null, endTime: null, type: null }
+            ? { status: 'unavailable' as const, startTime: null, endTime: null, type: null }
             : type === 'training'
-            ? { status: 'unavailable', startTime: null, endTime: null, type: 'training' }
-            : { status: 'unavailable', startTime: editStartTime, endTime: editEndTime, type: null };
+            ? { status: 'unavailable' as const, startTime: null, endTime: null, type: 'training' }
+            : { status: 'unavailable' as const, startTime: editStartTime, endTime: editEndTime, type: null };
         setDraftEdits(prev => ({ ...prev, [dateStr]: edit }));
         setEditingDateIndex(null);
     };

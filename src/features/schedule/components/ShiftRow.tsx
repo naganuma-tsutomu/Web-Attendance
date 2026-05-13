@@ -79,7 +79,7 @@ const ShiftRow: React.FC<ShiftRowProps> = ({
                             onUpdate={onDutyNumberUpdate}
                         />
                     )}
-                    <div className="w-full sm:w-28 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
+                    <div className="w-full sm:w-28 min-h-[52px] sm:min-h-0 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
                         {/* Mobile view */}
                         <div className="flex sm:hidden items-center justify-between gap-1">
                             <div className="font-medium text-[11px] text-slate-800 dark:text-slate-200 truncate flex items-center gap-1" title={staffName}>

@@ -63,6 +63,36 @@ export interface Shift extends Omit<ShiftInferred, 'isError' | 'isEarlyShift' | 
     isError?: boolean;
 }
 
+/** 自動生成後の簡易レポート */
+export interface GenerationReport {
+    yearMonth: string;
+    generatedAt: string;
+    generatedCount: number;
+    unassignedCount: number;
+    fixedDateCount: number;
+    unassignedRows: {
+        id: string;
+        date: string;
+        startTime: string;
+        endTime: string;
+        className: string;
+    }[];
+    staffRows: {
+        staffId: string;
+        staffName: string;
+        actualHours: number;
+        targetHours: number | null;
+        diffHours: number | null;
+    }[];
+    classRows: {
+        classId: string;
+        className: string;
+        assignedCount: number;
+        totalCount: number;
+        fillRate: number;
+    }[];
+}
+
 /** シフトバックアップ */
 export type ShiftSnapshotMetadata = ShiftSnapshotMetadataInferred;
 

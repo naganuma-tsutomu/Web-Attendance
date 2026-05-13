@@ -282,7 +282,13 @@ export function useShiftEdit({
             });
 
             if (modifiedIds.length > 0) {
-                await Promise.all(modifiedIds.map(id => {
+                const dutyModifiedIds = modifiedIds.filter(id => localShifts[id].dutyNumber !== undefined);
+
+                if (dutyModifiedIds.length > 0) {
+                    await Promise.all(dutyModifiedIds.map(id => updateShift(id, { duty_number: null })));
+                }
+
+                const updates = modifiedIds.map(id => {
                     const cur = localShifts[id];
                     const init = initialShifts[id];
                     const patch: Partial<Shift> = {};
@@ -291,8 +297,10 @@ export function useShiftEdit({
                     if (cur.classType !== init.classType) patch.classType = cur.classType;
                     if (cur.isError !== init.isError) patch.isError = cur.isError;
                     if (cur.dutyNumber !== undefined) patch.duty_number = cur.dutyNumber;
-                    return updateShift(id, patch);
-                }));
+                    return { id, patch };
+                }).filter(({ patch }) => Object.keys(patch).length > 0);
+
+                await Promise.all(updates.map(({ id, patch }) => updateShift(id, patch)));
             }
 
             onShiftUpdate?.();

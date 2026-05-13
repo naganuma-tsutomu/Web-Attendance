@@ -30,8 +30,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500';
 
     return (
-        <Modal isOpen={isOpen} onClose={onCancel} zIndex="z-[100]">
-            <div role="dialog" aria-modal="true" className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md animate-in zoom-in-95 duration-200">
+        <Modal isOpen={isOpen} onClose={onCancel} zIndex="z-[100]" aria-label={title}>
+            <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md animate-in zoom-in-95 duration-200">
                 <div className="absolute right-4 top-4">
                     <button
                         onClick={onCancel}

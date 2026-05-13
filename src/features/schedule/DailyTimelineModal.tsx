@@ -72,13 +72,8 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     }, [isModified, onClose]);
 
     return (
-        <Modal isOpen={true} onClose={handleClose} className="select-none">
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="daily-timeline-title"
-                className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700 max-h-[85dvh] sm:max-h-[calc(100dvh-4rem)]"
-            >
+        <Modal isOpen={true} onClose={handleClose} className="select-none" aria-labelledby="daily-timeline-title">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700 max-h-[85dvh] sm:max-h-[calc(100dvh-4rem)]">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl flex-shrink-0">
                     <div>

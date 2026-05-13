@@ -39,12 +39,7 @@ const DateEditModal = ({
     const isPartial = status === 'unavailable' && !!day.startTime && !isTraining;
 
     return (
-        <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="date-edit-title"
-            className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
-        >
+        <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 id="date-edit-title" className="text-base font-black text-slate-800 dark:text-white">
                     {format(new Date(day.dateStr), 'M月d日 (E)', { locale: ja })}

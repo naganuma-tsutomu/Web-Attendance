@@ -282,7 +282,7 @@ const SchedulePage = () => {
             />
 
             {/* Shift Edit Modal */}
-            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} aria-labelledby="shift-edit-dialog-title">
                 <ShiftEditModal
                     selectedEvent={selectedEvent}
                     editFormData={editFormData}

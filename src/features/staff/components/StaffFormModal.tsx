@@ -36,13 +36,8 @@ const StaffFormModal = ({
     const defaultAvailableDays = [1, 2, 3, 4, 5, 6].filter(day => !closedDays.includes(day));
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose}>
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="staff-form-title"
-                className="relative bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700"
-            >
+        <Modal isOpen={isOpen} onClose={onClose} aria-labelledby="staff-form-title">
+            <div className="relative bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md max-h-[85dvh] sm:max-h-[90dvh] flex flex-col overflow-hidden my-auto animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
                 <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
                     <h3 id="staff-form-title" className="text-xl font-bold text-slate-800 dark:text-white">
                         {editingStaff ? '情報を更新' : 'スタッフ登録'}

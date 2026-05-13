@@ -268,7 +268,7 @@ const PreferencesPage = () => {
                                     handleDateClick={handleDateClick}
                                 />
 
-                                <Modal isOpen={editingDateIndex !== null} onClose={() => setEditingDateIndex(null)}>
+                                <Modal isOpen={editingDateIndex !== null} onClose={() => setEditingDateIndex(null)} aria-labelledby="date-edit-title">
                                     {editingDateIndex !== null && (
                                         <DateEditModal
                                             editingDateIndex={editingDateIndex}

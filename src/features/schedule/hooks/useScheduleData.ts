@@ -1,22 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Views, type View } from 'react-big-calendar';
-import { format, addMonths, subMonths } from 'date-fns';
-import { toast } from 'sonner';
-import { handleApiError } from '../../../lib/errorHandler';
+import { format } from 'date-fns';
 import {
-    syncHolidaysIfNeeded, getShiftRequirements,
-    getShiftsByMonth, getRotationSettings
+    syncHolidaysIfNeeded,
 } from '../../../lib/api';
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
-    useSaveShiftsBatch, useReplaceShiftsForMonth, useUpdateShift, useDeleteShiftsByMonth, useSaveFixedDates,
-    useBusinessHours, useExcelSettings, useBreakSettings, useCreateShiftSnapshot
+    useBusinessHours, useExcelSettings, useBreakSettings,
 } from '../../../lib/hooks';
-import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
-import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import { useScheduleQueries } from './useScheduleQueries';
 import { useCalendarEvents } from './useCalendarEvents';
+import { useScheduleActions } from './useScheduleActions';
 import type { ShiftPreference } from '../../../types';
 
 export type { CalendarEvent } from './useCalendarEvents';
@@ -35,16 +30,8 @@ export const useScheduleData = () => {
     const targetYearMonth = format(currentDate, 'yyyy-MM');
 
     // UI State
-    const [generating, setGenerating] = useState(false);
     const [isDayModified, setIsDayModified] = useState(false);
     const daySaveRef = useRef<(() => Promise<void>) | null>(null);
-    const [isActionExecuting, setIsActionExecuting] = useState(false);
-    const [confirmAction, setConfirmAction] = useState<{
-        title: string;
-        message: string;
-        onConfirm: () => void;
-        variant?: 'danger' | 'info';
-    } | null>(null);
 
     // 静的データ
     const { data: staffList = [], isLoading: isLoadingStaff } = useStaffList();
@@ -82,15 +69,23 @@ export const useScheduleData = () => {
     const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays;
     const loadError = isError ? 'データの読み込みに失敗しました。' : null;
 
-    // Mutations
-    const saveShiftsMutation = useSaveShiftsBatch();
-    const replaceShiftsMutation = useReplaceShiftsForMonth();
-    const updateShiftMutation = useUpdateShift();
-    const deleteShiftsMutation = useDeleteShiftsByMonth();
-    const saveFixedDatesMutation = useSaveFixedDates();
-    const createShiftSnapshotMutation = useCreateShiftSnapshot();
+    // 変更ハンドラ群（生成・消去・更新・固定日切り替え）
+    const actions = useScheduleActions({
+        currentDate,
+        targetYearMonth,
+        rawShifts,
+        fixedDates,
+        preferences: preferences as ShiftPreference[],
+        staffList,
+        roles,
+        classes,
+        holidays,
+        businessHours,
+        excelSettings,
+        breakSettings,
+        timePatterns,
+    });
 
-    // 初期化と同期
     useEffect(() => {
         syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
     }, []);
@@ -100,151 +95,6 @@ export const useScheduleData = () => {
     }, [currentDate]);
 
     const loadShifts = () => refetch();
-
-    // シフト自動生成
-    const executeGenerate = async () => {
-        setIsActionExecuting(true);
-        setGenerating(true);
-        try {
-            const [requirements, rotationSettings] = await Promise.all([
-                getShiftRequirements(),
-                getRotationSettings()
-            ]);
-
-            await createShiftSnapshotMutation.mutateAsync({
-                yearMonth: targetYearMonth,
-                reason: 'before-generate',
-                label: `${format(currentDate, 'yyyy年M月')} 自動生成前`,
-            });
-
-            const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
-            const nextMonth = format(addMonths(currentDate, 1), 'yyyy-MM');
-            const existingContextShifts = await Promise.all([
-                getShiftsByMonth(prevMonth),
-                getShiftsByMonth(nextMonth)
-            ]).then(results => results.flat());
-
-            const fixedContextShifts = rawShifts.filter(s => s.date.startsWith(targetYearMonth) && fixedDates.has(s.date));
-            const mergedContext = [...existingContextShifts, ...fixedContextShifts];
-
-            const datesForTargetMonth = Array.from(fixedDates).filter(d => d.startsWith(targetYearMonth));
-            await saveFixedDatesMutation.mutateAsync({ yearMonth: targetYearMonth, dates: datesForTargetMonth });
-
-            const generatedShifts = generateShiftsForMonth(
-                targetYearMonth,
-                staffList,
-                preferences as ShiftPreference[],
-                roles,
-                classes,
-                holidays.filter(h => !h.isWorkday).map(h => h.date),
-                requirements,
-                mergedContext,
-                Array.from(fixedDates),
-                businessHours?.closedDays,
-                rotationSettings,
-                timePatterns,
-                breakSettings,
-                excelSettings?.leaderRoleId ?? null
-            );
-            const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
-
-            await replaceShiftsMutation.mutateAsync({
-                yearMonth: targetYearMonth,
-                shifts: generatedShifts,
-                fixedDates: datesForTargetMonth,
-            });
-            setConfirmAction(null);
-
-            if (errCount > 0) {
-                toast.warning(`自動生成完了: ${errCount}件の割り当て不足があります。`);
-            } else {
-                toast.success('シフトの自動生成が完了しました！');
-            }
-        } catch (err) {
-            handleApiError(err, 'シフト生成中にエラーが発生しました');
-        } finally {
-            setGenerating(false);
-            setIsActionExecuting(false);
-        }
-    };
-
-    const handleGenerate = () => {
-        setConfirmAction({
-            title: 'シフトの自動生成',
-            message: `${format(currentDate, 'yyyy年M月')} のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`,
-            onConfirm: executeGenerate,
-            variant: 'info'
-        });
-    };
-
-    const handleClearShifts = () => {
-        setConfirmAction({
-            title: 'シフトの消去',
-            message: 'この月のシフトをすべて削除してよろしいですか？',
-            onConfirm: async () => {
-                setIsActionExecuting(true);
-                try {
-                    await createShiftSnapshotMutation.mutateAsync({
-                        yearMonth: targetYearMonth,
-                        reason: 'before-clear',
-                        label: `${format(currentDate, 'yyyy年M月')} 消去前`,
-                    });
-                    await deleteShiftsMutation.mutateAsync({ yearMonth: targetYearMonth });
-                    toast.success('削除しました');
-                    setConfirmAction(null);
-                } catch (err) {
-                    handleApiError(err, '削除に失敗しました');
-                } finally {
-                    setIsActionExecuting(false);
-                }
-            },
-            variant: 'danger'
-        });
-    };
-
-    const handleUpdateShift = async (
-        editFormData: EditFormData,
-        selectedEvent: import('./useCalendarEvents').CalendarEvent | null
-    ) => {
-        try {
-            if (selectedEvent) {
-                await updateShiftMutation.mutateAsync({
-                    id: selectedEvent.id,
-                    data: {
-                        staffId: editFormData.staffId || UNASSIGNED_STAFF_ID,
-                        startTime: editFormData.startTime,
-                        endTime: editFormData.endTime,
-                        isError: editFormData.staffId === ''
-                    }
-                });
-            } else {
-                const dateStr = editFormData.date || format(currentDate, 'yyyy-MM-01');
-                await saveShiftsMutation.mutateAsync([{
-                    date: dateStr,
-                    staffId: editFormData.staffId || UNASSIGNED_STAFF_ID,
-                    startTime: editFormData.startTime,
-                    endTime: editFormData.endTime,
-                    classType: classes[0]?.id || 'class_niji',
-                    isError: editFormData.staffId === ''
-                }]);
-            }
-            toast.success('保存しました');
-        } catch (err: unknown) {
-            handleApiError(err, 'シフトの保存に失敗しました');
-            throw err;
-        }
-    };
-
-    const toggleFixedDate = (dateStr: string) => {
-        const next = new Set(fixedDates);
-        if (next.has(dateStr)) next.delete(dateStr);
-        else next.add(dateStr);
-        const yearMonthOfDate = dateStr.slice(0, 7);
-        const datesForMonth = Array.from(next).filter(d => d.startsWith(yearMonthOfDate));
-        saveFixedDatesMutation.mutate({ yearMonth: yearMonthOfDate, dates: datesForMonth }, {
-            onError: (err: Error) => handleApiError(err, '固定日の保存に失敗しました')
-        });
-    };
 
     return {
         // データ
@@ -265,7 +115,6 @@ export const useScheduleData = () => {
         // UI状態
         loading,
         isFetching,
-        generating,
         errorCount,
         errorDates,
         loadError,
@@ -273,8 +122,6 @@ export const useScheduleData = () => {
         view,
         isDayModified,
         daySaveRef,
-        confirmAction,
-        isActionExecuting,
 
         // 派生値
         targetYearMonth,
@@ -284,14 +131,12 @@ export const useScheduleData = () => {
         setCurrentDate,
         setView,
         setIsDayModified,
-        setConfirmAction,
         loadShifts,
-        handleGenerate,
-        handleClearShifts,
-        handleUpdateShift,
-        toggleFixedDate,
         eventStyleGetter,
         getHolidayNameForDate,
         isHolidayDate,
+
+        // 変更ハンドラ群（useScheduleActions から）
+        ...actions,
     };
 };

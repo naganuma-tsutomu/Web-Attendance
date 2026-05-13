@@ -34,12 +34,7 @@ const ShiftEditModal = ({
     const breakMins = calculateBreakMinutes(editFormData.startTime, editFormData.endTime, breakSettings);
 
     return (
-        <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shift-edit-dialog-title"
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700"
-        >
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                 <h3 id="shift-edit-dialog-title" className="text-lg font-bold text-slate-800 dark:text-white">
                     {selectedEvent ? 'シフトの修正' : '予定の新規追加'}

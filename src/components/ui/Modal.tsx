@@ -6,6 +6,8 @@ interface ModalProps {
     children: React.ReactNode;
     className?: string;
     zIndex?: string;
+    'aria-label'?: string;
+    'aria-labelledby'?: string;
 }
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -16,6 +18,8 @@ const Modal: React.FC<ModalProps> = ({
     children,
     className = '',
     zIndex = 'z-50',
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledby,
 }) => {
     const mouseDownOnBackdrop = useRef(false);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -55,7 +59,14 @@ const Modal: React.FC<ModalProps> = ({
                 mouseDownOnBackdrop.current = false;
             }}
         >
-            <div ref={contentRef} className="my-auto w-full flex justify-center pointer-events-none">
+            <div
+                ref={contentRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={ariaLabel}
+                aria-labelledby={ariaLabelledby}
+                className="my-auto w-full flex justify-center pointer-events-none"
+            >
                 <div className="pointer-events-auto">
                     {children}
                 </div>

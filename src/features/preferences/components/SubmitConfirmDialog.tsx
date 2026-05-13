@@ -23,13 +23,8 @@ const SubmitConfirmDialog = ({
     handleConfirmSubmitted,
     updatingSubmitted,
 }: SubmitConfirmDialogProps) => (
-    <Modal isOpen={isOpen} onClose={() => setConfirmSubmit(null)} zIndex="z-[100]">
-        <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="submit-confirm-title"
-            className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-sm"
-        >
+    <Modal isOpen={isOpen} onClose={() => setConfirmSubmit(null)} zIndex="z-[100]" aria-labelledby="submit-confirm-title">
+        <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-sm">
             <div className="flex items-center gap-3 mb-4">
                 {confirmSubmit.submitted ? (
                     <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">

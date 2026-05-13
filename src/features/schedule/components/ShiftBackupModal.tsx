@@ -106,8 +106,8 @@ const ShiftBackupModal = ({ isOpen, yearMonth, onClose, onRestored }: ShiftBacku
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} zIndex="z-[90]">
-                <div role="dialog" aria-modal="true" className="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <Modal isOpen={isOpen} onClose={onClose} zIndex="z-[90]" aria-label="バックアップ">
+                <div className="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">

@@ -6,12 +6,13 @@ import {
     updateShift, deleteShiftsByMonth, saveFixedDates, savePreference, updatePreferenceSubmitted,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
+    getSchedulePreferences, updateSchedulePreferences,
     getFacilityName, updateFacilityName,
     getRotationSettings, updateRotationSettings,
     getBreakSettings, updateBreakSettings,
     getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot
 } from './api';
-import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, RotationSettings, BreakSettings } from '../types';
+import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {
@@ -28,6 +29,7 @@ export const QUERY_KEYS = {
     businessHours: ['businessHours'],
     facilityName: ['facilityName'],
     excelSettings: ['excelSettings'],
+    schedulePreferences: ['schedulePreferences'],
     rotationSettings: ['rotationSettings'],
     breakSettings: ['breakSettings'],
 };
@@ -281,6 +283,28 @@ export const useUpdateExcelSettings = () => {
         mutationFn: (data: ExcelSettings) => updateExcelSettings(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.excelSettings });
+        },
+    });
+};
+
+// ==============================
+// Schedule Preferences (シフト画面設定)
+// ==============================
+
+export const useSchedulePreferences = () => {
+    return useQuery({
+        queryKey: QUERY_KEYS.schedulePreferences,
+        queryFn: getSchedulePreferences,
+        staleTime: 30 * 60 * 1000,
+    });
+};
+
+export const useUpdateSchedulePreferences = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: SchedulePreferences) => updateSchedulePreferences(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.schedulePreferences });
         },
     });
 };

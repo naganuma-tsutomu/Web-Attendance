@@ -22,6 +22,7 @@ import type {
     ShiftRequirementInferred,
     HolidayInferred,
     BusinessHoursInferred,
+    SchedulePreferencesInferred,
     ExcelSettingsSchema,
     ExcelHighlightRuleSchema
 } from './schemas';
@@ -61,6 +62,36 @@ export interface Shift extends Omit<ShiftInferred, 'isError' | 'isEarlyShift' | 
     classType: ClassType;
     isEarlyShift?: boolean;
     isError?: boolean;
+}
+
+/** 自動生成後の簡易レポート */
+export interface GenerationReport {
+    yearMonth: string;
+    generatedAt: string;
+    generatedCount: number;
+    unassignedCount: number;
+    fixedDateCount: number;
+    unassignedRows: {
+        id: string;
+        date: string;
+        startTime: string;
+        endTime: string;
+        className: string;
+    }[];
+    staffRows: {
+        staffId: string;
+        staffName: string;
+        actualHours: number;
+        targetHours: number | null;
+        diffHours: number | null;
+    }[];
+    classRows: {
+        classId: string;
+        className: string;
+        assignedCount: number;
+        totalCount: number;
+        fillRate: number;
+    }[];
 }
 
 /** シフトバックアップ */
@@ -115,6 +146,9 @@ export interface BreakSettings {
     displayActualHoursInModal: boolean;  // シフトモーダルで実労働時間表示
     displayActualHoursInExcel: boolean;  // Excelで実労働時間表示
 }
+
+/** シフト画面設定 */
+export type SchedulePreferences = SchedulePreferencesInferred;
 
 /** ローテーション設定 */
 export interface RotationSettings {

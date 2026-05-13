@@ -144,6 +144,10 @@ export const BreakSettingsSchema = z.object({
   displayActualHoursInExcel: z.boolean().default(false),
 });
 
+export const SchedulePreferencesSchema = z.object({
+  autoOpenGenerationReport: z.boolean().default(true),
+});
+
 export const RotationSettingsSchema = z.object({
   enabled: z.boolean().default(false),
   roleId: z.string().default(''),
@@ -173,4 +177,5 @@ export type ShiftRequirementInferred = z.infer<typeof ShiftRequirementSchema>;
 export type HolidayInferred = z.infer<typeof HolidaySchema>;
 export type BusinessHoursInferred = z.infer<typeof BusinessHoursSchema>;
 export type BreakSettingsInferred = z.infer<typeof BreakSettingsSchema>;
+export type SchedulePreferencesInferred = z.infer<typeof SchedulePreferencesSchema>;
 export type RotationSettingsInferred = z.infer<typeof RotationSettingsSchema>;

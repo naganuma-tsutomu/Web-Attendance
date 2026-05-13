@@ -87,15 +87,21 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     const renderGridLines = useCallback(() => {
         const lines = [];
-        for (let m = hours.displayStartMins; m <= hours.displayStartMins + hours.displayTotalMins; m += 60) {
-            const leftOffset = ((m - hours.displayStartMins) / hours.displayTotalMins) * 100;
+        const totalSlots = (hours.endHour - hours.startHour) * 4;
+        for (let i = 0; i <= totalSlots; i++) {
+            const currentMins = hours.startHour * 60 + i * 15;
+            const isHour = i % 4 === 0;
+            const isHalf = i % 2 === 0 && !isHour;
+            const leftOffset = ((currentMins - hours.displayStartMins) / hours.displayTotalMins) * 100;
             lines.push(
                 <div
-                    key={m}
-                    className={`absolute top-0 bottom-0 border-l z-0 ${
-                        m % 180 === 0
-                            ? 'border-slate-200 dark:border-slate-700 border-dashed'
-                            : 'border-slate-100 dark:border-slate-800'
+                    key={i}
+                    className={`absolute top-0 bottom-0 border-l z-0 pointer-events-none ${
+                        isHour
+                            ? 'border-slate-300 dark:border-slate-600'
+                            : isHalf
+                                ? 'border-slate-200 dark:border-slate-700 border-dashed'
+                                : 'border-slate-100 dark:border-slate-800'
                     }`}
                     style={{ left: `${leftOffset}%` }}
                 />
@@ -106,7 +112,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
 
     return (
         <div
-            className={`select-none ${activeDragId ? 'touch-none overflow-hidden' : 'touch-pan-y overflow-y-auto overflow-x-hidden'} flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 min-h-0'}`}
+            className={`select-none ${activeDragId ? 'touch-none overflow-hidden' : 'touch-pan-y overflow-auto'} flex-shrink-0 flex flex-col ${readOnly ? '' : 'flex-1 min-h-0'}`}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
@@ -147,6 +153,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             highlightStaffId={highlightStaffId}
                             classColorMap={classColorMap}
                             timePatterns={timePatterns}
+                            breakSettings={breakSettings}
                             hours={hours}
                             groupRef={el => { groupRefs.current[cls.id] = el; }}
                             onToggleAddMenu={setShowAddMenu}
@@ -156,6 +163,8 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                             onSwapStaff={edit.handleSwapStaff}
                             onRemoveShift={edit.handleRemoveShift}
                             onDutyNumberUpdate={handleDutyNumberUpdate}
+                            onPatternChange={(id, patternId) => edit.dispatch({ type: 'UPDATE_SHIFT_PATTERN', id, patternId })}
+                            onTimeChange={(id, field, value) => edit.dispatch({ type: 'UPDATE_SHIFT_TIME', id, field, value })}
                             onPointerDown={handlePointerDown}
                             onPointerUp={handlePointerUp}
                             renderGridLines={renderGridLines}

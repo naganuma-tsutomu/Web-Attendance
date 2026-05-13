@@ -30,6 +30,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import StaffRow from './components/StaffRow';
 import StaffFormModal from './components/StaffFormModal';
+import StaffMobileCard from './components/StaffMobileCard';
 
 const StaffPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -292,7 +293,88 @@ const StaffPage = () => {
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col">
+            <div className="sm:hidden">
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    modifiers={[restrictToVerticalAxis]}
+                    accessibility={{ screenReaderInstructions: { draggable: '' } }}
+                >
+                    <SortableContext
+                        items={filteredStaff.map(s => s.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="space-y-3">
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <div key={i} aria-hidden="true" className="animate-pulse rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                                        <div className="flex gap-3">
+                                            <div className="h-9 w-9 rounded-lg bg-slate-200 dark:bg-slate-700" />
+                                            <div className="min-w-0 flex-1 space-y-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="space-y-2">
+                                                        <div className="h-5 w-28 rounded-md bg-slate-200 dark:bg-slate-700" />
+                                                        <div className="h-5 w-36 rounded-lg bg-slate-200 dark:bg-slate-700" />
+                                                    </div>
+                                                    <div className="h-9 w-9 rounded-xl bg-slate-200 dark:bg-slate-700" />
+                                                </div>
+                                                <div className="flex gap-1.5">
+                                                    <div className="h-5 w-14 rounded bg-slate-200 dark:bg-slate-700" />
+                                                    <div className="h-5 w-14 rounded bg-slate-200 dark:bg-slate-700" />
+                                                </div>
+                                                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900/60">
+                                                    <div className="mb-2 h-4 w-full rounded-md bg-slate-200 dark:bg-slate-700" />
+                                                    <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : filteredStaff.length === 0 ? (
+                                <div className="rounded-xl border border-slate-100 bg-white px-6 py-12 text-center font-medium text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                                    該当するスタッフが見つかりません
+                                </div>
+                            ) : (
+                                filteredStaff.map((staff) => (
+                                    <StaffMobileCard
+                                        key={staff.id}
+                                        staff={staff}
+                                        classes={classes}
+                                        onEdit={handleOpenEditModal}
+                                        onDelete={handleDeleteClick}
+                                        getHolidayDisplay={getHolidayDisplay}
+                                        currentMonthHours={shiftTotals[staff.id] || 0}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </SortableContext>
+
+                    <DragOverlay dropAnimation={{
+                        sideEffects: defaultDropAnimationSideEffects({
+                            styles: {
+                                active: {
+                                    opacity: '0.3',
+                                },
+                            },
+                        }),
+                    }}>
+                        {activeStaff ? (
+                            <StaffMobileCard
+                                staff={activeStaff}
+                                classes={classes}
+                                isOverlay
+                                getHolidayDisplay={getHolidayDisplay}
+                                currentMonthHours={shiftTotals[activeStaff.id] || 0}
+                            />
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
+            </div>
+
+            <div className="hidden flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden sm:flex flex-col">
                 <div className="overflow-x-auto flex-1 -mx-4 sm:mx-0">
                     <div className="inline-block min-w-full align-middle px-4 sm:px-0">
                         <DndContext

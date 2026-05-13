@@ -6,6 +6,7 @@ interface ModalProps {
     children: React.ReactNode;
     className?: string;
     zIndex?: string;
+    autoFocusFirst?: boolean;
     'aria-label'?: string;
     'aria-labelledby'?: string;
 }
@@ -18,6 +19,7 @@ const Modal: React.FC<ModalProps> = ({
     children,
     className = '',
     zIndex = 'z-50',
+    autoFocusFirst = true,
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledby,
 }) => {
@@ -42,10 +44,12 @@ const Modal: React.FC<ModalProps> = ({
             }
         };
         document.addEventListener('keydown', onKey);
-        const firstFocusable = contentRef.current?.querySelector<HTMLElement>(FOCUSABLE);
-        firstFocusable?.focus();
+        if (autoFocusFirst) {
+            const firstFocusable = contentRef.current?.querySelector<HTMLElement>(FOCUSABLE);
+            firstFocusable?.focus();
+        }
         return () => document.removeEventListener('keydown', onKey);
-    }, [isOpen, onClose]);
+    }, [autoFocusFirst, isOpen, onClose]);
 
     if (!isOpen) return null;
 

@@ -117,9 +117,11 @@ describe('settings component smoke tests', () => {
             <DisplayPreferencesSection
                 theme="light"
                 weekStartsOn={1}
+                autoOpenGenerationReport={true}
                 modified={true}
                 onThemeChange={onThemeChange}
                 onWeekStartsOnChange={onWeekStartsOnChange}
+                onAutoOpenGenerationReportChange={vi.fn()}
                 onSave={onSave}
             />
         );

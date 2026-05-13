@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, ShiftSnapshotMetadata } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
 import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
     DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
-    BreakSettingsSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
+    BreakSettingsSchema, SchedulePreferencesSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
 import { ApiError } from './errorHandler';
@@ -433,6 +433,21 @@ export const getExcelSettings = async (): Promise<ExcelSettings> => {
 
 export const updateExcelSettings = async (data: ExcelSettings): Promise<void> => {
     await apiFetch('/settings/excel-settings', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+};
+
+// ==========================================
+// Schedule Preferences API (シフト画面設定)
+// ==========================================
+
+export const getSchedulePreferences = async (): Promise<SchedulePreferences> => {
+    return apiFetch<SchedulePreferences>('/settings/schedule-preferences', {}, SchedulePreferencesSchema);
+};
+
+export const updateSchedulePreferences = async (data: SchedulePreferences): Promise<void> => {
+    await apiFetch('/settings/schedule-preferences', {
         method: 'PUT',
         body: JSON.stringify(data)
     });

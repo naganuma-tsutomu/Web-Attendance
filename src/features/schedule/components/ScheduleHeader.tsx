@@ -30,6 +30,7 @@ interface ScheduleHeaderProps {
     onClearShifts: () => void;
     onOpenBackups: () => void;
     onOpenImport: () => void;
+    onOpenGenerationReport: () => void;
     onToggleSummary: () => void;
     onRetry: () => void;
     onErrorDateClick?: (date: Date) => void;
@@ -37,6 +38,7 @@ interface ScheduleHeaderProps {
     excelSettings?: ExcelSettings;
     breakSettings?: BreakSettings;
     roles?: DynamicRole[];
+    hasGenerationReport?: boolean;
 }
 
 const ScheduleHeader = ({
@@ -61,13 +63,15 @@ const ScheduleHeader = ({
     onClearShifts,
     onOpenBackups,
     onOpenImport,
+    onOpenGenerationReport,
     onToggleSummary,
     onRetry,
     onErrorDateClick,
     businessHours,
     excelSettings,
     breakSettings,
-    roles = []
+    roles = [],
+    hasGenerationReport = false
 }: ScheduleHeaderProps) => {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -178,6 +182,15 @@ const ScheduleHeader = ({
                         <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                     </button>
                     <button
+                        onClick={onOpenGenerationReport}
+                        disabled={!hasGenerationReport}
+                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="直近の生成レポートを表示"
+                    >
+                        <BarChart2 className="w-5 h-5 text-emerald-600" />
+                        <span className="text-sm font-bold whitespace-nowrap">レポート</span>
+                    </button>
+                    <button
                         onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles)}
                         className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
                     >
@@ -230,6 +243,14 @@ const ScheduleHeader = ({
                                         取込
                                     </button>
                                     <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                    <button
+                                        onClick={() => { onOpenGenerationReport(); setShowMoreMenu(false); }}
+                                        disabled={!hasGenerationReport}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <BarChart2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                        レポート
+                                    </button>
                                     <button
                                         onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles); setShowMoreMenu(false); }}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"

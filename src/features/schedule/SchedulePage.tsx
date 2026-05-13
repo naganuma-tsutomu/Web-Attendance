@@ -17,6 +17,7 @@ import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
 import ShiftBackupModal from './components/ShiftBackupModal';
 import ShiftImportModal from './components/ShiftImportModal';
+import GenerationReportModal from './components/GenerationReportModal';
 import CalendarDateHeader from './components/CalendarDateHeader';
 import CalendarDateCellWrapper from './components/CalendarDateCellWrapper';
 import { CalendarDisplayContext } from './context/CalendarDisplayContext';
@@ -126,6 +127,7 @@ const SchedulePage = () => {
                 onClearShifts={schedule.handleClearShifts}
                 onOpenBackups={() => setIsBackupModalOpen(true)}
                 onOpenImport={() => setIsImportModalOpen(true)}
+                onOpenGenerationReport={() => schedule.setIsGenerationReportOpen(true)}
                 onToggleSummary={() => setIsSummaryOpen(!isSummaryOpen)}
                 onRetry={schedule.loadShifts}
                 onErrorDateClick={handleOpenTimeline}
@@ -133,6 +135,7 @@ const SchedulePage = () => {
                 excelSettings={schedule.excelSettings}
                 breakSettings={schedule.breakSettings}
                 roles={schedule.roles}
+                hasGenerationReport={!!schedule.generationReport}
             />
 
             {/* Calendar and Summary Area */}
@@ -342,6 +345,16 @@ const SchedulePage = () => {
                 fixedDates={schedule.fixedDates}
                 onClose={() => setIsImportModalOpen(false)}
                 onImported={schedule.loadShifts}
+            />
+
+            <GenerationReportModal
+                isOpen={schedule.isGenerationReportOpen}
+                report={schedule.generationReport}
+                onClose={() => schedule.setIsGenerationReportOpen(false)}
+                onOpenDate={(date) => {
+                    schedule.setIsGenerationReportOpen(false);
+                    handleOpenTimeline(date);
+                }}
             />
         </div>
     );

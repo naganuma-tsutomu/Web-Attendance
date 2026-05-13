@@ -9,7 +9,8 @@ import {
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { UNASSIGNED_STAFF_ID } from '../../../constants';
-import type { Shift, ShiftPreference, Staff, DynamicRole, ShiftClass, ShiftTimePattern, BusinessHours, ExcelSettings, BreakSettings } from '../../../types';
+import { buildGenerationReport } from '../utils/generationReport';
+import type { GenerationReport, Shift, ShiftPreference, Staff, DynamicRole, ShiftClass, ShiftTimePattern, BusinessHours, ExcelSettings, BreakSettings } from '../../../types';
 import type { EditFormData } from './useScheduleData';
 
 interface UseScheduleActionsParams {
@@ -25,16 +26,19 @@ interface UseScheduleActionsParams {
     businessHours: BusinessHours | undefined;
     excelSettings: ExcelSettings | undefined;
     breakSettings: BreakSettings | undefined;
+    autoOpenGenerationReport: boolean;
     timePatterns: ShiftTimePattern[];
 }
 
 export function useScheduleActions({
     currentDate, targetYearMonth, rawShifts, fixedDates, preferences,
     staffList, roles, classes, holidays, businessHours, excelSettings,
-    breakSettings, timePatterns,
+    breakSettings, autoOpenGenerationReport, timePatterns,
 }: UseScheduleActionsParams) {
     const [generating, setGenerating] = useState(false);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
+    const [generationReport, setGenerationReport] = useState<GenerationReport | null>(null);
+    const [isGenerationReportOpen, setIsGenerationReportOpen] = useState(false);
     const [confirmAction, setConfirmAction] = useState<{
         title: string;
         message: string;
@@ -100,6 +104,16 @@ export function useScheduleActions({
                 shifts: generatedShifts,
                 fixedDates: datesForTargetMonth,
             });
+
+            setGenerationReport(buildGenerationReport({
+                yearMonth: targetYearMonth,
+                shifts: generatedShifts,
+                staffList,
+                classes,
+                fixedDateCount: datesForTargetMonth.length,
+                breakSettings,
+            }));
+            setIsGenerationReportOpen(autoOpenGenerationReport);
             setConfirmAction(null);
 
             if (errCount > 0) {
@@ -196,8 +210,11 @@ export function useScheduleActions({
     return {
         generating,
         isActionExecuting,
+        generationReport,
+        isGenerationReportOpen,
         confirmAction,
         setConfirmAction,
+        setIsGenerationReportOpen,
         handleGenerate,
         handleClearShifts,
         handleUpdateShift,

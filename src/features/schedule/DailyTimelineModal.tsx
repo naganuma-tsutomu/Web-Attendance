@@ -73,13 +73,13 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
 
     return (
         <Modal isOpen={true} onClose={handleClose} className="select-none" aria-labelledby="daily-timeline-title">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700 max-h-[85dvh] sm:max-h-[calc(100dvh-4rem)]">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-[calc(100vw-2rem)] max-w-6xl flex flex-col animate-in zoom-in-95 duration-200 border border-white dark:border-slate-700 max-h-[85dvh] sm:max-h-[calc(100dvh-4rem)]">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl flex-shrink-0">
                     <div>
                         <h3 id="daily-timeline-title" className="text-xl font-bold text-slate-800 dark:text-white leading-snug">
-                            <span className="block">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</span>
-                            <span className="text-slate-500 dark:text-slate-400 text-base font-normal">のタイムライン</span>
+                            <span className="block sm:inline">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-base font-normal sm:ml-1">のタイムライン</span>
                         </h3>
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                             バーをドラッグ・または左の入力欄で時間を変更できます（15分スナップ）
@@ -106,7 +106,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 min-h-0 flex flex-col">
+                <div className="flex-1 overflow-auto p-6 min-h-0 flex flex-col">
                     <DailyTimelineView
                         date={date}
                         shifts={shifts}

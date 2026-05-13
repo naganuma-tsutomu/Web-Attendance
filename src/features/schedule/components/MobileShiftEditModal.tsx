@@ -72,7 +72,7 @@ const MobileShiftEditModal: React.FC<MobileShiftEditModalProps> = ({
         : offDutyStaff;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} zIndex="z-[60]">
+        <Modal isOpen={isOpen} onClose={onClose} zIndex="z-[60]" autoFocusFirst={false}>
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm">
                 <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
                     <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">{staffName}</h2>

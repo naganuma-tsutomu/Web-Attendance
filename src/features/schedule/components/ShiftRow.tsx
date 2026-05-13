@@ -1,10 +1,11 @@
 import React from 'react';
-import type { Shift, Staff, ShiftTimePattern } from '../../../types';
+import type { BreakSettings, DynamicRole, Shift, Staff, ShiftTimePattern } from '../../../types';
 import type { LocalShiftData, DragType, BusinessHoursConfig } from '../hooks/useShiftEdit';
 import TimelineBar from './TimelineBar';
 import { SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions, type OffDutyStaffInfo } from './ShiftActionMenus';
 import DutyNumberCell from './DutyNumberCell';
 import { toTimeStr } from '../hooks/useShiftEdit';
+import { calculateActualWorkingHours, calculateDuration } from '../../../utils/timeUtils';
 
 interface ShiftRowProps {
     shift: Shift;
@@ -20,6 +21,8 @@ interface ShiftRowProps {
     conflictType: 'training' | 'preference' | 'none';
     classColorMap: Record<string, string>;
     timePatterns: ShiftTimePattern[];
+    roles: DynamicRole[];
+    breakSettings?: BreakSettings;
     hours: BusinessHoursConfig;
     onPointerDown: (e: React.PointerEvent, id: string, type: DragType, trackEl: HTMLElement) => void;
     onPointerUp: (e: React.PointerEvent) => void;
@@ -31,6 +34,8 @@ interface ShiftRowProps {
     onSwapStaff: (oldId: string, newId: string) => void;
     onRemoveShift: (id: string) => void;
     onDutyNumberUpdate: (id: string, value: number | null) => void;
+    onPatternChange: (id: string, patternId: string) => void;
+    onTimeChange: (id: string, field: 'start' | 'end', value: string) => void;
     onMobileEdit: (id: string) => void;
     groupShiftsCount: number;
     effectiveDutyNumber: number;
@@ -42,11 +47,21 @@ interface ShiftRowProps {
 const ShiftRow: React.FC<ShiftRowProps> = ({
     shift, staff, staffName, localData, isDragging, dragDeltaY, hoveredGroup,
     readOnly, showDutyNumbers, highlightStaffId, conflictType,
-    classColorMap, timePatterns, hours, onPointerDown, onPointerUp, renderGridLines,
+    classColorMap, timePatterns, roles, breakSettings, hours, onPointerDown, onPointerUp, renderGridLines,
     showSwapMenu, deleteConfirmId, onToggleSwap, onToggleDelete,
-    onSwapStaff, onRemoveShift, onDutyNumberUpdate, onMobileEdit,
+    onSwapStaff, onRemoveShift, onDutyNumberUpdate, onPatternChange, onTimeChange, onMobileEdit,
     groupShiftsCount, effectiveDutyNumber, isDutyAuto, offDutyStaff, staffMonthlyHours
 }) => {
+    const startTime = toTimeStr(localData.start);
+    const endTime = toTimeStr(localData.end);
+    const allowedPatterns = roles.find(role => role.name === staff?.role)?.patterns || [];
+    const matchedPattern = allowedPatterns.find(pattern => pattern.startTime === startTime && pattern.endTime === endTime);
+    const durationHours = breakSettings?.displayActualHoursInModal
+        ? calculateActualWorkingHours(startTime, endTime, breakSettings)
+        : calculateDuration(startTime, endTime);
+    const durationMins = Math.round(durationHours * 60);
+    const durationLabel = `${Math.floor(durationMins / 60)}:${String(durationMins % 60).padStart(2, '0')}`;
+
     return (
         <div
             className={`flex flex-row ${readOnly ? 'items-center border-b border-slate-100 dark:border-slate-700/50' : 'border-b border-slate-200 dark:border-slate-700'} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
@@ -64,7 +79,7 @@ const ShiftRow: React.FC<ShiftRowProps> = ({
                             onUpdate={onDutyNumberUpdate}
                         />
                     )}
-                    <div className="w-full sm:w-28 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
+                    <div className="w-full sm:w-28 min-h-[52px] sm:min-h-0 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
                         {/* Mobile view */}
                         <div className="flex sm:hidden items-center justify-between gap-1">
                             <div className="font-medium text-[11px] text-slate-800 dark:text-slate-200 truncate flex items-center gap-1" title={staffName}>
@@ -114,6 +129,44 @@ const ShiftRow: React.FC<ShiftRowProps> = ({
                             onSwapStaff={onSwapStaff}
                         />
                     </div>
+                    <div className="hidden sm:flex w-36 p-1.5 border-r border-slate-200 dark:border-slate-700 items-center">
+                        <select
+                            value={matchedPattern?.id ?? ''}
+                            onChange={(e) => onPatternChange(shift.id, e.target.value)}
+                            className="w-full text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded pl-1 pr-5 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
+                            aria-label={`${staffName}のシフトパターン`}
+                        >
+                            {!matchedPattern && <option value="">カスタム</option>}
+                            {allowedPatterns.map(pattern => (
+                                <option key={pattern.id} value={pattern.id}>
+                                    {pattern.name} ({pattern.startTime}-{pattern.endTime})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="hidden sm:flex w-20 p-1.5 border-r border-slate-200 dark:border-slate-700 items-center">
+                        <input
+                            type="time"
+                            step={900}
+                            value={startTime}
+                            onChange={(e) => onTimeChange(shift.id, 'start', e.target.value)}
+                            className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text"
+                            aria-label={`${staffName}の開始時刻`}
+                        />
+                    </div>
+                    <div className="hidden sm:flex w-20 p-1.5 border-r border-slate-200 dark:border-slate-700 items-center">
+                        <input
+                            type="time"
+                            step={900}
+                            value={endTime}
+                            onChange={(e) => onTimeChange(shift.id, 'end', e.target.value)}
+                            className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text"
+                            aria-label={`${staffName}の終了時刻`}
+                        />
+                    </div>
+                    <div className="hidden sm:flex w-14 p-2 border-r border-slate-200 dark:border-slate-700 items-center justify-center text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                        {durationLabel}
+                    </div>
                 </div>
             ) : (
                 <div className="w-[100px] sm:w-[140px] flex-shrink-0 p-1 sm:p-2 border-r border-slate-100 dark:border-slate-800 flex items-center">
@@ -123,25 +176,23 @@ const ShiftRow: React.FC<ShiftRowProps> = ({
                 </div>
             )}
 
-            {/* Timeline Bar Area */}
-            <div className="flex-1 h-8 sm:h-10 relative bg-white/50 dark:bg-slate-800/50">
-                <TimelineBar
-                    shift={shift}
-                    localData={localData}
-                    isDragging={isDragging}
-                    dragDeltaY={dragDeltaY}
-                    hoveredGroup={hoveredGroup as any}
-                    highlightStaffId={highlightStaffId}
-                    readOnly={readOnly}
-                    classColorMap={classColorMap}
-                    timePatterns={timePatterns}
-                    hours={hours}
-                    conflictType={conflictType}
-                    onPointerDown={onPointerDown}
-                    onPointerUp={onPointerUp}
-                    renderGridLines={renderGridLines}
-                />
-            </div>
+            {/* Timeline Track */}
+            <TimelineBar
+                shift={shift}
+                localData={localData}
+                isDragging={isDragging}
+                dragDeltaY={dragDeltaY}
+                hoveredGroup={hoveredGroup as any}
+                highlightStaffId={highlightStaffId}
+                readOnly={readOnly}
+                classColorMap={classColorMap}
+                timePatterns={timePatterns}
+                hours={hours}
+                conflictType={conflictType}
+                onPointerDown={onPointerDown}
+                onPointerUp={onPointerUp}
+                renderGridLines={renderGridLines}
+            />
         </div>
     );
 };

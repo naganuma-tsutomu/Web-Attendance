@@ -7,6 +7,7 @@ import {
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
     useBusinessHours, useExcelSettings, useBreakSettings,
+    useSchedulePreferences,
 } from '../../../lib/hooks';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
 import { useScheduleQueries } from './useScheduleQueries';
@@ -42,6 +43,7 @@ export const useScheduleData = () => {
     const { data: businessHours } = useBusinessHours();
     const { data: excelSettings } = useExcelSettings();
     const { data: breakSettings } = useBreakSettings();
+    const { data: schedulePreferences } = useSchedulePreferences();
 
     // 動的な複数月データフェッチ
     const { rawShifts, preferences, fixedDates, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
@@ -83,6 +85,7 @@ export const useScheduleData = () => {
         businessHours,
         excelSettings,
         breakSettings,
+        autoOpenGenerationReport: schedulePreferences?.autoOpenGenerationReport ?? true,
         timePatterns,
     });
 

@@ -22,6 +22,7 @@ import type {
     ShiftRequirementInferred,
     HolidayInferred,
     BusinessHoursInferred,
+    SchedulePreferencesInferred,
     ExcelSettingsSchema,
     ExcelHighlightRuleSchema
 } from './schemas';
@@ -145,6 +146,9 @@ export interface BreakSettings {
     displayActualHoursInModal: boolean;  // シフトモーダルで実労働時間表示
     displayActualHoursInExcel: boolean;  // Excelで実労働時間表示
 }
+
+/** シフト画面設定 */
+export type SchedulePreferences = SchedulePreferencesInferred;
 
 /** ローテーション設定 */
 export interface RotationSettings {

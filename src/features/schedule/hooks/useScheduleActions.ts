@@ -26,13 +26,14 @@ interface UseScheduleActionsParams {
     businessHours: BusinessHours | undefined;
     excelSettings: ExcelSettings | undefined;
     breakSettings: BreakSettings | undefined;
+    autoOpenGenerationReport: boolean;
     timePatterns: ShiftTimePattern[];
 }
 
 export function useScheduleActions({
     currentDate, targetYearMonth, rawShifts, fixedDates, preferences,
     staffList, roles, classes, holidays, businessHours, excelSettings,
-    breakSettings, timePatterns,
+    breakSettings, autoOpenGenerationReport, timePatterns,
 }: UseScheduleActionsParams) {
     const [generating, setGenerating] = useState(false);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
@@ -112,7 +113,7 @@ export function useScheduleActions({
                 fixedDateCount: datesForTargetMonth.length,
                 breakSettings,
             }));
-            setIsGenerationReportOpen(true);
+            setIsGenerationReportOpen(autoOpenGenerationReport);
             setConfirmAction(null);
 
             if (errCount > 0) {

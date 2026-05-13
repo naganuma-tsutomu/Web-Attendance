@@ -69,7 +69,7 @@ const DisplayPreferencesSection = ({
                 </div>
             </div>
 
-            <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            <div className="flex items-center justify-between">
                 <div>
                     <div className="flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-emerald-600" />
@@ -83,7 +83,7 @@ const DisplayPreferencesSection = ({
                     aria-label="自動生成後に生成レポートを表示"
                     aria-checked={autoOpenGenerationReport}
                     onClick={() => onAutoOpenGenerationReportChange(!autoOpenGenerationReport)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer self-start sm:self-auto ${autoOpenGenerationReport ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${autoOpenGenerationReport ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                 >
                     <span
                         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoOpenGenerationReport ? 'translate-x-6' : 'translate-x-1'}`}

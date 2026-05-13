@@ -78,8 +78,8 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl flex-shrink-0">
                     <div>
                         <h3 id="daily-timeline-title" className="text-xl font-bold text-slate-800 dark:text-white leading-snug">
-                            <span className="block">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</span>
-                            <span className="text-slate-500 dark:text-slate-400 text-base font-normal">のタイムライン</span>
+                            <span className="block sm:inline">{format(date, 'yyyy年M月d日 (E)', { locale: ja })}</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-base font-normal sm:ml-1">のタイムライン</span>
                         </h3>
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                             バーをドラッグ・または左の入力欄で時間を変更できます（15分スナップ）

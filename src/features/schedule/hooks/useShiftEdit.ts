@@ -73,11 +73,13 @@ type ShiftEditAction =
     | { type: 'UPDATE_LOCAL_FN'; updater: (prev: Record<string, LocalShiftData>) => Record<string, LocalShiftData> }
     | { type: 'ADD_SHIFT'; shift: Shift; localData: LocalShiftData }
     | { type: 'REMOVE_SHIFT'; id: string }
-    | { type: 'SWAP_STAFF'; oldId: string; newShift: Shift; localData: LocalShiftData };
+    | { type: 'SWAP_STAFF'; oldId: string; newShift: Shift; localData: LocalShiftData }
+    | { type: 'UPDATE_SHIFT_PATTERN'; id: string; patternId: string }
+    | { type: 'UPDATE_SHIFT_TIME'; id: string; field: 'start' | 'end'; value: string };
 
 // ── Reducer ──
 
-function shiftEditReducer(state: ShiftEditState, action: ShiftEditAction): ShiftEditState {
+function shiftEditReducer(state: ShiftEditState, action: ShiftEditAction, timePatterns: ShiftTimePattern[], hours: BusinessHoursConfig): ShiftEditState {
     switch (action.type) {
         case 'INIT':
             return {
@@ -134,6 +136,41 @@ function shiftEditReducer(state: ShiftEditState, action: ShiftEditAction): Shift
             }
             return { ...state, localShifts: nextLocal, addedShifts: nextAdded, deletedIds: nextDeleted };
         }
+        case 'UPDATE_SHIFT_PATTERN': {
+            const pattern = timePatterns.find(p => p.id === action.patternId);
+            if (!pattern) return state;
+            return {
+                ...state,
+                localShifts: {
+                    ...state.localShifts,
+                    [action.id]: {
+                        ...state.localShifts[action.id],
+                        start: timeToMinutes(pattern.startTime),
+                        end: timeToMinutes(pattern.endTime),
+                    },
+                },
+            };
+        }
+        case 'UPDATE_SHIFT_TIME': {
+            const curr = state.localShifts[action.id];
+            if (!curr) return state;
+            const mins = timeToMinutes(action.value);
+            const snapped = snapTo15(mins);
+            let newStart = curr.start;
+            let newEnd = curr.end;
+            if (action.field === 'start') {
+                newStart = Math.max(hours.startHour * 60, Math.min(curr.end - SHIFT_STEP_MINS, snapped));
+            } else {
+                newEnd = Math.min(hours.endHour * 60, Math.max(curr.start + SHIFT_STEP_MINS, snapped));
+            }
+            return {
+                ...state,
+                localShifts: {
+                    ...state.localShifts,
+                    [action.id]: { ...curr, start: newStart, end: newEnd },
+                },
+            };
+        }
         default:
             return state;
     }
@@ -165,10 +202,14 @@ export function useShiftEdit({
 }: UseShiftEditParams) {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
-    const [editState, dispatch] = useReducer(shiftEditReducer, { shifts, targetDateStr }, () => {
-        const init = buildInitialLocalShifts(shifts, targetDateStr);
-        return { localShifts: init, initialShifts: init, addedShifts: [], deletedIds: new Set<string>() };
-    });
+    const [editState, dispatch] = useReducer(
+        (state: ShiftEditState, action: ShiftEditAction) => shiftEditReducer(state, action, timePatterns, hours),
+        { shifts, targetDateStr },
+        () => {
+            const init = buildInitialLocalShifts(shifts, targetDateStr);
+            return { localShifts: init, initialShifts: init, addedShifts: [], deletedIds: new Set<string>() };
+        }
+    );
 
     const { localShifts, addedShifts, deletedIds, initialShifts } = editState;
 
@@ -267,30 +308,6 @@ export function useShiftEdit({
 
     // ── Handlers ──
 
-    const handlePatternChange = useCallback((shiftId: string, patternId: string) => {
-        const pattern = timePatterns.find(p => p.id === patternId);
-        if (!pattern) return;
-        dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: {
-            start: timeToMinutes(pattern.startTime),
-            end: timeToMinutes(pattern.endTime)
-        }});
-    }, [timePatterns]);
-
-    const handleTimeInputChange = useCallback((shiftId: string, field: 'start' | 'end', value: string) => {
-        const mins = timeToMinutes(value);
-        const snapped = snapTo15(mins);
-        dispatch({ type: 'UPDATE_LOCAL_FN', updater: (prev) => {
-            const curr = prev[shiftId];
-            if (field === 'start') {
-                const newStart = Math.max(hours.startHour * 60, Math.min(curr.end - SHIFT_STEP_MINS, snapped));
-                return { ...prev, [shiftId]: { ...curr, start: newStart } };
-            } else {
-                const newEnd = Math.min(hours.endHour * 60, Math.max(curr.start + SHIFT_STEP_MINS, snapped));
-                return { ...prev, [shiftId]: { ...curr, end: newEnd } };
-            }
-        }});
-    }, [hours]);
-
     const handleAddStaff = useCallback((staffId: string, classType: ClassType) => {
         const staff = staffList.find(s => s.id === staffId);
         if (!staff) return;
@@ -343,7 +360,6 @@ export function useShiftEdit({
     return {
         localShifts, addedShifts, deletedIds, initialShifts,
         isModified, dispatch, targetDateStr,
-        handlePatternChange, handleTimeInputChange,
         handleAddStaff, handleRemoveShift, handleSwapStaff,
     };
 }

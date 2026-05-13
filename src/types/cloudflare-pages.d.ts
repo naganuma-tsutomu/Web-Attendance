@@ -1,3 +1,8 @@
+/**
+ * Cloudflare Pages Functions の型定義。
+ * @cloudflare/workers-types を直接依存させず自前で定義することで、
+ * 特定のランタイムバージョンへの固定、CIの軽量化、およびプロジェクト固有の型拡張を容易にしています。
+ */
 type PagesFunction<
     Env = unknown,
     Params extends string = string,

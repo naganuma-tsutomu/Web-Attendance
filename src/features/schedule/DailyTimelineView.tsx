@@ -1,19 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useBusinessHours, useBreakSettings } from '../../lib/hooks';
-import { calculateActualWorkingHours, timeToMinutes } from '../../utils/timeUtils';
-import { useShiftEdit, toTimeStr, resolveBusinessHours } from './hooks/useShiftEdit';
-import type { LocalShiftData } from './hooks/useShiftEdit';
+import { timeToMinutes } from '../../utils/timeUtils';
+import { useShiftEdit, resolveBusinessHours } from './hooks/useShiftEdit';
 import { useTimelineDrag } from './hooks/useTimelineDrag';
 import { useDailyTimelineData, useTimelineHourLabels } from './hooks/useDailyTimelineData';
-import TimelineBar, { hexToRgba } from './components/TimelineBar';
-import DutyNumberCell from './components/DutyNumberCell';
-import { AddStaffMenu, SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions } from './components/ShiftActionMenus';
-import OffDutySection from './components/OffDutySection';
 import { TimelineFixedToggle, TimelineHeaderRows } from './components/TimelineHeaderRows';
 import MobileShiftEditController from './components/MobileShiftEditController';
-import { buildLeaderMatcher } from '../../utils/roleMatch';
-import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
-import { getEffectiveDutyNumber } from '../../utils/dutyNumber';
+import OffDutySection from './components/OffDutySection';
+import ShiftClassGroup from './components/ShiftClassGroup';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 
 interface DailyTimelineViewProps {
     date: Date;
@@ -42,7 +37,6 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     showDutyNumbers = false,
     leaderRoleId = null,
 }) => {
-    // ── Business hours ──
     const { data: businessHoursData } = useBusinessHours();
     const { data: breakSettings } = useBreakSettings();
     const hours = useMemo(() => resolveBusinessHours(businessHoursData), [businessHoursData]);
@@ -52,39 +46,27 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     });
     const { localShifts, addedShifts, deletedIds, targetDateStr } = edit;
 
-    // ── Menu state ──
     const [showAddMenu, setShowAddMenu] = useState<string | null>(null);
     const [showSwapMenu, setShowSwapMenu] = useState<string | null>(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [mobileEditShiftId, setMobileEditShiftId] = useState<string | null>(null);
 
-    // ── Drag state ──
     const {
         activeDragId,
         dragDeltaY,
         hoveredGroup,
         groupRefs,
-        handlePointerDown,
         handlePointerMove,
         handlePointerUp,
-    } = useTimelineDrag({ localShifts: edit.localShifts, classes, hours, readOnly, dispatch: edit.dispatch });
+        handlePointerDown,
+    } = useTimelineDrag({ localShifts, classes, hours, readOnly, dispatch: edit.dispatch });
 
-    // ── Derived data ──
     const hourLabels = useTimelineHourLabels(hours);
     const { dayShifts, staffMonthlyHours, offDutyStaff, classColorMap } = useDailyTimelineData({
-        date,
-        shifts,
-        staffList,
-        classes,
-        preferences,
-        targetDateStr,
-        addedShifts,
-        deletedIds,
-        breakSettings,
+        date, shifts, staffList, classes, preferences, targetDateStr, addedShifts, deletedIds, breakSettings,
     });
 
-    // ── Conflict helper ──
-    const getShiftConflictType = (staffId: string, shiftStartMins: number, shiftEndMins: number): 'training' | 'preference' | 'none' => {
+    const getShiftConflictType = useCallback((staffId: string, shiftStartMins: number, shiftEndMins: number): 'training' | 'preference' | 'none' => {
         const pref = preferences.find(p => p.staffId === staffId);
         if (!pref?.details?.length) return 'none';
         const detail = pref.details.find(d => d.date === targetDateStr);
@@ -97,106 +79,21 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             if (shiftStartMins < prefEnd && shiftEndMins > prefStart) return 'preference';
         }
         return 'none';
+    }, [preferences, targetDateStr]);
+
+    const handleDutyNumberUpdate = (shiftId: string, value: number | null) => {
+        edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: value ?? undefined } });
     };
 
-    const handleDutyNumberUpdate = useCallback((shiftId: string, value: number | null) => {
-        const sourceShift = dayShifts.find(s => s.id === shiftId);
-        if (!sourceShift) return;
-        const effectiveClassType = localShifts[shiftId]?.classType ?? sourceShift.classType;
-
-        const groupShifts = dayShifts.filter(s => {
-            const local = localShifts[s.id];
-            const cls = local ? local.classType : s.classType;
-            const err = local ? local.isError : s.isError;
-            return cls === effectiveClassType && !err;
-        });
-        const groupStaffIds = groupShifts.map(s => s.staffId);
-        const matcher = buildLeaderMatcher(leaderRoleId, roles);
-        const fullTimeGroupIds = leaderRoleId
-            ? groupStaffIds.filter(id => {
-                const st = staffList.find(st2 => st2.id === id);
-                return st ? matcher(st) : false;
-            })
-            : undefined;
-
-        // ローカル変更を考慮した実効当番番号を返すヘルパー
-        const getPendingDutyNumber = (s: Shift): number | null | undefined => {
-            const localDuty = localShifts[s.id]?.dutyNumber;
-            return localDuty !== undefined ? localDuty : s.duty_number;
-        };
-
-        const getEffective = (s: Shift) =>
-            getEffectiveDutyNumber(s.staffId, getPendingDutyNumber(s), date, groupStaffIds, fullTimeGroupIds);
-
-        if (value === null) {
-            // 右クリックリセット: 既にautoなら何もしない
-            const pendingSource = getPendingDutyNumber(sourceShift);
-            if (pendingSource == null) return;
-
-            // リセット後の自動計算番号を求める
-            const autoNumber = getEffectiveDutyNumber(sourceShift.staffId, null, date, groupStaffIds, fullTimeGroupIds);
-            const sourceEffective = getEffective(sourceShift);
-
-            // 同じ番号を持つ他のシフトと入れ替え
-            const targetShift = groupShifts.find(s => s.id !== shiftId && getEffective(s) === autoNumber);
-            edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: null } });
-            if (targetShift) {
-                edit.dispatch({ type: 'UPDATE_LOCAL', id: targetShift.id, data: { dutyNumber: sourceEffective } });
-            }
-            return;
-        }
-
-        // 通常の番号変更
-        const sourceEffective = getEffective(sourceShift);
-        if (sourceEffective === value) return;
-
-        // 対象番号をすでに持っているシフトを探してスワップ
-        const targetShift = groupShifts.find(s => s.id !== shiftId && getEffective(s) === value);
-        edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: value } });
-        if (targetShift) {
-            edit.dispatch({ type: 'UPDATE_LOCAL', id: targetShift.id, data: { dutyNumber: sourceEffective } });
-            // swap 後: targetShift が受け取った番号（sourceEffective）を手動設定済みの別シフトが
-            // 持っていると UI 上で重複して見えるため、そのシフトも null にリセットする。
-            // auto 計算のみで同じ番号になっているシフト（dutyNumber が null）は
-            // DB 保存時に duty_number=null として扱われ UNIQUE 制約違反にならないため対象外。
-            const afterSwapConflict = groupShifts.find(s =>
-                s.id !== shiftId && s.id !== targetShift.id &&
-                getPendingDutyNumber(s) === sourceEffective
-            );
-            if (afterSwapConflict) {
-                edit.dispatch({ type: 'UPDATE_LOCAL', id: afterSwapConflict.id, data: { dutyNumber: null } });
-            }
-        }
-    }, [dayShifts, localShifts, date, staffList, roles, leaderRoleId, edit]);
-
-    const calculateDuration = (startMins: number, endMins: number) => {
-        const diff = endMins - startMins;
-        if (diff < 0) return '??';
-        if (breakSettings?.displayActualHoursInModal) {
-            const startStr = toTimeStr(startMins);
-            const endStr = toTimeStr(endMins);
-            const actualHrs = calculateActualWorkingHours(startStr, endStr, breakSettings);
-            const actualMins = Math.round(actualHrs * 60);
-            return `${Math.floor(actualMins / 60)}:${String(actualMins % 60).padStart(2, '0')}`;
-        }
-        return `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`;
-    };
-
-    // ── Grid lines ──
     const renderGridLines = useCallback(() => {
         const lines = [];
-        const totalSlots = (hours.endHour - hours.startHour) * 4;
-        for (let i = 0; i <= totalSlots; i++) {
-            const currentMins = hours.startHour * 60 + i * 15;
-            const isHour = i % 4 === 0;
-            const isHalf = i % 2 === 0 && !isHour;
-            const leftOffset = ((currentMins - hours.displayStartMins) / hours.displayTotalMins) * 100;
+        for (let m = hours.displayStartMins; m <= hours.displayStartMins + hours.displayTotalMins; m += 60) {
+            const leftOffset = ((m - hours.displayStartMins) / hours.displayTotalMins) * 100;
             lines.push(
                 <div
-                    key={i}
-                    className={`absolute top-0 bottom-0 border-l z-0 pointer-events-none ${isHour
-                        ? 'border-slate-300 dark:border-slate-600'
-                        : isHalf
+                    key={m}
+                    className={`absolute top-0 bottom-0 border-l z-0 ${
+                        m % 180 === 0
                             ? 'border-slate-200 dark:border-slate-700 border-dashed'
                             : 'border-slate-100 dark:border-slate-800'
                     }`}
@@ -206,21 +103,6 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
         }
         return lines;
     }, [hours]);
-
-    // ── Class group color helper (DB color フィールドのみ使用) ──
-    const getDynamicColor = (classId: string) => {
-        if (classId === 'unassigned') {
-            return 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700';
-        }
-        // DB の color が存在しない / 取得できていない場合のニュートラルフォールバック
-        return 'text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700';
-    };
-
-    // ── Add from OffDutySection ──
-    const handleAddFromOffDuty = (staffId: string, classType: ClassType) => {
-        edit.handleAddStaff(staffId, classType);
-        setShowAddMenu(null);
-    };
 
     return (
         <div
@@ -242,257 +124,81 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     displayTotalMins={hours.displayTotalMins}
                 />
 
-                {/* Content Rows */}
                 <div className="pb-2">
-                    {[...classes, { id: 'unassigned', name: '未割り当て' } as ShiftClass].map(cls => {
-                        const groupShifts = dayShifts.filter(shift => {
-                            const local = localShifts[shift.id];
-                            const currentClassId = local ? local.classType : shift.classType;
-                            const isError = local ? local.isError : shift.isError;
-                            if (cls.id === 'unassigned') return (isError || !classes.some(c => c.id === currentClassId));
-                            return currentClassId === cls.id && !isError;
-                        });
-                        // display_order 順の staffId 配列（ローテーション計算の基準）
-                        const groupStaffIds = groupShifts.map(gs => gs.staffId);
-                        const matcher = buildLeaderMatcher(leaderRoleId, roles);
-                        const fullTimeGroupIds = leaderRoleId
-                            ? groupStaffIds.filter(id => {
-                                const s = staffList.find(st => st.id === id);
-                                return s ? matcher(s) : false;
-                            })
-                            : undefined;
-                        // ローカル変更を考慮した実効当番番号
-                        const getPendingDuty = (s: Shift): number | null | undefined => {
-                            const localDuty = localShifts[s.id]?.dutyNumber;
-                            return localDuty !== undefined ? localDuty : s.duty_number;
-                        };
-
-                        // 番号カラム表示時は番号順にソート
-                        const sortedGroupShifts = showDutyNumbers
-                            ? [...groupShifts].sort((a, b) =>
-                                getEffectiveDutyNumber(a.staffId, getPendingDuty(a), date, groupStaffIds, fullTimeGroupIds) -
-                                getEffectiveDutyNumber(b.staffId, getPendingDuty(b), date, groupStaffIds, fullTimeGroupIds)
-                            )
-                            : groupShifts;
-
-                        if (groupShifts.length === 0 && (cls.id === 'unassigned' || readOnly)) return null;
-
-                        const groupTitle = cls.name;
-                        const titleColor = getDynamicColor(cls.id);
-                        const titleCustomStyle = cls.color && hoveredGroup !== cls.id ? {
-                            backgroundColor: hexToRgba(cls.color, 0.12),
-                            borderColor: hexToRgba(cls.color, 0.25),
-                        } : {};
-
-                        return (
-                            <div
-                                key={cls.id}
-                                ref={el => { groupRefs.current[cls.id] = el; }}
-                                className={`mb-2 last:mb-0 border border-slate-200 dark:border-slate-700 shadow-sm relative ${
-                                    dayShifts.some(s => (showSwapMenu === s.id || deleteConfirmId === s.id) && (localShifts[s.id]?.classType === cls.id || (s.classType === cls.id && !localShifts[s.id]))) || showAddMenu === cls.id
-                                    ? 'z-50 overflow-visible' : 'z-[5] overflow-visible'
-                                }`}
-                            >
-                                <div
-                                    className={`px-4 py-1 text-sm font-bold border-t border-b flex items-center justify-between transition-colors sticky top-0 z-30 ${hoveredGroup === cls.id ? 'ring-2 ring-inset ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : (cls.color ? 'text-slate-700 dark:text-slate-200' : titleColor)}`}
-                                    style={titleCustomStyle}
-                                >
-                                    <div className="flex items-center text-xs">
-                                        {groupTitle}
-                                        {hoveredGroup === cls.id && activeDragId && (
-                                            <span className="ml-2 text-[10px] text-indigo-500 animate-pulse">ここへ移動</span>
-                                        )}
-                                    </div>
-                                    {!readOnly && cls.id !== 'unassigned' && (
-                                        <AddStaffMenu
-                                            classId={cls.id as ClassType}
-                                            staffList={staffList}
-                                            dayShifts={dayShifts}
-                                            showAddMenu={showAddMenu}
-                                            onToggle={(id) => setShowAddMenu(id)}
-                                            onAddStaff={(staffId, classType) => { edit.handleAddStaff(staffId, classType); setShowAddMenu(null); }}
-                                        />
-                                    )}
-                                </div>
-
-                                <div>
-                                    {groupShifts.length === 0 && (
-                                        <div className="p-4 text-center text-slate-400 dark:text-slate-500 text-[10px]">人員が割り当てられていません</div>
-                                    )}
-                                    {sortedGroupShifts.map((shift) => {
-                                        const staff = staffList.find(s => s.id === shift.staffId);
-                                        const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
-                                        const s = localShifts[shift.id] ?? { start: timeToMinutes(shift.startTime), end: timeToMinutes(shift.endTime), classType: shift.classType, isError: shift.isError ?? false } as LocalShiftData;
-                                        const isDragging = activeDragId === shift.id;
-                                        const allowedPatterns = roles.find(r => r.name === staff?.role)?.patterns || [];
-                                        const conflictType = !s.isError ? getShiftConflictType(shift.staffId, s.start, s.end) : 'none' as const;
-
-                                        return (
-                                            <div
-                                                key={shift.id}
-                                                className={`flex flex-row ${readOnly ? 'items-center border-b border-slate-100 dark:border-slate-700/50' : 'border-b border-slate-200 dark:border-slate-700'} ${isDragging ? 'opacity-40 bg-slate-100 dark:bg-slate-900' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
-                                                style={readOnly ? { touchAction: 'pan-y' } : {}}
-                                            >
-                                                {/* Left Info Column */}
-                                                {!readOnly ? (
-                                                    <div className={`flex flex-col sm:flex-row w-[110px] ${showDutyNumbers ? 'sm:w-[512px]' : 'sm:w-[480px]'} flex-shrink-0 text-xs sm:text-sm bg-white dark:bg-slate-800`}>
-                                                        {showDutyNumbers && (() => {
-                                                            const pendingDuty = getPendingDuty(shift);
-                                                            const effective = getEffectiveDutyNumber(shift.staffId, pendingDuty, date, groupStaffIds, fullTimeGroupIds);
-                                                            const isAuto = pendingDuty == null;
-                                                            return (
-                                                                <DutyNumberCell
-                                                                    shiftId={shift.id}
-                                                                    value={effective}
-                                                                    isAuto={isAuto}
-                                                                    groupSize={groupShifts.length}
-                                                                    onUpdate={handleDutyNumberUpdate}
-                                                                />
-                                                            );
-                                                        })()}
-                                                        <div className="w-full sm:w-28 p-1 sm:p-2 border-b sm:border-b-0 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center relative group/name">
-                                                            {/* モバイル: 名前 + 編集ボタン + 時間 の2段 */}
-                                                            <div className="flex sm:hidden items-center justify-between gap-1">
-                                                                <div className="font-medium text-[11px] text-slate-800 dark:text-slate-200 truncate flex items-center gap-1" title={staffName}>
-                                                                    {staffName}
-                                                                    {highlightStaffId === shift.staffId && (
-                                                                        <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0">My</span>
-                                                                    )}
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => setMobileEditShiftId(shift.id)}
-                                                                    className="flex-shrink-0 text-[10px] px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700 rounded font-medium"
-                                                                >
-                                                                    編集
-                                                                </button>
-                                                            </div>
-                                                            <div className="flex sm:hidden text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                                                                {toTimeStr(s.start)}〜{toTimeStr(s.end)}
-                                                            </div>
-
-                                                            {/* デスクトップ: 名前のみ */}
-                                                            <div className="hidden sm:block font-medium text-[13px] text-slate-800 dark:text-slate-200 truncate pr-1" title={staffName}>
-                                                                {staffName}
-                                                                {highlightStaffId === shift.staffId && (
-                                                                    <span className="ml-1 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">My</span>
-                                                                )}
-                                                            </div>
-                                                            <ShiftRowActions
-                                                                shiftId={shift.id}
-                                                                showSwapMenu={showSwapMenu}
-                                                                deleteConfirmId={deleteConfirmId}
-                                                                onToggleSwap={setShowSwapMenu}
-                                                                onToggleDelete={setDeleteConfirmId}
-                                                            />
-                                                            <DeleteConfirmPopup
-                                                                shiftId={shift.id}
-                                                                deleteConfirmId={deleteConfirmId}
-                                                                onConfirm={(id) => { edit.handleRemoveShift(id); setDeleteConfirmId(null); }}
-                                                                onCancel={() => setDeleteConfirmId(null)}
-                                                            />
-                                                            <SwapStaffMenu
-                                                                shiftId={shift.id}
-                                                                currentStaff={staff}
-                                                                offDutyStaff={offDutyStaff}
-                                                                staffMonthlyHours={staffMonthlyHours}
-                                                                showSwapMenu={showSwapMenu}
-                                                                onToggle={setShowSwapMenu}
-                                                                onSwapStaff={(oldId, newId) => { edit.handleSwapStaff(oldId, newId); setShowSwapMenu(null); }}
-                                                            />
-                                                        </div>
-                                                        <div className="hidden sm:flex w-36 border-r border-slate-200 dark:border-slate-700 items-center px-1">
-                                                            <select
-                                                                className="w-full text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded pl-1 pr-5 py-0.5 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-indigo-400 focus:outline-none"
-                                                                value={allowedPatterns.find(p => p.startTime === toTimeStr(s.start) && p.endTime === toTimeStr(s.end))?.id || ''}
-                                                                onChange={(e) => edit.handlePatternChange(shift.id, e.target.value)}
-                                                            >
-                                                                <option value="">カスタム</option>
-                                                                {allowedPatterns.map(p => (
-                                                                    <option key={p.id} value={p.id}>{p.name} ({p.startTime}-{p.endTime})</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                        <div className="hidden sm:flex flex-row w-40 border-r border-slate-200 dark:border-slate-700">
-                                                            <div className="w-20 border-r border-slate-200 dark:border-slate-700 flex items-center justify-center px-1">
-                                                                <input type="time" step="900" value={toTimeStr(s.start)} onChange={e => edit.handleTimeInputChange(shift.id, 'start', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
-                                                            </div>
-                                                            <div className="w-20 flex items-center justify-center px-1">
-                                                                <input type="time" step="900" value={toTimeStr(s.end)} onChange={e => edit.handleTimeInputChange(shift.id, 'end', e.target.value)} className="w-full text-center text-xs font-mono text-slate-700 dark:text-slate-300 border-0 bg-transparent focus:ring-1 focus:ring-indigo-400 rounded p-0.5 cursor-text" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="hidden sm:flex w-14 p-2 border-r border-slate-200 dark:border-slate-700 items-center justify-center text-slate-700 dark:text-slate-300 font-semibold tabular-nums text-xs">
-                                                            {calculateDuration(s.start, s.end)}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className={`w-[110px] sm:w-44 flex-shrink-0 px-2 sm:px-3 py-1 border-r border-slate-100 dark:border-slate-700/50 flex flex-col sm:flex-row items-start sm:items-center justify-center sm:justify-between overflow-hidden gap-0 sm:gap-1 ${highlightStaffId === shift.staffId ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'bg-white/50 dark:bg-slate-800/50'}`}>
-                                                        <div className="flex items-center gap-1 overflow-hidden w-full">
-                                                            <div className={`text-[10px] sm:text-xs font-bold truncate ${highlightStaffId === shift.staffId ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`} title={staffName}>{staffName}</div>
-                                                            {highlightStaffId === shift.staffId && (
-                                                                <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex-shrink-0">My</span>
-                                                            )}
-                                                        </div>
-                                                        <div className={`text-[10px] sm:text-xs font-mono tracking-tight flex-shrink-0 ${highlightStaffId === shift.staffId ? 'text-indigo-500 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400'}`}>
-                                                            {toTimeStr(s.start)}-{toTimeStr(s.end)}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Timeline Track */}
-                                                <TimelineBar
-                                                    shift={shift}
-                                                    localData={s}
-                                                    isDragging={isDragging}
-                                                    dragDeltaY={dragDeltaY}
-                                                    hoveredGroup={hoveredGroup}
-                                                    highlightStaffId={highlightStaffId}
-                                                    readOnly={readOnly}
-                                                    classColorMap={classColorMap}
-                                                    timePatterns={timePatterns}
-                                                    hours={hours}
-                                                    conflictType={conflictType}
-                                                    onPointerDown={handlePointerDown}
-                                                    onPointerUp={handlePointerUp}
-                                                    renderGridLines={renderGridLines}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
+                    {[...classes, { id: 'unassigned', name: '未割り当て' } as ShiftClass].map(cls => (
+                        <ShiftClassGroup
+                            key={cls.id}
+                            cls={cls}
+                            dayShifts={dayShifts}
+                            localShifts={localShifts}
+                            staffList={staffList}
+                            classes={classes}
+                            roles={roles}
+                            leaderRoleId={leaderRoleId}
+                            date={date}
+                            readOnly={readOnly}
+                            showDutyNumbers={showDutyNumbers}
+                            hoveredGroup={hoveredGroup}
+                            activeDragId={activeDragId}
+                            dragDeltaY={dragDeltaY}
+                            showAddMenu={showAddMenu}
+                            showSwapMenu={showSwapMenu}
+                            deleteConfirmId={deleteConfirmId}
+                            highlightStaffId={highlightStaffId}
+                            classColorMap={classColorMap}
+                            timePatterns={timePatterns}
+                            hours={hours}
+                            groupRef={el => { groupRefs.current[cls.id] = el; }}
+                            onToggleAddMenu={setShowAddMenu}
+                            onAddStaff={edit.handleAddStaff}
+                            onToggleSwapMenu={setShowSwapMenu}
+                            onToggleDeleteConfirm={setDeleteConfirmId}
+                            onSwapStaff={edit.handleSwapStaff}
+                            onRemoveShift={edit.handleRemoveShift}
+                            onDutyNumberUpdate={handleDutyNumberUpdate}
+                            onPointerDown={handlePointerDown}
+                            onPointerUp={handlePointerUp}
+                            renderGridLines={renderGridLines}
+                            onMobileEdit={setMobileEditShiftId}
+                            getShiftConflictType={getShiftConflictType}
+                            offDutyStaff={offDutyStaff}
+                            staffMonthlyHours={staffMonthlyHours}
+                        />
+                    ))}
                 </div>
+
+                {!readOnly && (
+                    <OffDutySection
+                        offDutyStaff={offDutyStaff}
+                        classes={classes}
+                        readOnly={readOnly}
+                        showAddMenu={showAddMenu}
+                        onToggleAddMenu={setShowAddMenu}
+                        onAddStaff={edit.handleAddStaff}
+                    />
+                )}
             </div>
 
-            <MobileShiftEditController
-                shiftId={mobileEditShiftId}
-                dayShifts={dayShifts}
-                staffList={staffList}
-                localShifts={localShifts}
-                roles={roles}
-                date={date}
-                leaderRoleId={leaderRoleId}
-                showDutyNumbers={showDutyNumbers}
-                offDutyStaff={offDutyStaff}
-                staffMonthlyHours={staffMonthlyHours}
-                onClose={() => setMobileEditShiftId(null)}
-                onPatternChange={(shiftId, patternId) => edit.handlePatternChange(shiftId, patternId)}
-                onTimeChange={(shiftId, field, value) => edit.handleTimeInputChange(shiftId, field, value)}
-                onDutyNumberChange={handleDutyNumberUpdate}
-                onSwapStaff={(shiftId, newStaffId) => edit.handleSwapStaff(shiftId, newStaffId)}
-                onDeleteShift={edit.handleRemoveShift}
-            />
-
-            {/* Off-duty staff section */}
-            <OffDutySection
-                offDutyStaff={offDutyStaff}
-                classes={classes}
-                readOnly={readOnly}
-                showAddMenu={showAddMenu}
-                onToggleAddMenu={setShowAddMenu}
-                onAddStaff={handleAddFromOffDuty}
-            />
+            {mobileEditShiftId && (
+                <MobileShiftEditController
+                    shiftId={mobileEditShiftId}
+                    dayShifts={dayShifts}
+                    staffList={staffList}
+                    localShifts={localShifts}
+                    roles={roles}
+                    date={date}
+                    leaderRoleId={leaderRoleId}
+                    showDutyNumbers={showDutyNumbers}
+                    offDutyStaff={offDutyStaff}
+                    staffMonthlyHours={staffMonthlyHours}
+                    onClose={() => setMobileEditShiftId(null)}
+                    onPatternChange={(id, patternId) => edit.dispatch({ type: 'UPDATE_SHIFT_PATTERN', id, patternId })}
+                    onTimeChange={(id, field, value) => edit.dispatch({ type: 'UPDATE_SHIFT_TIME', id, field, value })}
+                    onDutyNumberChange={(id, value) => edit.dispatch({ type: 'UPDATE_LOCAL', id, data: { dutyNumber: value ?? undefined } })}
+                    onSwapStaff={edit.handleSwapStaff}
+                    onDeleteShift={edit.handleRemoveShift}
+                />
+            )}
         </div>
     );
 };

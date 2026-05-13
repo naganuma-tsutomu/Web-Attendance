@@ -1,23 +1,19 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { format } from 'date-fns';
-import { Lock, Unlock } from 'lucide-react';
 import { useBusinessHours, useBreakSettings } from '../../lib/hooks';
-import { isStaffAvailableReason } from '../../lib/algorithm';
-import { calculateDuration as calculateDurationHours, calculateActualWorkingHours, timeToMinutes } from '../../utils/timeUtils';
+import { calculateActualWorkingHours, timeToMinutes } from '../../utils/timeUtils';
 import { useShiftEdit, toTimeStr, resolveBusinessHours } from './hooks/useShiftEdit';
 import type { LocalShiftData } from './hooks/useShiftEdit';
 import { useTimelineDrag } from './hooks/useTimelineDrag';
+import { useDailyTimelineData, useTimelineHourLabels } from './hooks/useDailyTimelineData';
 import TimelineBar, { hexToRgba } from './components/TimelineBar';
 import DutyNumberCell from './components/DutyNumberCell';
 import { AddStaffMenu, SwapStaffMenu, DeleteConfirmPopup, ShiftRowActions } from './components/ShiftActionMenus';
-import MobileShiftEditModal from './components/MobileShiftEditModal';
-import type { OffDutyStaffInfo } from './components/ShiftActionMenus';
 import OffDutySection from './components/OffDutySection';
-import { UNASSIGNED_STAFF_ID } from '../../constants';
+import { TimelineFixedToggle, TimelineHeaderRows } from './components/TimelineHeaderRows';
+import MobileShiftEditController from './components/MobileShiftEditController';
 import { buildLeaderMatcher } from '../../utils/roleMatch';
 import type { Shift, Staff, ClassType, ShiftClass, ShiftTimePattern, DynamicRole, ShiftPreference } from '../../types';
 import { getEffectiveDutyNumber } from '../../utils/dutyNumber';
-
 
 interface DailyTimelineViewProps {
     date: Date;
@@ -74,82 +70,18 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     } = useTimelineDrag({ localShifts: edit.localShifts, classes, hours, readOnly, dispatch: edit.dispatch });
 
     // ── Derived data ──
-    const hourLabels = useMemo(() =>
-        Array.from({ length: (hours.endHour - hours.startHour) + 1 }, (_, i) => hours.startHour + i),
-    [hours]);
-
-    const dayShifts = useMemo<Shift[]>(() => {
-        return [...shifts.filter(s => s.date === targetDateStr), ...addedShifts]
-            .filter(s => !deletedIds.has(s.id))
-            .sort((a, b) => {
-                if (a.classType !== b.classType) return a.classType.localeCompare(b.classType);
-                const indexA = staffList.findIndex(s => s.id === a.staffId);
-                const indexB = staffList.findIndex(s => s.id === b.staffId);
-                if (indexA !== -1 && indexB !== -1) {
-                    if (indexA !== indexB) return indexA - indexB;
-                } else if (indexA !== -1) return -1;
-                else if (indexB !== -1) return 1;
-                return a.startTime.localeCompare(b.startTime);
-            });
-    }, [shifts, targetDateStr, addedShifts, deletedIds, staffList]);
-
-    const targetYearMonth = format(date, 'yyyy-MM');
-
-    const staffMonthlyHours = useMemo(() => {
-        const hrs: Record<string, number> = {};
-        const base = shifts.filter(s =>
-            s.date.startsWith(targetYearMonth) && !deletedIds.has(s.id) && s.staffId !== UNASSIGNED_STAFF_ID
-        );
-        const added = addedShifts.filter(s =>
-            s.date.startsWith(targetYearMonth) && s.staffId !== UNASSIGNED_STAFF_ID
-        );
-        [...base, ...added].forEach(s => {
-            const duration = breakSettings
-                ? calculateActualWorkingHours(s.startTime, s.endTime, breakSettings)
-                : calculateDurationHours(s.startTime, s.endTime);
-            hrs[s.staffId] = (hrs[s.staffId] || 0) + duration;
-        });
-        return hrs;
-    }, [shifts, addedShifts, deletedIds, targetYearMonth, breakSettings]);
-
-    const offDutyStaff = useMemo<OffDutyStaffInfo[]>(() => {
-        return staffList
-            .map(staff => {
-                const isOnShift = dayShifts.some(s => s.staffId === staff.id);
-                const reason = isStaffAvailableReason(staff, date, targetDateStr, preferences);
-
-                let isFullDayPref = false;
-                let isPartialPref = false;
-                let timeStr: string | null = null;
-                let isTraining = false;
-
-                const pref = preferences.find(p => p.staffId === staff.id);
-                if (pref?.details?.length) {
-                    const detail = pref.details.find(d => d.date === targetDateStr);
-                    if (detail) {
-                        if (detail.type === 'training') isTraining = true;
-                        else if (!detail.startTime && !detail.endTime) isFullDayPref = true;
-                        else if (detail.startTime && detail.endTime) {
-                            isPartialPref = true;
-                            timeStr = `${detail.startTime}-${detail.endTime}`;
-                        }
-                    }
-                }
-
-                const hasPreference = isFullDayPref || isPartialPref || isTraining || reason === 'preference';
-                if (!isOnShift || hasPreference) {
-                    return { staff, reason, isFullDayPref, isPartialPref, isTraining, timeStr, isOnShift };
-                }
-                return null;
-            })
-            .filter((item): item is NonNullable<typeof item> => item !== null);
-    }, [staffList, dayShifts, date, targetDateStr, preferences]);
-
-    const classColorMap = useMemo(() => {
-        const map: Record<string, string> = {};
-        classes.forEach(c => { if (c.color) map[c.id] = c.color; });
-        return map;
-    }, [classes]);
+    const hourLabels = useTimelineHourLabels(hours);
+    const { dayShifts, staffMonthlyHours, offDutyStaff, classColorMap } = useDailyTimelineData({
+        date,
+        shifts,
+        staffList,
+        classes,
+        preferences,
+        targetDateStr,
+        addedShifts,
+        deletedIds,
+        breakSettings,
+    });
 
     // ── Conflict helper ──
     const getShiftConflictType = (staffId: string, shiftStartMins: number, shiftEndMins: number): 'training' | 'preference' | 'none' => {
@@ -298,64 +230,17 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
             onPointerCancel={handlePointerUp}
         >
             {!readOnly && onToggleFixed && !hideHeaderToggle && (
-                <div className="flex justify-end p-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                    <button
-                        onClick={onToggleFixed}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border shadow-sm ${
-                            isFixed
-                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
-                        }`}
-                    >
-                        {isFixed ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                        <span>{isFixed ? '自動生成からロック中' : 'シフトをロックする'}</span>
-                    </button>
-                </div>
+                <TimelineFixedToggle isFixed={isFixed} onToggleFixed={onToggleFixed} />
             )}
 
             <div className={`${readOnly ? 'min-w-full' : 'min-w-full md:min-w-[800px]'} overflow-visible flex flex-col bg-white dark:bg-slate-800`}>
-                {/* Header Row */}
-                {!readOnly && (
-                    <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 sticky top-0 z-20">
-                        <div className={`hidden sm:flex ${showDutyNumbers ? 'w-[512px]' : 'w-[480px]'} flex-shrink-0`}>
-                            {showDutyNumbers && (
-                                <div className="w-8 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">№</div>
-                            )}
-                            <div className="w-28 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">名前</div>
-                            <div className="w-36 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">シフトパターン</div>
-                            <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">開始</div>
-                            <div className="w-20 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">終了</div>
-                            <div className="w-14 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">時間</div>
-                        </div>
-                        <div className="sm:hidden w-[110px] flex-shrink-0 p-2 border-r border-slate-300 dark:border-slate-600 flex items-center justify-center">スタッフ</div>
-                        <div className="flex-1 relative h-8 border-l border-slate-300 dark:border-slate-600">
-                            {hourLabels.map((h) => {
-                                const leftPct = ((h * 60 - hours.displayStartMins) / hours.displayTotalMins) * 100;
-                                return (
-                                    <React.Fragment key={h}>
-                                        <div className="absolute top-0 bottom-0 border-l border-slate-300/50 dark:border-slate-600/50" style={{ left: `${leftPct}%` }} />
-                                        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 px-0.5 z-10" style={{ left: `${leftPct}%` }}>{h}</div>
-                                    </React.Fragment>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Simplified readOnly header */}
-                {readOnly && (
-                    <div className="flex bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 text-[10px] font-bold text-slate-500 sticky top-0 z-10">
-                        <div className="w-[110px] sm:w-44 flex-shrink-0 p-1.5 border-r border-slate-200 dark:border-slate-700 text-center flex flex-col justify-center leading-tight"><span>名前</span><span className="hidden sm:inline"> / 時間</span></div>
-                        <div className="flex-1 relative h-6">
-                            {hourLabels.map((h) => {
-                                const leftPct = ((h * 60 - hours.displayStartMins) / hours.displayTotalMins) * 100;
-                                return (
-                                    <div key={h} className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[9px] text-slate-400" style={{ left: `${leftPct}%` }}>{h}</div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                <TimelineHeaderRows
+                    readOnly={readOnly}
+                    showDutyNumbers={showDutyNumbers}
+                    hourLabels={hourLabels}
+                    displayStartMins={hours.displayStartMins}
+                    displayTotalMins={hours.displayTotalMins}
+                />
 
                 {/* Content Rows */}
                 <div className="pb-2">
@@ -580,51 +465,24 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                 </div>
             </div>
 
-            {/* Mobile shift edit modal */}
-            {mobileEditShiftId && (() => {
-                const mShift = dayShifts.find(s => s.id === mobileEditShiftId);
-                if (!mShift) return null;
-                const mStaff = staffList.find(s => s.id === mShift.staffId);
-                const mStaffName = mStaff ? mStaff.name : '不明';
-                const mLocal = localShifts[mShift.id] ?? { start: timeToMinutes(mShift.startTime), end: timeToMinutes(mShift.endTime), classType: mShift.classType, isError: mShift.isError ?? false } as LocalShiftData;
-                const mPatterns = roles.find(r => r.name === mStaff?.role)?.patterns || [];
-                const mGroupShifts = dayShifts.filter(s => {
-                    const loc = localShifts[s.id];
-                    const cls = loc ? loc.classType : s.classType;
-                    const err = loc ? loc.isError : s.isError;
-                    return cls === (localShifts[mShift.id]?.classType ?? mShift.classType) && !err;
-                });
-                const mGroupStaffIds = mGroupShifts.map(s => s.staffId);
-                const matcher = buildLeaderMatcher(leaderRoleId, roles);
-                const mFullTimeIds = leaderRoleId
-                    ? mGroupStaffIds.filter(id => { const st = staffList.find(st2 => st2.id === id); return st ? matcher(st) : false; })
-                    : undefined;
-                const mPendingDuty = localShifts[mShift.id]?.dutyNumber !== undefined
-                    ? localShifts[mShift.id]?.dutyNumber
-                    : mShift.duty_number;
-                const mDutyValue = getEffectiveDutyNumber(mShift.staffId, mPendingDuty, date, mGroupStaffIds, mFullTimeIds);
-                return (
-                    <MobileShiftEditModal
-                        key={mobileEditShiftId}
-                        isOpen={true}
-                        onClose={() => setMobileEditShiftId(null)}
-                        staffName={mStaffName}
-                        currentStaff={mStaff}
-                        localData={mLocal}
-                        allowedPatterns={mPatterns}
-                        showDutyNumbers={showDutyNumbers}
-                        dutyValue={mDutyValue}
-                        dutyGroupSize={mGroupShifts.length}
-                        offDutyStaff={offDutyStaff}
-                        staffMonthlyHours={staffMonthlyHours}
-                        onPatternChange={(patternId) => edit.handlePatternChange(mShift.id, patternId)}
-                        onTimeChange={(field, value) => edit.handleTimeInputChange(mShift.id, field, value)}
-                        onDutyNumberChange={(value) => handleDutyNumberUpdate(mShift.id, value)}
-                        onSwapStaff={(newStaffId) => edit.handleSwapStaff(mShift.id, newStaffId)}
-                        onDeleteShift={() => edit.handleRemoveShift(mShift.id)}
-                    />
-                );
-            })()}
+            <MobileShiftEditController
+                shiftId={mobileEditShiftId}
+                dayShifts={dayShifts}
+                staffList={staffList}
+                localShifts={localShifts}
+                roles={roles}
+                date={date}
+                leaderRoleId={leaderRoleId}
+                showDutyNumbers={showDutyNumbers}
+                offDutyStaff={offDutyStaff}
+                staffMonthlyHours={staffMonthlyHours}
+                onClose={() => setMobileEditShiftId(null)}
+                onPatternChange={(shiftId, patternId) => edit.handlePatternChange(shiftId, patternId)}
+                onTimeChange={(shiftId, field, value) => edit.handleTimeInputChange(shiftId, field, value)}
+                onDutyNumberChange={handleDutyNumberUpdate}
+                onSwapStaff={(shiftId, newStaffId) => edit.handleSwapStaff(shiftId, newStaffId)}
+                onDeleteShift={edit.handleRemoveShift}
+            />
 
             {/* Off-duty staff section */}
             <OffDutySection

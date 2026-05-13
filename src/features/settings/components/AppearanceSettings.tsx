@@ -1,4 +1,3 @@
-import { Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { getWeekStartsOn, setWeekStartsOn as saveWeekStartsOn, STORAGE_KEYS } from '../../../utils/dateUtils';
@@ -6,6 +5,7 @@ import FacilityNameSection from './FacilityNameSection';
 import BusinessHoursSection from './BusinessHoursSection';
 import BreakSettingsSection from './BreakSettingsSection';
 import DutyNumberSection from './DutyNumberSection';
+import DisplayPreferencesSection from './DisplayPreferencesSection';
 
 const AppearanceSettings = () => {
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -41,70 +41,14 @@ const AppearanceSettings = () => {
 
             <FacilityNameSection />
 
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <div className="space-y-8">
-                    <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div>
-                            <p className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">カラーテーマ</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">アプリ全体の配色を切り替えます。</p>
-                        </div>
-                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl self-start sm:self-auto">
-                            <button
-                                onClick={() => handleThemeChange('light')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 ${theme === 'light' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 dark:text-slate-400'}`}
-                            >
-                                <Sun className="w-4 h-4" />
-                                <span className="sm:inline">ライト</span>
-                            </button>
-                            <button
-                                onClick={() => handleThemeChange('dark')}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 ${theme === 'dark' ? 'bg-indigo-600 dark:bg-indigo-500 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                            >
-                                <Moon className="w-4 h-4" />
-                                <span className="sm:inline">ダーク</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div>
-                            <p className="font-bold text-slate-800 dark:text-white text-base sm:text-lg">週の開始日</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">カレンダーの表示を開始する曜日を選択します。</p>
-                        </div>
-                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl self-start sm:self-auto">
-                            <button
-                                onClick={() => handleWeekStartsOnChange(0)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${weekStartsOn === 0 ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
-                            >
-                                日曜日
-                            </button>
-                            <button
-                                onClick={() => handleWeekStartsOnChange(1)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${weekStartsOn === 1 ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}
-                            >
-                                月曜日
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="pt-6 border-t border-slate-100 dark:border-slate-700">
-                        <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
-                            ※ 現時点ではダークモードは一部の画面で正しく表示されない場合があります。順次対応中です。
-                        </p>
-                    </div>
-
-                    {appearanceModified && (
-                        <div className="flex justify-end animate-in slide-in-from-bottom-2 pt-2">
-                            <button
-                                onClick={handleSaveAppearance}
-                                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center gap-2"
-                            >
-                                表示設定を保存
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
+            <DisplayPreferencesSection
+                theme={theme}
+                weekStartsOn={weekStartsOn}
+                modified={appearanceModified}
+                onThemeChange={handleThemeChange}
+                onWeekStartsOnChange={handleWeekStartsOnChange}
+                onSave={handleSaveAppearance}
+            />
 
             <BusinessHoursSection />
 

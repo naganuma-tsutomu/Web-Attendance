@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 # Claude Code
 .claude/
+.antigravitycli/
 
 # Wrangler
 .wrangler
@@ -36,7 +37,4 @@ test-algo.mjs
 coverage/
 
 # Local DB scripts (backups, resets — not for version control)
-data_backup.sql
-data_inserts.sql
-schema_backup.sql
-reset.sql
+db/

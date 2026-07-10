@@ -10,8 +10,10 @@ compatibility_date = "2025-12-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "web-attendance-db"
-database_id = "eec9a750-a720-4bd6-86ea-b54995c2b78e"
+database_name = "web-attendance-restored-db"
+database_id = "88278bbb-2295-4e89-a172-2c82f2c2aa2c"
+# database_name = "web-attendance-db"
+# database_id = "ecadf217-a410-4a8e-bf0c-a9b4b60a7145"
 
 
 # --- [2] プレビュー環境の設定 ---

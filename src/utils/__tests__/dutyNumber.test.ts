@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getEffectiveDutyNumber } from '../dutyNumber';
+import { getEffectiveDutyNumber, getEffectiveDutyNumbers } from '../dutyNumber';
 
 const date = new Date('2024-01-01');
 const date2 = new Date('2024-01-02');
@@ -132,6 +132,50 @@ describe('getEffectiveDutyNumber', () => {
             expect(cAuto).toBe(3);
             // b=手動3, c=auto3 → 表示上は重複するが
             // DB 保存: b.duty_number=3, c.duty_number=NULL → UNIQUE 違反なし
+        });
+    });
+
+    describe('クラス内の一括番号計算', () => {
+        const entries = [
+            { id: 'shift-a', staffId: 'a', storedNumber: null },
+            { id: 'shift-b', staffId: 'b', storedNumber: null },
+            { id: 'shift-c', staffId: 'c', storedNumber: null },
+        ];
+
+        it('自動番号だけなら1から人数までの一意な連番になる', () => {
+            const numbers = [...getEffectiveDutyNumbers(entries, date).values()];
+            expect([...numbers].sort()).toEqual([1, 2, 3]);
+        });
+
+        it('手動番号と自動番号が衝突しても残りを再配分する', () => {
+            const numbers = getEffectiveDutyNumbers([
+                entries[0],
+                { ...entries[1], storedNumber: 1 },
+                entries[2],
+            ], date);
+
+            expect(numbers.get('shift-b')).toBe(1);
+            expect([...numbers.values()].sort()).toEqual([1, 2, 3]);
+        });
+
+        it('同じスタッフの行が複数あっても番号は重複しない', () => {
+            const numbers = getEffectiveDutyNumbers([
+                { id: 'shift-a1', staffId: 'a', storedNumber: null },
+                { id: 'shift-a2', staffId: 'a', storedNumber: null },
+                { id: 'shift-b', staffId: 'b', storedNumber: null },
+            ], date);
+
+            expect([...numbers.values()].sort()).toEqual([1, 2, 3]);
+        });
+
+        it('範囲外または重複した保存値は自動番号として補正する', () => {
+            const numbers = getEffectiveDutyNumbers([
+                { id: 'shift-a', staffId: 'a', storedNumber: 1 },
+                { id: 'shift-b', staffId: 'b', storedNumber: 1 },
+                { id: 'shift-c', staffId: 'c', storedNumber: 99 },
+            ], date);
+
+            expect([...numbers.values()].sort()).toEqual([1, 2, 3]);
         });
     });
 });

@@ -3,7 +3,7 @@ import type { Shift, Staff, ShiftClass, DynamicRole, ClassType, ShiftTimePattern
 import type { LocalShiftData, DragType, BusinessHoursConfig } from '../hooks/useShiftEdit';
 import { AddStaffMenu, type OffDutyStaffInfo } from './ShiftActionMenus';
 import ShiftRow from './ShiftRow';
-import { getEffectiveDutyNumber } from '../../../utils/dutyNumber';
+import { getEffectiveDutyNumbers } from '../../../utils/dutyNumber';
 import { hexToRgba } from './TimelineBar';
 import { buildLeaderMatcher } from '../../../utils/roleMatch';
 import type { BreakSettings } from '../../../types';
@@ -67,13 +67,9 @@ const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
 
     if (groupShifts.length === 0 && (cls.id === 'unassigned' || readOnly)) return null;
 
-    const groupStaffIds = groupShifts.map(gs => gs.staffId);
     const matcher = buildLeaderMatcher(leaderRoleId, roles);
-    const fullTimeGroupIds = leaderRoleId
-        ? groupStaffIds.filter(id => {
-            const s = staffList.find(st => st.id === id);
-            return s ? matcher(s) : false;
-        })
+    const fullTimeStaffIds = leaderRoleId
+        ? staffList.filter(matcher).map(staff => staff.id)
         : undefined;
 
     const getPendingDuty = (s: Shift): number | null | undefined => {
@@ -81,10 +77,24 @@ const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
         return localDuty !== undefined ? localDuty : s.duty_number;
     };
 
+    const dutyOrderedGroupShifts = [...groupShifts].sort((a, b) =>
+        staffList.findIndex(staff => staff.id === a.staffId) -
+        staffList.findIndex(staff => staff.id === b.staffId)
+    );
+    const effectiveDutyNumbers = getEffectiveDutyNumbers(
+        dutyOrderedGroupShifts.map(shift => ({
+            id: shift.id,
+            staffId: shift.staffId,
+            storedNumber: getPendingDuty(shift),
+        })),
+        date,
+        fullTimeStaffIds
+    );
+
     const sortedGroupShifts = showDutyNumbers
         ? [...groupShifts].sort((a, b) =>
-            getEffectiveDutyNumber(a.staffId, getPendingDuty(a), date, groupStaffIds, fullTimeGroupIds) -
-            getEffectiveDutyNumber(b.staffId, getPendingDuty(b), date, groupStaffIds, fullTimeGroupIds)
+            (effectiveDutyNumbers.get(a.id) ?? 1) -
+            (effectiveDutyNumbers.get(b.id) ?? 1)
         )
         : groupShifts;
 
@@ -168,7 +178,7 @@ const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
                             onTimeChange={onTimeChange}
                             onMobileEdit={onMobileEdit}
                             groupShiftsCount={groupShifts.length}
-                            effectiveDutyNumber={getEffectiveDutyNumber(shift.staffId, pendingDuty, date, groupStaffIds, fullTimeGroupIds)}
+                            effectiveDutyNumber={effectiveDutyNumbers.get(shift.id) ?? 1}
                             isDutyAuto={pendingDuty == null}
                             offDutyStaff={offDutyStaff}
                             staffMonthlyHours={staffMonthlyHours}

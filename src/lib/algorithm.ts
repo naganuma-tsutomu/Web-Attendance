@@ -40,6 +40,15 @@ const isStaffAvailableForTimeSlot = (
         closedDays, holidays.includes(dateStr)
     )) return { available: false };
 
+    // 1人につき1日1シフト。同日の勤務時間が重ならない場合でも、
+    // すでに配置済みのスタッフを別の時間枠へ再配置しない。
+    const alreadyAssignedToday = existingShifts.some(shift =>
+        shift.staffId === staff.id &&
+        shift.date === dateStr &&
+        !shift.isError
+    );
+    if (alreadyAssignedToday) return { available: false };
+
     const roleMap = buildRoleMap(roles);
     const roleRecord = roleMap.get(staff.role);
     const dayOfWeek = getDay(date);
@@ -83,32 +92,12 @@ const isStaffAvailableForTimeSlot = (
         const matchedPattern = potentialPatterns[0];
         if (!matchedPattern) return { available: false };
 
-        // Check for overlapping shifts
-        const checkStart = matchedPattern.startTime;
-        const checkEnd = matchedPattern.endTime;
-
-        const hasOverlap = existingShifts.some(shift => {
-            if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
-            if (shift.isError) return false;
-            return timeRangesOverlap(checkStart, checkEnd, shift.startTime, shift.endTime);
-        });
-
-        if (hasOverlap) return { available: false };
-
         return { available: true, matchingPattern: matchedPattern };
     }
 
     // Default behavior if no role patterns are defined (direct time slot matching)
     // But usually we want to enforce patterns if they exist.
     // If no patterns are defined for the role, we fall back to the requirement's time.
-    const hasOverlap = existingShifts.some(shift => {
-        if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
-        if (shift.isError) return false;
-        return timeRangesOverlap(startTime, endTime, shift.startTime, shift.endTime);
-    });
-
-    if (hasOverlap) return { available: false };
-
     return { available: true };
 };
 

@@ -46,3 +46,75 @@ export function getEffectiveDutyNumber(
     if (idx < 0) return 1;
     return ((idx + dayOffset) % n) + 1;
 }
+
+export interface DutyNumberEntry {
+    id: string;
+    staffId: string;
+    storedNumber: number | null | undefined;
+}
+
+/**
+ * クラス内の当番番号を一括計算する。
+ *
+ * 有効な手動番号を先に固定し、残りのシフトには自動ローテーション順を
+ * 保ちながら未使用番号を割り当てる。これにより手動番号と自動番号が
+ * 衝突しても、表示結果は常に 1..人数の一意な連番になる。
+ */
+export function getEffectiveDutyNumbers(
+    entries: DutyNumberEntry[],
+    date: Date,
+    fullTimeStaffIds?: string[]
+): Map<string, number> {
+    const result = new Map<string, number>();
+    const groupStaffIds = entries.map(entry => entry.staffId);
+    const groupSize = entries.length;
+    if (groupSize === 0) return result;
+
+    const validStoredNumbers = new Set<number>();
+    for (const entry of entries) {
+        const stored = entry.storedNumber;
+        if (
+            stored != null &&
+            Number.isInteger(stored) &&
+            stored >= 1 &&
+            stored <= groupSize &&
+            !validStoredNumbers.has(stored)
+        ) {
+            result.set(entry.id, stored);
+            validStoredNumbers.add(stored);
+        }
+    }
+
+    const remainingNumbers = Array.from(
+        { length: groupSize },
+        (_, index) => index + 1
+    ).filter(number => !validStoredNumbers.has(number));
+
+    const fullTimeGroupIds = fullTimeStaffIds
+        ? groupStaffIds.filter(staffId => fullTimeStaffIds.includes(staffId))
+        : undefined;
+
+    const unassignedEntries = entries
+        .map((entry, index) => ({
+            entry,
+            index,
+            automaticNumber: getEffectiveDutyNumber(
+                entry.staffId,
+                null,
+                date,
+                groupStaffIds,
+                fullTimeGroupIds
+            ),
+        }))
+        .filter(({ entry }) => !result.has(entry.id))
+        .sort((a, b) =>
+            a.automaticNumber - b.automaticNumber ||
+            a.index - b.index
+        );
+
+    unassignedEntries.forEach(({ entry }, index) => {
+        result.set(entry.id, remainingNumbers[index]);
+    });
+
+    return result;
+}

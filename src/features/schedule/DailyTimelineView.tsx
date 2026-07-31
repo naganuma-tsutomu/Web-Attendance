@@ -83,7 +83,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     }, [preferences, targetDateStr]);
 
     const handleDutyNumberUpdate = (shiftId: string, value: number | null) => {
-        edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: value ?? undefined } });
+        edit.dispatch({ type: 'UPDATE_LOCAL', id: shiftId, data: { dutyNumber: value } });
     };
 
     const renderGridLines = useCallback(() => {
@@ -204,7 +204,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     onClose={() => setMobileEditShiftId(null)}
                     onPatternChange={(id, patternId) => edit.dispatch({ type: 'UPDATE_SHIFT_PATTERN', id, patternId })}
                     onTimeChange={(id, field, value) => edit.dispatch({ type: 'UPDATE_SHIFT_TIME', id, field, value })}
-                    onDutyNumberChange={(id, value) => edit.dispatch({ type: 'UPDATE_LOCAL', id, data: { dutyNumber: value ?? undefined } })}
+                    onDutyNumberChange={(id, value) => edit.dispatch({ type: 'UPDATE_LOCAL', id, data: { dutyNumber: value } })}
                     onSwapStaff={edit.handleSwapStaff}
                     onDeleteShift={edit.handleRemoveShift}
                 />

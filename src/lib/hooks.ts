@@ -192,9 +192,20 @@ export const useUpdateShift = () => {
 export const useDeleteShiftsByMonth = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ yearMonth, exceptDates }: { yearMonth: string, exceptDates?: string[] }) => deleteShiftsByMonth(yearMonth, exceptDates),
-        onSuccess: () => {
+        mutationFn: ({
+            yearMonth,
+            exceptDates,
+            clearFixedDates,
+        }: {
+            yearMonth: string;
+            exceptDates?: string[];
+            clearFixedDates?: boolean;
+        }) => deleteShiftsByMonth(yearMonth, exceptDates, clearFixedDates),
+        onSuccess: (_, { yearMonth, clearFixedDates }) => {
             queryClient.invalidateQueries({ queryKey: ['shifts'] });
+            if (clearFixedDates) {
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(yearMonth) });
+            }
         },
     });
 };

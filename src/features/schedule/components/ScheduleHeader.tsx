@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal } from 'lucide-react';
+import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal, Lock, LockOpen } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
@@ -28,6 +28,8 @@ interface ScheduleHeaderProps {
     onViewChange: (view: View) => void;
     onGenerate: () => void;
     onClearShifts: () => void;
+    onLockAllShifts?: () => void;
+    onUnlockAllShifts?: () => void;
     onOpenBackups: () => void;
     onOpenImport: () => void;
     onOpenGenerationReport: () => void;
@@ -39,6 +41,7 @@ interface ScheduleHeaderProps {
     breakSettings?: BreakSettings;
     roles?: DynamicRole[];
     hasGenerationReport?: boolean;
+    isBulkLockPending?: boolean;
 }
 
 const ScheduleHeader = ({
@@ -61,6 +64,8 @@ const ScheduleHeader = ({
     onViewChange,
     onGenerate,
     onClearShifts,
+    onLockAllShifts = () => {},
+    onUnlockAllShifts = () => {},
     onOpenBackups,
     onOpenImport,
     onOpenGenerationReport,
@@ -71,7 +76,8 @@ const ScheduleHeader = ({
     excelSettings,
     breakSettings,
     roles = [],
-    hasGenerationReport = false
+    hasGenerationReport = false,
+    isBulkLockPending = false,
 }: ScheduleHeaderProps) => {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
 
@@ -197,6 +203,24 @@ const ScheduleHeader = ({
                         <Download className="w-5 h-5 text-green-600" />
                         <span className="text-xs font-bold whitespace-nowrap">Excel</span>
                     </button>
+                    <button
+                        onClick={onLockAllShifts}
+                        disabled={isBulkLockPending}
+                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="この月のシフトがある日をすべてロック"
+                    >
+                        <Lock className="w-5 h-5 text-amber-600" />
+                        <span className="text-xs font-bold whitespace-nowrap">全ロック</span>
+                    </button>
+                    <button
+                        onClick={onUnlockAllShifts}
+                        disabled={isBulkLockPending}
+                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="この月のロックをすべて解除"
+                    >
+                        <LockOpen className="w-5 h-5 text-slate-500" />
+                        <span className="text-xs font-bold whitespace-nowrap">全解除</span>
+                    </button>
 
                     {/* モバイル: 労働時間 + バックアップ + ⋯ドロップダウン */}
                     <button
@@ -257,6 +281,22 @@ const ScheduleHeader = ({
                                     >
                                         <Download className="w-4 h-4 text-green-600 flex-shrink-0" />
                                         Excel
+                                    </button>
+                                    <button
+                                        onClick={() => { onLockAllShifts(); setShowMoreMenu(false); }}
+                                        disabled={isBulkLockPending}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+                                    >
+                                        <Lock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                        すべてロック
+                                    </button>
+                                    <button
+                                        onClick={() => { onUnlockAllShifts(); setShowMoreMenu(false); }}
+                                        disabled={isBulkLockPending}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                                    >
+                                        <LockOpen className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                                        すべて解除
                                     </button>
                                 </div>
                             </>

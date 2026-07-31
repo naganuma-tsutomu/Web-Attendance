@@ -139,10 +139,14 @@ export const replaceShiftsForMonth = async (yearMonth: string, shifts: Omit<Shif
     });
 };
 
-export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
+export const deleteShiftsByMonth = async (
+    yearMonth: string,
+    exceptDates: string[] = [],
+    clearFixedDates = false
+): Promise<void> => {
     await apiFetch('/shifts/clear', {
         method: 'POST',
-        body: JSON.stringify({ yearMonth, exceptDates })
+        body: JSON.stringify({ yearMonth, exceptDates, clearFixedDates })
     });
 };
 

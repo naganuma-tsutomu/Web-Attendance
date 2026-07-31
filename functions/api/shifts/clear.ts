@@ -3,8 +3,12 @@ import type { Env } from '../../types';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body: { yearMonth: string, exceptDates?: string[] } = await context.request.json();
-        const { yearMonth, exceptDates } = body;
+        const body: {
+            yearMonth: string;
+            exceptDates?: string[];
+            clearFixedDates?: boolean;
+        } = await context.request.json();
+        const { yearMonth, exceptDates, clearFixedDates = false } = body;
 
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
@@ -13,16 +17,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const startStr = `${yearMonth}-01`;
         const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
+        const statements = [];
         if (exceptDates && exceptDates.length > 0) {
             const placeholders = exceptDates.map(() => '?').join(',');
-            await context.env.DB.prepare(
+            statements.push(context.env.DB.prepare(
                 `DELETE FROM shifts WHERE date >= ? AND date < ? AND date NOT IN (${placeholders})`
-            ).bind(startStr, nextMonth, ...exceptDates).run();
+            ).bind(startStr, nextMonth, ...exceptDates));
         } else {
-            await context.env.DB.prepare(
+            statements.push(context.env.DB.prepare(
                 "DELETE FROM shifts WHERE date >= ? AND date < ?"
-            ).bind(startStr, nextMonth).run();
+            ).bind(startStr, nextMonth));
         }
+
+        if (clearFixedDates) {
+            statements.push(
+                context.env.DB.prepare(
+                    'DELETE FROM fixed_dates WHERE yearMonth = ?'
+                ).bind(yearMonth)
+            );
+        }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {

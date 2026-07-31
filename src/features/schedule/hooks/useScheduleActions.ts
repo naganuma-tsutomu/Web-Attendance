@@ -10,24 +10,26 @@ import {
 import {
     useSaveShiftsBatch, useReplaceShiftsForMonth, useUpdateShift,
     useDeleteShiftsByMonth, useCreateShiftSnapshot, useToggleFixedDate,
+    useSaveFixedDates,
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
 import { findShiftConflict } from '../../../../shared/shiftIntegrity';
 import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import { buildGenerationReport } from '../utils/generationReport';
-import type { GenerationReport, ShiftClass } from '../../../types';
+import type { GenerationReport, Shift, ShiftClass } from '../../../types';
 import type { EditFormData } from './useScheduleData';
 
 interface UseScheduleActionsParams {
     currentDate: Date;
     targetYearMonth: string;
     fixedDates: Set<string>;
+    rawShifts: Shift[];
     classes: ShiftClass[];
     autoOpenGenerationReport: boolean;
 }
 
 export function useScheduleActions({
-    currentDate, targetYearMonth, fixedDates, classes, autoOpenGenerationReport,
+    currentDate, targetYearMonth, fixedDates, rawShifts, classes, autoOpenGenerationReport,
 }: UseScheduleActionsParams) {
     const fixedDatesRef = useRef(fixedDates);
     fixedDatesRef.current = fixedDates;
@@ -38,8 +40,9 @@ export function useScheduleActions({
     const [confirmAction, setConfirmAction] = useState<{
         title: string;
         message: string;
-        onConfirm: () => void;
+        onConfirm: (checked?: boolean) => void;
         variant?: 'danger' | 'info';
+        checkboxLabel?: string;
     } | null>(null);
 
     const saveShiftsMutation = useSaveShiftsBatch();
@@ -47,6 +50,7 @@ export function useScheduleActions({
     const updateShiftMutation = useUpdateShift();
     const deleteShiftsMutation = useDeleteShiftsByMonth();
     const toggleFixedDateMutation = useToggleFixedDate();
+    const saveFixedDatesMutation = useSaveFixedDates();
     const createShiftSnapshotMutation = useCreateShiftSnapshot();
 
     const executeGenerate = async () => {
@@ -171,8 +175,9 @@ export function useScheduleActions({
     const handleClearShifts = () => {
         setConfirmAction({
             title: 'シフトの消去',
-            message: 'この月のシフトをすべて削除してよろしいですか？',
-            onConfirm: async () => {
+            message: 'この月のロックされていないシフトを削除します。',
+            checkboxLabel: 'ロック済みのシフトも削除する（ロックも解除されます）',
+            onConfirm: async (includeFixedDates = false) => {
                 setIsActionExecuting(true);
                 try {
                     await createShiftSnapshotMutation.mutateAsync({
@@ -180,8 +185,18 @@ export function useScheduleActions({
                         reason: 'before-clear',
                         label: `${format(currentDate, 'yyyy年M月')} 消去前`,
                     });
-                    await deleteShiftsMutation.mutateAsync({ yearMonth: targetYearMonth });
-                    toast.success('削除しました');
+                    await deleteShiftsMutation.mutateAsync({
+                        yearMonth: targetYearMonth,
+                        exceptDates: includeFixedDates ? [] : Array.from(fixedDatesRef.current),
+                        clearFixedDates: includeFixedDates,
+                    });
+                    if (includeFixedDates) {
+                        fixedDatesRef.current = new Set();
+                    }
+                    toast.success(includeFixedDates
+                        ? 'ロック済みを含むシフトを削除し、ロックを解除しました'
+                        : 'ロックされていないシフトを削除しました'
+                    );
                     setConfirmAction(null);
                 } catch (err) {
                     handleApiError(err, '削除に失敗しました');
@@ -191,6 +206,56 @@ export function useScheduleActions({
             },
             variant: 'danger'
         });
+    };
+
+    const handleLockAllShifts = async () => {
+        if (toggleFixedDateMutation.isPending) {
+            toast.warning('個別ロックの保存完了後に実行してください');
+            return;
+        }
+        const shiftDates = new Set(
+            rawShifts
+                .filter(shift => shift.date.startsWith(targetYearMonth))
+                .map(shift => shift.date)
+        );
+        if (shiftDates.size === 0) {
+            toast.info('ロックできるシフトがありません');
+            return;
+        }
+
+        const next = new Set(fixedDatesRef.current);
+        shiftDates.forEach(date => next.add(date));
+        try {
+            await saveFixedDatesMutation.mutateAsync({
+                yearMonth: targetYearMonth,
+                dates: Array.from(next).sort(),
+            });
+            fixedDatesRef.current = next;
+            toast.success(`${shiftDates.size}日分のシフトをロックしました`);
+        } catch (err) {
+            handleApiError(err, '一括ロックに失敗しました');
+        }
+    };
+
+    const handleUnlockAllShifts = async () => {
+        if (toggleFixedDateMutation.isPending) {
+            toast.warning('個別ロックの保存完了後に実行してください');
+            return;
+        }
+        if (fixedDatesRef.current.size === 0) {
+            toast.info('解除するロックがありません');
+            return;
+        }
+        try {
+            await saveFixedDatesMutation.mutateAsync({
+                yearMonth: targetYearMonth,
+                dates: [],
+            });
+            fixedDatesRef.current = new Set();
+            toast.success('この月のロックをすべて解除しました');
+        } catch (err) {
+            handleApiError(err, '一括ロック解除に失敗しました');
+        }
     };
 
     const handleUpdateShift = async (
@@ -227,6 +292,10 @@ export function useScheduleActions({
     };
 
     const toggleFixedDate = (dateStr: string) => {
+        if (saveFixedDatesMutation.isPending) {
+            toast.warning('一括ロック操作の完了後に変更してください');
+            return;
+        }
         const next = new Set(fixedDatesRef.current);
         const fixed = !next.has(dateStr);
         if (fixed) next.add(dateStr);
@@ -249,5 +318,8 @@ export function useScheduleActions({
         handleClearShifts,
         handleUpdateShift,
         toggleFixedDate,
+        handleLockAllShifts,
+        handleUnlockAllShifts,
+        isBulkLockPending: saveFixedDatesMutation.isPending || toggleFixedDateMutation.isPending,
     };
 }

@@ -76,6 +76,7 @@ export const useScheduleData = () => {
         currentDate,
         targetYearMonth,
         fixedDates,
+        rawShifts,
         classes,
         autoOpenGenerationReport: schedulePreferences?.autoOpenGenerationReport ?? true,
     });

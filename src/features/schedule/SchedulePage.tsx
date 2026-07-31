@@ -147,6 +147,8 @@ const SchedulePage = () => {
                 onViewChange={handleViewChange}
                 onGenerate={schedule.handleGenerate}
                 onClearShifts={schedule.handleClearShifts}
+                onLockAllShifts={schedule.handleLockAllShifts}
+                onUnlockAllShifts={schedule.handleUnlockAllShifts}
                 onOpenBackups={() => setIsBackupModalOpen(true)}
                 onOpenImport={() => setIsImportModalOpen(true)}
                 onOpenGenerationReport={() => schedule.setIsGenerationReportOpen(true)}
@@ -158,6 +160,7 @@ const SchedulePage = () => {
                 breakSettings={schedule.breakSettings}
                 roles={schedule.roles}
                 hasGenerationReport={!!schedule.generationReport}
+                isBulkLockPending={schedule.isBulkLockPending}
             />
 
             {/* Calendar and Summary Area */}
@@ -341,6 +344,7 @@ const SchedulePage = () => {
 
             {/* Confirm Modal */}
             <ConfirmModal
+                key={schedule.confirmAction?.title || 'closed'}
                 isOpen={!!schedule.confirmAction}
                 title={schedule.confirmAction?.title || ''}
                 message={schedule.confirmAction?.message || ''}
@@ -350,6 +354,7 @@ const SchedulePage = () => {
                 onCancel={() => schedule.setConfirmAction(null)}
                 isLoading={schedule.isActionExecuting}
                 variant={schedule.confirmAction?.variant || 'info'}
+                checkboxLabel={schedule.confirmAction?.checkboxLabel}
             />
 
             <ShiftBackupModal

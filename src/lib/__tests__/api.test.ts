@@ -286,7 +286,33 @@ describe('API - Shift functions', () => {
                 '/api/shifts/clear',
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify({ yearMonth: '2025-06', exceptDates: [] })
+                    body: JSON.stringify({
+                        yearMonth: '2025-06',
+                        exceptDates: [],
+                        clearFixedDates: false,
+                    })
+                })
+            );
+        });
+
+        it('ロック済みシフトを削除するときはロック解除も指定できる', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 204,
+                json: () => Promise.resolve({})
+            });
+
+            await deleteShiftsByMonth('2025-06', [], true);
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                '/api/shifts/clear',
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({
+                        yearMonth: '2025-06',
+                        exceptDates: [],
+                        clearFixedDates: true,
+                    })
                 })
             );
         });

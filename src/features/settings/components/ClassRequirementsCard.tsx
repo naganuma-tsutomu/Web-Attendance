@@ -1,4 +1,4 @@
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Trash2 } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -23,6 +23,7 @@ interface ClassRequirementsCardProps {
     onAdd: () => void;
     onUpdate: (id: string, updates: Partial<ShiftRequirement>) => void;
     onDeleteRequest: (id: string) => void;
+    onDeleteAllRequest: () => void;
     onDragEnd: (event: DragEndEvent) => void;
     onCancel: () => void;
     onSave: () => void;
@@ -35,6 +36,7 @@ const ClassRequirementsCard = ({
     onAdd,
     onUpdate,
     onDeleteRequest,
+    onDeleteAllRequest,
     onDragEnd,
     onCancel,
     onSave,
@@ -47,9 +49,20 @@ const ClassRequirementsCard = ({
     return (
         <>
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
                     <h3 className="text-base font-bold text-slate-800 dark:text-white">必要人数設定</h3>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">{requirements.length} 件</span>
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">{requirements.length} 件</span>
+                        <button
+                            type="button"
+                            onClick={onDeleteAllRequest}
+                            disabled={requirements.length === 0 || isSaving}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            一括削除
+                        </button>
+                    </div>
                 </div>
 
                 {requirements.length === 0 ? (

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, ShiftRequirementTemplate, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
 import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
-    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
+    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, ShiftRequirementTemplateSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
     BreakSettingsSchema, SchedulePreferencesSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
@@ -329,6 +329,47 @@ export const saveShiftRequirements = async (requirements: ShiftRequirement[]): P
 export const deleteShiftRequirement = async (id: string): Promise<void> => {
     await apiFetch(`/settings/shift-requirements/${encodeURIComponent(id)}`, {
         method: 'DELETE'
+    });
+};
+
+export const getShiftRequirementTemplates = async (): Promise<ShiftRequirementTemplate[]> => {
+    return apiFetch<ShiftRequirementTemplate[]>(
+        '/settings/shift-requirement-templates',
+        {},
+        z.array(ShiftRequirementTemplateSchema)
+    );
+};
+
+export const createShiftRequirementTemplate = async (name: string): Promise<string> => {
+    const result = await apiFetch<{ id: string }>('/settings/shift-requirement-templates', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+    });
+    return result.id;
+};
+
+export const renameShiftRequirementTemplate = async (id: string, name: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name })
+    });
+};
+
+export const deleteShiftRequirementTemplate = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+    });
+};
+
+export const applyShiftRequirementTemplate = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}/apply`, {
+        method: 'POST'
+    });
+};
+
+export const overwriteShiftRequirementTemplate = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}/capture`, {
+        method: 'POST'
     });
 };
 

@@ -10,7 +10,8 @@ import {
     getFacilityName, updateFacilityName,
     getRotationSettings, updateRotationSettings,
     getBreakSettings, updateBreakSettings,
-    getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot
+    getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot,
+    getShiftRequirementTemplates
 } from './api';
 import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
 
@@ -25,6 +26,7 @@ export const QUERY_KEYS = {
     holidays: (year: number) => ['holidays', year],
     preferences: (monthStr: string) => ['preferences', monthStr],
     shiftRequirements: ['shiftRequirements'],
+    shiftRequirementTemplates: ['shiftRequirementTemplates'],
     fixedDates: (monthStr: string) => ['fixedDates', monthStr],
     businessHours: ['businessHours'],
     facilityName: ['facilityName'],
@@ -98,6 +100,13 @@ export const useShiftRequirements = () => {
     return useQuery({
         queryKey: QUERY_KEYS.shiftRequirements,
         queryFn: getShiftRequirements,
+    });
+};
+
+export const useShiftRequirementTemplates = () => {
+    return useQuery({
+        queryKey: QUERY_KEYS.shiftRequirementTemplates,
+        queryFn: getShiftRequirementTemplates,
     });
 };
 

@@ -83,6 +83,7 @@ describe('settings component smoke tests', () => {
     it('renders an empty requirements card and routes add/save actions', () => {
         const onAdd = vi.fn();
         const onSave = vi.fn();
+        const onDeleteAllRequest = vi.fn();
 
         render(
             <ClassRequirementsCard
@@ -92,6 +93,7 @@ describe('settings component smoke tests', () => {
                 onAdd={onAdd}
                 onUpdate={vi.fn()}
                 onDeleteRequest={vi.fn()}
+                onDeleteAllRequest={onDeleteAllRequest}
                 onDragEnd={vi.fn()}
                 onCancel={vi.fn()}
                 onSave={onSave}
@@ -106,6 +108,29 @@ describe('settings component smoke tests', () => {
 
         fireEvent.click(screen.getByText('必要人数を保存'));
         expect(onSave).toHaveBeenCalled();
+        expect(screen.getByRole('button', { name: '一括削除' })).toBeDisabled();
+    });
+
+    it('routes bulk deletion for the selected class requirements', () => {
+        const onDeleteAllRequest = vi.fn();
+
+        render(
+            <ClassRequirementsCard
+                requirements={requirements}
+                isDirty={false}
+                isSaving={false}
+                onAdd={vi.fn()}
+                onUpdate={vi.fn()}
+                onDeleteRequest={vi.fn()}
+                onDeleteAllRequest={onDeleteAllRequest}
+                onDragEnd={vi.fn()}
+                onCancel={vi.fn()}
+                onSave={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: '一括削除' }));
+        expect(onDeleteAllRequest).toHaveBeenCalledOnce();
     });
 
     it('renders display preferences and routes theme/week/save actions', () => {

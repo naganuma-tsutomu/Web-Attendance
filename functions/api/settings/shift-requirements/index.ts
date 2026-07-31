@@ -73,10 +73,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             if (maxStaffError) return createValidationError(maxStaffError);
         }
 
-        if (requirements.length === 0) {
-            return createValidationError('シフト要件を1件以上指定してください');
-        }
-
         const statements = [context.env.DB.prepare('DELETE FROM shift_requirements')];
         const savedIds: string[] = [];
 

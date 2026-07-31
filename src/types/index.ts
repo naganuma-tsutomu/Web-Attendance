@@ -122,6 +122,15 @@ export interface ShiftRequirement extends Omit<ShiftRequirementInferred, 'priori
     priority: number;
 }
 
+/** 全クラスの必要人数設定をまとめた名前付きテンプレート */
+export interface ShiftRequirementTemplate {
+    id: string;
+    name: string;
+    itemCount: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
 /** 祝日 */
 export interface Holiday extends Omit<HolidayInferred, 'type' | 'isWorkday' | 'is_workday'> {
     type: 'national' | 'observance' | 'company';

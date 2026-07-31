@@ -105,6 +105,14 @@ export const ShiftRequirementSchema = z.object({
   priority: z.number().optional().nullable(),
 });
 
+export const ShiftRequirementTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  itemCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export const HolidaySchema = z.object({
   id: z.string(),
   date: z.string(),

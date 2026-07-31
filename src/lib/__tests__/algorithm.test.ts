@@ -83,6 +83,20 @@ describe('generateShiftsForMonth', () => {
         expect(errorShifts.length).toBe(1);
     });
 
+    it('同一時間帯を要求する別クラスに同じスタッフを配置しない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [
+            makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '18:00' }),
+            makeReq({ id: 'r2', classId: 'class_smile', startTime: '09:00', endTime: '18:00' }),
+        ];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+        const targetDate = shifts.filter(s => s.date === '2025-06-02');
+
+        expect(targetDate.filter(s => s.staffId === 's1')).toHaveLength(1);
+        expect(targetDate.filter(s => s.isError)).toHaveLength(1);
+    });
+
     it('hourTargetを尊重して割り当てが抑制される', () => {
         const staff = [
             makeStaff({ id: 's1', name: 'スタッフA', role: 'パート', hoursTarget: 20 }) // 超短時間

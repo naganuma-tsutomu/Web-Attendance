@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateDate, validateTimeRange, validateYearMonth } from '../../utils/validation';
-import type { Env } from '../../types';
+import type { Env, D1Row } from '../../types';
+import { validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 
 type ReplacementShift = {
     date: string;
@@ -62,10 +63,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                 dutyNumbers.add(key);
             }
         }
+        const conflictResponse = validateNoShiftConflicts(insertableShifts);
+        if (conflictResponse) return conflictResponse;
 
         const [y, m] = yearMonth.split('-').map(Number);
         const startStr = `${yearMonth}-01`;
         const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+
+        const backupQuery = fixedDates.length > 0
+            ? context.env.DB.prepare(
+                `SELECT id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number
+                 FROM shifts WHERE date >= ? AND date < ? AND date NOT IN (${fixedDates.map(() => '?').join(',')})`
+            ).bind(startStr, nextMonth, ...fixedDates)
+            : context.env.DB.prepare(
+                `SELECT id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number
+                 FROM shifts WHERE date >= ? AND date < ?`
+            ).bind(startStr, nextMonth);
+        const { results: backupRows } = await backupQuery.all();
 
         const statements = [];
         if (fixedDates.length > 0) {
@@ -99,8 +113,41 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         )));
 
         const chunkSize = 100;
-        for (let i = 0; i < statements.length; i += chunkSize) {
-            await context.env.DB.batch(statements.slice(i, i + chunkSize));
+        try {
+            for (let i = 0; i < statements.length; i += chunkSize) {
+                await context.env.DB.batch(statements.slice(i, i + chunkSize));
+            }
+        } catch (replaceError) {
+            try {
+                const restoreStatements = [fixedDates.length > 0
+                    ? context.env.DB.prepare(
+                        `DELETE FROM shifts WHERE date >= ? AND date < ? AND date NOT IN (${fixedDates.map(() => '?').join(',')})`
+                    ).bind(startStr, nextMonth, ...fixedDates)
+                    : context.env.DB.prepare(
+                        'DELETE FROM shifts WHERE date >= ? AND date < ?'
+                    ).bind(startStr, nextMonth)];
+                const restoreInsert = context.env.DB.prepare(
+                    `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                );
+                restoreStatements.push(...(backupRows as D1Row[]).map(row => restoreInsert.bind(
+                    String(row.id),
+                    String(row.date),
+                    String(row.staffId),
+                    String(row.startTime),
+                    String(row.endTime),
+                    String(row.classType),
+                    row.isEarlyShift === 1 || row.isEarlyShift === true ? 1 : 0,
+                    row.isError === 1 || row.isError === true ? 1 : 0,
+                    typeof row.duty_number === 'number' ? row.duty_number : null
+                )));
+                for (let i = 0; i < restoreStatements.length; i += chunkSize) {
+                    await context.env.DB.batch(restoreStatements.slice(i, i + chunkSize));
+                }
+            } catch (restoreError) {
+                console.error('Failed to restore shifts after monthly replacement error:', restoreError);
+            }
+            throw replaceError;
         }
         return Response.json({ success: true, message: `Replaced ${insertableShifts.length} shifts` });
     } catch (e) {

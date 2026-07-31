@@ -11,8 +11,10 @@
 import { describe, it, expect } from 'vitest';
 import { eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import {
+    applyExistingDayToRotationState,
     restorePreviousMonthState,
     assignWeekdayShifts,
+    assignSaturdayShifts,
     type RotationState,
 } from '../rotationAlgorithm';
 import { applyRotation } from '../rotationAlgorithm';
@@ -77,6 +79,11 @@ const makeEmptyState = (staffIds: string[]): RotationState => ({
     lastLateShift: {},
     earlyShiftCount: Object.fromEntries(staffIds.map(id => [id, 0])),
     lateShiftCount: Object.fromEntries(staffIds.map(id => [id, 0])),
+    saturdayShiftCount: Object.fromEntries(staffIds.map(id => [id, 0])),
+    lastSaturdayShift: {},
+    classAssignmentCount: {},
+    lastClassAssignmentDate: {},
+    staffClassAssignmentCount: Object.fromEntries(staffIds.map(id => [id, {}])),
 });
 
 const earlyPattern = makePattern('early', '08:00', '17:00');
@@ -135,6 +142,104 @@ describe('restorePreviousMonthState', () => {
 
         expect(state.previousDayEarly).toEqual([]);
         expect(state.lastEarlyShift).toEqual({});
+    });
+
+    it('対象外スタッフの後日のシフトに影響されず最後の対象シフトを復元する', () => {
+        const staff = [makeStaff('s1')];
+        const state = makeEmptyState(['s1']);
+        const prevShifts: Shift[] = [
+            { id: 'rotation', date: '2025-06-27', staffId: 's1', startTime: '08:00', endTime: '17:00', classType: 'class1' },
+            { id: 'other', date: '2025-06-30', staffId: 's2', startTime: '09:00', endTime: '18:00', classType: 'class1' },
+            { id: 'error', date: '2025-06-30', staffId: 's1', startTime: '08:00', endTime: '17:00', classType: 'class1', isError: true },
+        ];
+
+        restorePreviousMonthState(
+            prevShifts,
+            new Date('2025-07-01'),
+            staff,
+            earlyPattern,
+            latePattern,
+            state
+        );
+
+        expect(state.previousDayEarly).toEqual(['s1']);
+        expect(state.lastEarlyShift.s1).toBe('2025-06-27');
+    });
+
+    it('前月末の土曜専用パターンを直前遅番として復元する', () => {
+        const staff = [makeStaff('s1')];
+        const state = makeEmptyState(['s1']);
+        const saturdayPattern = makePattern('saturday', '09:00', '18:00');
+
+        restorePreviousMonthState(
+            [{
+                id: 'saturday',
+                date: '2025-06-28',
+                staffId: 's1',
+                startTime: saturdayPattern.startTime,
+                endTime: saturdayPattern.endTime,
+                classType: 'class1',
+            }],
+            new Date('2025-07-01'),
+            staff,
+            earlyPattern,
+            latePattern,
+            state,
+            saturdayPattern
+        );
+
+        expect(state.previousDayLate).toEqual(['s1']);
+        expect(state.lastLateShift.s1).toBe('2025-06-28');
+    });
+});
+
+// ─────────────────────────────────────────────
+
+describe('applyExistingDayToRotationState', () => {
+    it('固定日の早番・遅番を回数と直前担当へ反映する', () => {
+        const staff = [makeStaff('s1'), makeStaff('s2')];
+        const state = makeEmptyState(['s1', 's2']);
+        const shifts: Shift[] = [
+            { id: 'early', date: '2025-07-08', staffId: 's1', startTime: '08:00', endTime: '17:00', classType: 'class1' },
+            { id: 'late', date: '2025-07-08', staffId: 's2', startTime: '12:00', endTime: '21:00', classType: 'class1' },
+        ];
+
+        applyExistingDayToRotationState(
+            '2025-07-08',
+            shifts,
+            staff,
+            earlyPattern,
+            latePattern,
+            state
+        );
+
+        expect(state.previousDayEarly).toEqual(['s1']);
+        expect(state.previousDayLate).toEqual(['s2']);
+        expect(state.earlyShiftCount.s1).toBe(1);
+        expect(state.lateShiftCount.s2).toBe(1);
+        expect(state.classAssignmentCount.class1).toBe(2);
+    });
+
+    it('固定日のエラーと対象外スタッフは無視する', () => {
+        const staff = [makeStaff('s1')];
+        const state = makeEmptyState(['s1']);
+        const shifts: Shift[] = [
+            { id: 'error', date: '2025-07-08', staffId: 's1', startTime: '08:00', endTime: '17:00', classType: 'class1', isError: true },
+            { id: 'other', date: '2025-07-08', staffId: 's2', startTime: '12:00', endTime: '21:00', classType: 'class1' },
+        ];
+
+        applyExistingDayToRotationState(
+            '2025-07-08',
+            shifts,
+            staff,
+            earlyPattern,
+            latePattern,
+            state
+        );
+
+        expect(state.previousDayEarly).toEqual([]);
+        expect(state.previousDayLate).toEqual([]);
+        expect(state.earlyShiftCount.s1).toBe(0);
     });
 });
 
@@ -385,7 +490,7 @@ describe('applyRotation（平等分配 + エッジケース）', () => {
         makeStaff('s4', 'フルタイム'),
     ];
 
-    it('1か月の早番割当が全スタッフに均等配分される（最大差2以内）', () => {
+    it('1か月の早番・遅番割当が全スタッフに均等配分される（最大差1以内）', () => {
         // 2025年7月（平日21日）で早番1名/日 → 21シフトを4人で分配
         const month = new Date('2025-07-01');
         const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
@@ -402,14 +507,16 @@ describe('applyRotation（平等分配 + エッジケース）', () => {
         );
 
         const earlyShifts = generatedShifts.filter(s => s.startTime === earlyPattern.startTime);
-        const countByStaff = staff.map(s =>
+        const earlyCountByStaff = staff.map(s =>
             earlyShifts.filter(sh => sh.staffId === s.id).length
         );
+        const lateShifts = generatedShifts.filter(s => s.startTime === latePattern.startTime);
+        const lateCountByStaff = staff.map(s =>
+            lateShifts.filter(sh => sh.staffId === s.id).length
+        );
 
-        const max = Math.max(...countByStaff);
-        const min = Math.min(...countByStaff);
-        // 最大差が2以内であることを確認（公平な配分）
-        expect(max - min).toBeLessThanOrEqual(2);
+        expect(Math.max(...earlyCountByStaff) - Math.min(...earlyCountByStaff)).toBeLessThanOrEqual(1);
+        expect(Math.max(...lateCountByStaff) - Math.min(...lateCountByStaff)).toBeLessThanOrEqual(1);
     });
 
     it('ローテーション対象スタッフが0人の場合は空のシフトを返す', () => {
@@ -458,5 +565,123 @@ describe('applyRotation（平等分配 + エッジケース）', () => {
         );
 
         expect(generatedShifts).toHaveLength(0);
+    });
+
+    it('固定日の担当を翌稼働日の連続回避と当月回数へ反映する', () => {
+        const targetStaff = [makeStaff('s1', 'フルタイム'), makeStaff('s2', 'フルタイム')];
+        const days = [new Date('2025-07-08'), new Date('2025-07-09')];
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const generatedShifts: Shift[] = [];
+        const existingShifts: Shift[] = [{
+            id: 'fixed-early',
+            date: '2025-07-08',
+            staffId: 's1',
+            startTime: earlyPattern.startTime,
+            endTime: earlyPattern.endTime,
+            classType: 'class1',
+        }];
+        const currentHours = { s1: 9, s2: 0 };
+        const currentWeeklyHours = { s1: {}, s2: {} };
+
+        applyRotation(
+            days, settings, targetStaff, [], generatedShifts,
+            currentHours, currentWeeklyHours,
+            [0], [], ['2025-07-08'], existingShifts,
+            [earlyPattern, latePattern], classes, [role]
+        );
+
+        expect(generatedShifts).toHaveLength(1);
+        expect(generatedShifts[0].date).toBe('2025-07-09');
+        expect(generatedShifts[0].staffId).toBe('s2');
+        expect(currentHours.s1).toBe(9);
+    });
+
+    it('割り切れない人数のクラス端数を月間で同じクラスへ固定しない', () => {
+        const targetStaff = Array.from({ length: 6 }, (_, index) =>
+            makeStaff(`s${index + 1}`, 'フルタイム')
+        );
+        const month = new Date('2025-07-01');
+        const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 2 });
+        const targetClasses = [makeClass('class1'), { ...makeClass('class2'), display_order: 1 }];
+        const generatedShifts: Shift[] = [];
+
+        applyRotation(
+            days, settings, targetStaff, [], generatedShifts,
+            Object.fromEntries(targetStaff.map(s => [s.id, 0])),
+            Object.fromEntries(targetStaff.map(s => [s.id, {}])),
+            [0], [], [], [],
+            [earlyPattern, latePattern], targetClasses, [role]
+        );
+
+        const counts = targetClasses.map(cls =>
+            generatedShifts.filter(shift => shift.classType === cls.id).length
+        );
+        expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+        for (const member of targetStaff) {
+            const staffCounts = targetClasses.map(cls =>
+                generatedShifts.filter(shift =>
+                    shift.staffId === member.id && shift.classType === cls.id
+                ).length
+            );
+            expect(Math.max(...staffCounts) - Math.min(...staffCounts)).toBeLessThanOrEqual(1);
+        }
+    });
+
+    it('スタッフ配列順を反転しても同じ割当結果になる', () => {
+        const days = eachDayOfInterval({
+            start: new Date('2025-07-01'),
+            end: new Date('2025-07-11'),
+        });
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 1 });
+        const generate = (inputStaff: Staff[]) => {
+            const generatedShifts: Shift[] = [];
+            applyRotation(
+                days, settings, inputStaff, [], generatedShifts,
+                Object.fromEntries(inputStaff.map(s => [s.id, 0])),
+                Object.fromEntries(inputStaff.map(s => [s.id, {}])),
+                [0], [], [], [],
+                [earlyPattern, latePattern], classes, [role]
+            );
+            return generatedShifts.map(shift =>
+                `${shift.date}:${shift.startTime}:${shift.staffId}:${shift.classType}`
+            );
+        };
+
+        expect(generate(staff)).toEqual(generate([...staff].reverse()));
+    });
+});
+
+describe('assignSaturdayShifts', () => {
+    it('土曜担当だけを次の直前遅番として保持する', () => {
+        const staff = [makeStaff('s1'), makeStaff('s2')];
+        const state = makeEmptyState(['s1', 's2']);
+        state.previousDayLate = ['s1'];
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 0, s2: 0 };
+        const currentWeeklyHours = { s1: {}, s2: {} };
+        const settings = makeRotationSettings({
+            saturdayEnabled: true,
+            saturdayCount: 1,
+            saturdayPreferFridayLate: false,
+        });
+
+        assignSaturdayShifts(
+            new Date('2025-07-05'),
+            '2025-07-05',
+            staff,
+            settings,
+            latePattern,
+            classes,
+            generatedShifts,
+            currentHours,
+            currentWeeklyHours,
+            state,
+            undefined,
+            (a, b) => a.id.localeCompare(b.id)
+        );
+
+        expect(state.previousDayLate).toEqual([generatedShifts[0].staffId]);
+        expect(state.saturdayShiftCount[generatedShifts[0].staffId]).toBe(1);
     });
 });

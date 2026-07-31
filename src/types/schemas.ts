@@ -161,10 +161,10 @@ export const RotationSettingsSchema = z.object({
   roleId: z.string().default(''),
   earlyPatternId: z.string().default(''),
   latePatternId: z.string().default(''),
-  weekdayEarlyCount: z.number().int().default(1),
-  weekdayLateCount: z.number().int().default(2),
+  weekdayEarlyCount: z.number().int().min(0).max(100).default(1),
+  weekdayLateCount: z.number().int().min(0).max(100).default(2),
   saturdayEnabled: z.boolean().default(false),
-  saturdayCount: z.number().int().default(1),
+  saturdayCount: z.number().int().min(0).max(100).default(1),
   saturdayPreferFridayLate: z.boolean().default(true),
   saturdayPatternId: z.string().optional(),
 });

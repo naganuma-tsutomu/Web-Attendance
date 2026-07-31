@@ -8,6 +8,7 @@ import {
     useDeleteShiftsByMonth, useSaveFixedDates, useCreateShiftSnapshot,
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
+import { findShiftConflict } from '../../../../shared/shiftIntegrity';
 import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import { buildGenerationReport } from '../utils/generationReport';
 import type { GenerationReport, Shift, ShiftPreference, Staff, DynamicRole, ShiftClass, ShiftTimePattern, BusinessHours, ExcelSettings, BreakSettings } from '../../../types';
@@ -97,6 +98,14 @@ export function useScheduleActions({
                 breakSettings,
                 excelSettings?.leaderRoleId ?? null
             );
+            const generatedConflict = findShiftConflict(generatedShifts);
+            if (generatedConflict) {
+                const staffName = staffList.find(s => s.id === generatedConflict.first.staffId)?.name
+                    ?? generatedConflict.first.staffId;
+                throw new Error(
+                    `${generatedConflict.first.date}の${staffName}に重複するシフトが生成されました。保存は行われていません。`
+                );
+            }
             const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
 
             await replaceShiftsMutation.mutateAsync({

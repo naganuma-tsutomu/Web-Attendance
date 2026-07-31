@@ -1,6 +1,7 @@
 import { createValidationError, handleServerError, validateYearMonth } from '../../../../utils/validation';
 import type { Env, D1Row } from '../../../../types';
 import { parseSnapshotFixedDates, parseSnapshotShifts } from '../index';
+import { validateNoShiftConflicts } from '../../../../utils/shiftIntegrity';
 
 const SNAPSHOT_KEEP_LIMIT = 20;
 
@@ -38,6 +39,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (ymError) return createValidationError(ymError);
 
         const shifts = parseSnapshotShifts(String(row.shifts_json));
+        const conflictResponse = validateNoShiftConflicts(shifts);
+        if (conflictResponse) return conflictResponse;
         const fixedDates = parseSnapshotFixedDates(row.fixed_dates_json ? String(row.fixed_dates_json) : '[]')
             .filter(date => date.startsWith(yearMonth));
 

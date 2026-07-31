@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createValidationError, createServerError, handleServerError, validateName, validateTimeFormat, validateTimeRange } from '../validation';
+import { createValidationError, createServerError, handleServerError, validateDate, validateName, validateTimeFormat, validateTimeRange } from '../validation';
 
 describe('validation utilities', () => {
     describe('createValidationError', () => {
@@ -85,6 +85,17 @@ describe('validation utilities', () => {
         it('日またぎなどを含む任意の異なる時間同士は（現在は）nullを返す', () => {
             expect(validateTimeRange('09:00', '18:00')).toBeNull();
             expect(validateTimeRange('22:00', '05:00')).toBeNull();
+        });
+    });
+
+    describe('validateDate', () => {
+        it('実在しない日付を拒否する', () => {
+            expect(validateDate('2026-02-29')).toContain('実在しない');
+            expect(validateDate('2026-04-31')).toContain('実在しない');
+        });
+
+        it('うるう年の2月29日を許可する', () => {
+            expect(validateDate('2028-02-29')).toBeNull();
         });
     });
 });

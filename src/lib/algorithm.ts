@@ -1,5 +1,5 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek, subDays } from 'date-fns';
-import { timeToMinutes, calculateActualWorkingHours } from '../utils/timeUtils';
+import { timeToMinutes, calculateActualWorkingHours, timeRangesOverlap } from '../utils/timeUtils';
 import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS, EARLY_SHIFT_BOUNDARY } from '../constants';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
 
@@ -90,7 +90,7 @@ const isStaffAvailableForTimeSlot = (
         const hasOverlap = existingShifts.some(shift => {
             if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
             if (shift.isError) return false;
-            return (checkStart < shift.endTime && checkEnd > shift.startTime);
+            return timeRangesOverlap(checkStart, checkEnd, shift.startTime, shift.endTime);
         });
 
         if (hasOverlap) return { available: false };
@@ -104,7 +104,7 @@ const isStaffAvailableForTimeSlot = (
     const hasOverlap = existingShifts.some(shift => {
         if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
         if (shift.isError) return false;
-        return (startTime < shift.endTime && endTime > shift.startTime);
+        return timeRangesOverlap(startTime, endTime, shift.startTime, shift.endTime);
     });
 
     if (hasOverlap) return { available: false };
@@ -129,7 +129,7 @@ const countStaffInTimeSlot = (
         if (shift.staffId === UNASSIGNED_STAFF_ID) return false;
 
         // Check if the shift overlaps with the time slot
-        return (shift.startTime < endTime && shift.endTime > startTime);
+        return timeRangesOverlap(shift.startTime, shift.endTime, startTime, endTime);
     }).length;
 };
 

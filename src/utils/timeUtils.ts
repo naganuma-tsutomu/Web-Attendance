@@ -1,5 +1,6 @@
 import { UNASSIGNED_STAFF_ID } from '../constants';
 import type { BreakSettings } from '../types';
+export { timeRangesOverlap } from '../../shared/shiftIntegrity';
 
 /**
  * デフォルトの休憩設定

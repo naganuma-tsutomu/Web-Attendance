@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, FileSpreadsheet, BookOpen, RefreshCw, RotateCcw } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, FileSpreadsheet, BookOpen, History, RefreshCw, RotateCcw } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { useFacilityName } from '../lib/hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -51,6 +51,7 @@ const Layout = () => {
         { path: '/admin/settings/rotation', label: 'ローテーション設定', icon: RefreshCw },
         { path: '/admin/settings/excel', label: 'Excel出力設定', icon: FileSpreadsheet },
         { path: '/admin/manual', label: 'ユーザーマニュアル', icon: BookOpen },
+        { path: '/admin/update-history', label: '更新履歴', icon: History },
     ];
 
     return (

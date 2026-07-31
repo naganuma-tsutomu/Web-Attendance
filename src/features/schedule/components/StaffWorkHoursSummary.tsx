@@ -3,6 +3,7 @@ import { Users } from 'lucide-react';
 import { startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Staff, Shift } from '../../../types';
 import { calculateTotalHours, formatHours } from '../../../utils/timeUtils';
+import { getWeekStartsOn } from '../../../utils/dateUtils';
 import { useBreakSettings } from '../../../lib/hooks';
 
 interface StaffWorkHoursSummaryProps {
@@ -27,8 +28,9 @@ const StaffWorkHoursSummary = ({ staffs, shifts, isOpen, viewDate = new Date() }
 
     // Calculate weekly hours for the week containing viewDate
     const weeklyHoursMap = useMemo(() => {
-        const weekStart = startOfWeek(viewDate, { weekStartsOn: 1 }); // Monday start to match ISO
-        const weekEnd = endOfWeek(viewDate, { weekStartsOn: 1 });
+        const weekStartsOn = getWeekStartsOn();
+        const weekStart = startOfWeek(viewDate, { weekStartsOn });
+        const weekEnd = endOfWeek(viewDate, { weekStartsOn });
         
         const filteredShifts = shifts.filter(shift => {
             const shiftDate = parseISO(shift.date);

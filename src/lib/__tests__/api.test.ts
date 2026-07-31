@@ -20,8 +20,33 @@ import {
     savePreference,
     getClasses,
     getRoles,
-    getTimePatterns
+    getTimePatterns,
+    toggleFixedDate
 } from '../api';
+
+describe('API - Fixed dates', () => {
+    beforeEach(() => {
+        mockFetch.mockReset();
+    });
+
+    it('固定日を日単位で更新できる', async () => {
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ success: true }),
+        });
+
+        await toggleFixedDate('2026-07-31', true);
+
+        expect(mockFetch).toHaveBeenCalledWith(
+            '/api/fixed-dates',
+            expect.objectContaining({
+                method: 'PATCH',
+                body: JSON.stringify({ date: '2026-07-31', fixed: true }),
+            })
+        );
+    });
+});
 
 describe('API - Staff functions', () => {
     beforeEach(() => {

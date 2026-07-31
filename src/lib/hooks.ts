@@ -11,7 +11,7 @@ import {
     getRotationSettings, updateRotationSettings,
     getBreakSettings, updateBreakSettings,
     getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot,
-    getShiftRequirementTemplates
+    getShiftRequirementTemplates, toggleFixedDate
 } from './api';
 import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
 
@@ -205,6 +205,31 @@ export const useSaveFixedDates = () => {
         mutationFn: ({ yearMonth, dates }: { yearMonth: string, dates: string[] }) => saveFixedDates(yearMonth, dates),
         onSuccess: (_, { yearMonth }) => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(yearMonth) });
+        },
+    });
+};
+
+export const useToggleFixedDate = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ date, fixed }: { date: string; fixed: boolean }) => toggleFixedDate(date, fixed),
+        scope: { id: 'toggle-fixed-date' },
+        onMutate: async ({ date, fixed }) => {
+            const yearMonth = date.slice(0, 7);
+            const queryKey = QUERY_KEYS.fixedDates(yearMonth);
+            await queryClient.cancelQueries({ queryKey });
+            const previous = queryClient.getQueryData<string[]>(queryKey);
+            const next = new Set(previous ?? []);
+            if (fixed) next.add(date);
+            else next.delete(date);
+            queryClient.setQueryData(queryKey, Array.from(next).sort());
+            return { previous, queryKey };
+        },
+        onError: (_error, _variables, context) => {
+            if (context) queryClient.setQueryData(context.queryKey, context.previous);
+        },
+        onSettled: (_data, _error, { date }) => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(date.slice(0, 7)) });
         },
     });
 };

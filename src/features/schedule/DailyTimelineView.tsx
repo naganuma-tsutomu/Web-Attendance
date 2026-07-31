@@ -21,6 +21,7 @@ interface DailyTimelineViewProps {
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
     saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
+    discardRef?: React.MutableRefObject<(() => void) | null>;
     readOnly?: boolean;
     isFixed?: boolean;
     onToggleFixed?: () => void;
@@ -32,7 +33,7 @@ interface DailyTimelineViewProps {
 
 const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     date, shifts, staffList, classes, timePatterns, roles,
-    preferences = [], onShiftUpdate, onModifiedChange, saveRef,
+    preferences = [], onShiftUpdate, onModifiedChange, saveRef, discardRef,
     readOnly = false, isFixed = false, onToggleFixed, hideHeaderToggle, highlightStaffId,
     showDutyNumbers = false,
     leaderRoleId = null,
@@ -42,7 +43,7 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     const hours = useMemo(() => resolveBusinessHours(businessHoursData), [businessHoursData]);
 
     const edit = useShiftEdit({
-        shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef
+        shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef, discardRef
     });
     const { localShifts, addedShifts, deletedIds, targetDateStr } = edit;
 

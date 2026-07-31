@@ -13,7 +13,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
         const months = new Set<string>();
         months.add(format(currentDate, 'yyyy-MM'));
 
-        if (view === Views.WEEK) {
+        if (view === Views.WEEK || view === Views.DAY) {
             const weekStart = startOfWeek(currentDate, { locale: ja, weekStartsOn: getWeekStartsOn() });
             const weekEnd = addDays(weekStart, 6);
             months.add(format(weekStart, 'yyyy-MM'));

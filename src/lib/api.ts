@@ -449,6 +449,13 @@ export const saveFixedDates = async (yearMonth: string, dates: string[]): Promis
     });
 };
 
+export const toggleFixedDate = async (date: string, fixed: boolean): Promise<void> => {
+    await apiFetch('/fixed-dates', {
+        method: 'PATCH',
+        body: JSON.stringify({ date, fixed })
+    });
+};
+
 // ==========================================
 // Business Hours API (営業時間設定)
 // ==========================================

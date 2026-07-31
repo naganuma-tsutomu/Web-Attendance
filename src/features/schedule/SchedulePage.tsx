@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
 import { useCalendarInteractions } from './hooks/useCalendarInteractions';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
@@ -24,6 +24,7 @@ import { CalendarDisplayContext } from './context/CalendarDisplayContext';
 import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/useScheduleData';
 import { getWeekStartsOn } from '../../utils/dateUtils';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
+import { useUnsavedChanges } from '../../lib/UnsavedChangesContext';
 
 const localizer = dateFnsLocalizer({
     format,
@@ -35,6 +36,27 @@ const localizer = dateFnsLocalizer({
 
 const SchedulePage = () => {
     const schedule = useScheduleData();
+    const { setGuard, requestTransition } = useUnsavedChanges();
+
+    useEffect(() => {
+        setGuard({
+            dirty: schedule.isDayModified,
+            save: async () => {
+                if (!schedule.daySaveRef.current) throw new Error('保存処理を開始できません');
+                await schedule.daySaveRef.current();
+            },
+            discard: () => schedule.dayDiscardRef.current?.(),
+        });
+        return () => setGuard(null);
+    }, [schedule.isDayModified, schedule.daySaveRef, schedule.dayDiscardRef, setGuard]);
+
+    const handleDateChange = useCallback((date: Date) => {
+        requestTransition(() => schedule.setCurrentDate(date));
+    }, [requestTransition, schedule]);
+
+    const handleViewChange = useCallback((view: View) => {
+        requestTransition(() => schedule.setView(view));
+    }, [requestTransition, schedule]);
 
     // ローカルUI状態（モーダル等）
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -121,8 +143,8 @@ const SchedulePage = () => {
                 timePatterns={schedule.timePatterns}
                 preferences={schedule.preferences}
                 holidays={schedule.holidays}
-                onDateChange={schedule.setCurrentDate}
-                onViewChange={schedule.setView}
+                onDateChange={handleDateChange}
+                onViewChange={handleViewChange}
                 onGenerate={schedule.handleGenerate}
                 onClearShifts={schedule.handleClearShifts}
                 onOpenBackups={() => setIsBackupModalOpen(true)}
@@ -160,6 +182,7 @@ const SchedulePage = () => {
                                     onShiftUpdate={schedule.loadShifts}
                                     onModifiedChange={schedule.setIsDayModified}
                                     saveRef={schedule.daySaveRef}
+                                    discardRef={schedule.dayDiscardRef}
                                     isFixed={schedule.fixedDates.has(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                     onToggleFixed={() => schedule.toggleFixedDate(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
@@ -171,7 +194,7 @@ const SchedulePage = () => {
                                         <span>未保存の変更があります</span>
                                     </div>
                                     <button
-                                        onClick={() => schedule.loadShifts()}
+                                        onClick={() => schedule.dayDiscardRef.current?.()}
                                         className="px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-200 dark:border-slate-600"
                                     >
                                         破棄
@@ -240,9 +263,9 @@ const SchedulePage = () => {
                                         day: true,
                                     }}
                                     view={schedule.view}
-                                    onView={(v) => schedule.setView(v as View)}
+                                    onView={(v) => handleViewChange(v as View)}
                                     date={schedule.currentDate}
-                                    onNavigate={(newDate) => schedule.setCurrentDate(newDate)}
+                                    onNavigate={handleDateChange}
                                     onDrillDown={(date) => handleOpenTimeline(date)}
                                     components={calendarComponents}
                                     messages={{

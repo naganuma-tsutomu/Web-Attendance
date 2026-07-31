@@ -35,8 +35,8 @@ describe('API - Staff functions', () => {
     describe('getStaffList', () => {
         it('スタッフリストを取得できる', async () => {
             const mockStaff = [
-                { id: 's1', name: '田中太郎', role: '正社員', hoursTarget: 160 },
-                { id: 's2', name: '佐藤花子', role: 'パート', hoursTarget: 80 }
+                { id: 's1', name: '田中太郎', role: '正社員', hoursTarget: 160, weeklyHoursTarget: null },
+                { id: 's2', name: '佐藤花子', role: 'パート', hoursTarget: 80, weeklyHoursTarget: null }
             ];
             
             mockFetch.mockResolvedValueOnce({
@@ -48,6 +48,20 @@ describe('API - Staff functions', () => {
             expect(result).toEqual(mockStaff);
             expect(mockFetch).toHaveBeenCalled();
             expect(mockFetch.mock.calls[0][0]).toContain('/api/staffs');
+        });
+
+        it('勤務時間上限の未設定値をnullへ正規化する', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve([
+                    { id: 's1', name: '田中太郎', role: '正社員' }
+                ])
+            });
+
+            const result = await getStaffList();
+
+            expect(result[0].hoursTarget).toBeNull();
+            expect(result[0].weeklyHoursTarget).toBeNull();
         });
 
         it('APIエラー時に例外をスローする', async () => {
@@ -82,7 +96,7 @@ describe('API - Staff functions', () => {
 
     describe('createStaff', () => {
         it('新規スタッフを作成できる', async () => {
-            const newStaff = { name: '新規スタッフ', role: 'パート', hoursTarget: 100 };
+            const newStaff = { name: '新規スタッフ', role: 'パート', hoursTarget: 100, weeklyHoursTarget: null };
             const mockResponse = { id: 'new-id-123' };
             
             mockFetch.mockResolvedValueOnce({

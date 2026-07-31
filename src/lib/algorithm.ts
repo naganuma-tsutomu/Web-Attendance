@@ -4,7 +4,7 @@ import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS, EARLY_SHIFT_BOUNDA
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
 
 export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
-import { isStaffAvailable } from './availabilityUtils';
+import { isStaffAvailable, isStaffAvailableDuringTime } from './availabilityUtils';
 import { applyRotation } from './rotationAlgorithm';
 import { applyLeaderRebalance } from './leaderRebalance';
 
@@ -34,30 +34,11 @@ const isStaffAvailableForTimeSlot = (
     holidays: string[] = [], // YYYY-MM-DD
     closedDays: number[] = [] // 0=日, 1=月, ..., 6=土, 7=祝日
 ): { available: boolean; matchingPattern?: ShiftTimePattern } => {
-    // First check basic day availability (full-day unavailable)
-    // closedDays と isNationalHoliday を専門の引数経由で渡す
-    if (!isStaffAvailable(staff, date, dateStr, preferences, closedDays, holidays.includes(dateStr))) return { available: false };
-
-    // Check partial-day unavailability from preference details
-    const pref = preferences.find(p => p.staffId === staff.id);
-    if (pref?.details) {
-        const partialEntries = pref.details.filter(d => d.date === dateStr && d.startTime && d.endTime);
-        for (const entry of partialEntries) {
-            // Convert to minutes for robust comparison (handles midnight crossing better if it occurs)
-            const sMin = timeToMinutes(startTime);
-            let eMin = timeToMinutes(endTime);
-            if (eMin < sMin) eMin += 24 * 60;
-
-            const usMin = timeToMinutes(entry.startTime!);
-            let ueMin = timeToMinutes(entry.endTime!);
-            if (ueMin < usMin) ueMin += 24 * 60;
-
-            // Check if [sMin, eMin] overlaps with [usMin, ueMin]
-            if (sMin < ueMin && eMin > usMin) {
-                return { available: false };
-            }
-        }
-    }
+    // Check full-day and partial-day availability.
+    if (!isStaffAvailableDuringTime(
+        staff, date, dateStr, startTime, endTime, preferences,
+        closedDays, holidays.includes(dateStr)
+    )) return { available: false };
 
     const roleMap = buildRoleMap(roles);
     const roleRecord = roleMap.get(staff.role);
@@ -237,11 +218,11 @@ const findAvailableStaff = (
             const shiftEnd = pattern ? pattern.endTime : endTime;
             const duration = calcDuration(shiftStart, shiftEnd, breakSettings);
 
-            if (staff.hoursTarget !== null && currentHours[staff.id] + duration > staff.hoursTarget) {
+            if (staff.hoursTarget != null && currentHours[staff.id] + duration > staff.hoursTarget) {
                 return false;
             }
 
-            if (staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) {
+            if (staff.weeklyHoursTarget != null) {
                 const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
                 if (!currentWeeklyHours[staff.id]) {
                     currentWeeklyHours[staff.id] = {};

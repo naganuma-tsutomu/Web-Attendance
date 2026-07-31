@@ -16,18 +16,20 @@ import {
     type RotationState,
 } from '../rotationAlgorithm';
 import { applyRotation } from '../rotationAlgorithm';
-import type { Staff, Shift, ShiftTimePattern, ShiftClass, DynamicRole, RotationSettings } from '../../types';
+import type { Staff, Shift, ShiftPreference, ShiftTimePattern, ShiftClass, DynamicRole, RotationSettings } from '../../types';
 
 // ── テスト用ヘルパー ──────────────────────────
 
-const makeStaff = (id: string, role = 'フルタイム'): Staff => ({
+const makeStaff = (id: string, role = 'フルタイム', overrides: Partial<Staff> = {}): Staff => ({
     id,
     name: `Staff ${id}`,
     role,
     hoursTarget: null,
+    weeklyHoursTarget: null,
     display_order: 0,
     availableDays: [],
     classIds: [],
+    ...overrides,
 });
 
 const makePattern = (id: string, startTime: string, endTime: string): ShiftTimePattern => ({
@@ -218,6 +220,157 @@ describe('assignWeekdayShifts', () => {
 
         // 1人しかいないので早番 or 遅番のどちらか1つのみ割り当て
         expect(generatedShifts.length).toBeLessThanOrEqual(1);
+    });
+
+    it('月間上限を超える候補を飛ばして次の候補へ割り当てる', () => {
+        const staff = [
+            makeStaff('s1', 'フルタイム', { hoursTarget: 10 }),
+            makeStaff('s2', 'フルタイム', { hoursTarget: 160 }),
+        ];
+        const state = makeEmptyState(['s1', 's2']);
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 9, s2: 0 };
+        const currentWeeklyHours = { s1: {}, s2: {} };
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const sort = (a: Staff, b: Staff) => currentHours[a.id as keyof typeof currentHours] - currentHours[b.id as keyof typeof currentHours];
+
+        assignWeekdayShifts(
+            new Date('2025-07-01'), '2025-07-01', staff, settings,
+            earlyPattern, latePattern, classes,
+            generatedShifts, currentHours, currentWeeklyHours,
+            state, undefined, sort, sort
+        );
+
+        expect(generatedShifts).toHaveLength(1);
+        expect(generatedShifts[0].staffId).toBe('s2');
+        expect(state.earlyShiftCount.s1).toBe(0);
+        expect(state.lastEarlyShift.s1).toBeUndefined();
+    });
+
+    it('週間上限を超える候補を飛ばして次の候補へ割り当てる', () => {
+        const staff = [
+            makeStaff('s1', 'フルタイム', { weeklyHoursTarget: 40 }),
+            makeStaff('s2', 'フルタイム', { weeklyHoursTarget: 40 }),
+        ];
+        const state = makeEmptyState(['s1', 's2']);
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 0, s2: 0 };
+        const currentWeeklyHours = {
+            s1: { 'w-2025-06-30': 35 },
+            s2: { 'w-2025-06-30': 0 },
+        };
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const sort = () => 0;
+
+        assignWeekdayShifts(
+            new Date('2025-07-01'), '2025-07-01', staff, settings,
+            earlyPattern, latePattern, classes,
+            generatedShifts, currentHours, currentWeeklyHours,
+            state, undefined, sort, sort
+        );
+
+        expect(generatedShifts).toHaveLength(1);
+        expect(generatedShifts[0].staffId).toBe('s2');
+    });
+
+    it('部分時間希望休と重なる候補を飛ばして次の候補へ割り当てる', () => {
+        const staff = [makeStaff('s1'), makeStaff('s2')];
+        const preferences: ShiftPreference[] = [{
+            id: 'pref1',
+            staffId: 's1',
+            yearMonth: '2025-07',
+            details: [{ date: '2025-07-01', startTime: '08:00', endTime: '12:00', type: null }],
+        }];
+        const state = makeEmptyState(['s1', 's2']);
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 0, s2: 0 };
+        const currentWeeklyHours = { s1: {}, s2: {} };
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const sort = () => 0;
+
+        assignWeekdayShifts(
+            new Date('2025-07-01'), '2025-07-01', staff, settings,
+            earlyPattern, latePattern, classes,
+            generatedShifts, currentHours, currentWeeklyHours,
+            state, undefined, sort, sort, preferences
+        );
+
+        expect(generatedShifts).toHaveLength(1);
+        expect(generatedShifts[0].staffId).toBe('s2');
+    });
+
+    it('既存シフトと重なる候補を飛ばして次の候補へ割り当てる', () => {
+        const staff = [makeStaff('s1'), makeStaff('s2')];
+        const existingShifts: Shift[] = [{
+            id: 'existing1',
+            date: '2025-07-01',
+            staffId: 's1',
+            startTime: '09:00',
+            endTime: '12:00',
+            classType: 'class1',
+        }];
+        const state = makeEmptyState(['s1', 's2']);
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 0, s2: 0 };
+        const currentWeeklyHours = { s1: {}, s2: {} };
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const sort = () => 0;
+
+        assignWeekdayShifts(
+            new Date('2025-07-01'), '2025-07-01', staff, settings,
+            earlyPattern, latePattern, classes,
+            generatedShifts, currentHours, currentWeeklyHours,
+            state, undefined, sort, sort, [], existingShifts
+        );
+
+        expect(generatedShifts).toHaveLength(1);
+        expect(generatedShifts[0].staffId).toBe('s2');
+    });
+
+    it('自動割当対象外クラスしかない場合はシフトと状態を更新しない', () => {
+        const staff = [makeStaff('s1')];
+        const disabledClasses = [{ ...makeClass('help'), auto_allocate: 0 }];
+        const state = makeEmptyState(['s1']);
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 0 };
+        const currentWeeklyHours = { s1: {} };
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const sort = () => 0;
+
+        assignWeekdayShifts(
+            new Date('2025-07-01'), '2025-07-01', staff, settings,
+            earlyPattern, latePattern, disabledClasses,
+            generatedShifts, currentHours, currentWeeklyHours,
+            state, undefined, sort, sort
+        );
+
+        expect(generatedShifts).toHaveLength(0);
+        expect(currentHours.s1).toBe(0);
+        expect(state.earlyShiftCount.s1).toBe(0);
+        expect(state.lastEarlyShift.s1).toBeUndefined();
+    });
+
+    it('所属クラスが自動割当対象外の場合は他クラスへフォールバックしない', () => {
+        const staff = [makeStaff('s1', 'フルタイム', { classIds: ['help'] })];
+        const mixedClasses = [
+            { ...makeClass('help'), auto_allocate: 0 },
+            makeClass('regular'),
+        ];
+        const state = makeEmptyState(['s1']);
+        const generatedShifts: Shift[] = [];
+        const currentHours = { s1: 0 };
+        const currentWeeklyHours = { s1: {} };
+        const settings = makeRotationSettings({ weekdayEarlyCount: 1, weekdayLateCount: 0 });
+        const sort = () => 0;
+
+        assignWeekdayShifts(
+            new Date('2025-07-01'), '2025-07-01', staff, settings,
+            earlyPattern, latePattern, mixedClasses,
+            generatedShifts, currentHours, currentWeeklyHours,
+            state, undefined, sort, sort
+        );
+
+        expect(generatedShifts).toHaveLength(0);
     });
 });
 

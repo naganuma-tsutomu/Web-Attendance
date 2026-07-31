@@ -4,6 +4,7 @@ import type { Shift, Staff, DynamicRole, ShiftClass } from '../../types';
 
 const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role: string }): Staff => ({
     hoursTarget: 160,
+    weeklyHoursTarget: null,
     ...overrides,
 });
 

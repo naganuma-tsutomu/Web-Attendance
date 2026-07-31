@@ -8,7 +8,7 @@ import { createHolidayMap, isHoliday } from '../lib/holidayUtils';
 import { SHIFT_STEP_MINS } from '../constants';
 import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../types';
 import { buildLeaderMatcher } from './roleMatch';
-import { getEffectiveDutyNumber } from './dutyNumber';
+import { getEffectiveDutyNumbers } from './dutyNumber';
 
 const DEFAULT_START_HOUR = 8;
 const DEFAULT_END_HOUR = 19;
@@ -159,13 +159,15 @@ export const exportToExcelAdvanced = async (
         const dayShifts = shifts.filter(s => s.date === dateStr);
         const startRowForDay = currentRow;
 
-        // クラスごとの staffId 配列（番号計算用）— ソートより先に構築
-        const classStaffIdsMap: Record<string, string[]> = {};
-        const fullTimeClassStaffIdsMap: Record<string, string[]> = {};
+        // クラスごとの番号をソートより先に一括計算
+        const effectiveDutyNumbers = new Map<string, number>();
         if (showDutyNumbers) {
             const leaderRoleId = excelSettings?.leaderRoleId ?? null;
             const matcher = buildLeaderMatcher(leaderRoleId, roles);
-            // まずクラス順・スタッフ順で安定した staffId リストを作る
+            const fullTimeStaffIds = leaderRoleId
+                ? staffs.filter(matcher).map(staff => staff.id)
+                : undefined;
+            // まずクラス順・スタッフ順で安定したシフトリストを作る
             const presorted = [...dayShifts].sort((a, b) => {
                 const classA = classes.find(c => c.id === a.classType);
                 const classB = classes.find(c => c.id === b.classType);
@@ -175,21 +177,21 @@ export const exportToExcelAdvanced = async (
                 const idxB = staffs.findIndex(s => s.id === b.staffId);
                 return idxA - idxB;
             });
-            presorted.forEach(s => {
-                if (!classStaffIdsMap[s.classType]) classStaffIdsMap[s.classType] = [];
-                if (!classStaffIdsMap[s.classType].includes(s.staffId)) {
-                    classStaffIdsMap[s.classType].push(s.staffId);
-                }
-                if (leaderRoleId) {
-                    const staff = staffs.find(st => st.id === s.staffId);
-                    if (staff && matcher(staff)) {
-                        if (!fullTimeClassStaffIdsMap[s.classType]) fullTimeClassStaffIdsMap[s.classType] = [];
-                        if (!fullTimeClassStaffIdsMap[s.classType].includes(s.staffId)) {
-                            fullTimeClassStaffIdsMap[s.classType].push(s.staffId);
-                        }
-                    }
-                }
-            });
+            for (const cls of classes) {
+                const classShifts = presorted.filter(shift => shift.classType === cls.id);
+                const classDutyNumbers = getEffectiveDutyNumbers(
+                    classShifts.map(shift => ({
+                        id: shift.id,
+                        staffId: shift.staffId,
+                        storedNumber: shift.duty_number,
+                    })),
+                    day,
+                    fullTimeStaffIds
+                );
+                classDutyNumbers.forEach((number, shiftId) => {
+                    effectiveDutyNumbers.set(shiftId, number);
+                });
+            }
         }
 
         // 出勤スタッフのソート（クラス順 → 当番番号順 or スタッフ表示順）
@@ -199,13 +201,8 @@ export const exportToExcelAdvanced = async (
             const classOrder = (classA?.display_order || 0) - (classB?.display_order || 0);
             if (classOrder !== 0) return classOrder;
             if (showDutyNumbers) {
-                const groupA = classStaffIdsMap[a.classType] ?? [];
-                const ftA = fullTimeClassStaffIdsMap[a.classType];
-                const groupB = classStaffIdsMap[b.classType] ?? [];
-                const ftB = fullTimeClassStaffIdsMap[b.classType];
-                const dutyA = getEffectiveDutyNumber(a.staffId, a.duty_number, day, groupA, ftA);
-                const dutyB = getEffectiveDutyNumber(b.staffId, b.duty_number, day, groupB, ftB);
-                return dutyA - dutyB;
+                return (effectiveDutyNumbers.get(a.id) ?? 1) -
+                    (effectiveDutyNumbers.get(b.id) ?? 1);
             }
             const idxA = staffs.findIndex(s => s.id === a.staffId);
             const idxB = staffs.findIndex(s => s.id === b.staffId);
@@ -243,9 +240,7 @@ export const exportToExcelAdvanced = async (
                 rowData.name = staff ? staff.name : '未割当';
                 rowData.class = shiftClass ? shiftClass.name : '';
                 if (showDutyNumbers) {
-                    const groupStaffIds = classStaffIdsMap[shift.classType] ?? [];
-                    const fullTimeGroupIds = fullTimeClassStaffIdsMap[shift.classType];
-                    rowData.duty_number = getEffectiveDutyNumber(shift.staffId, shift.duty_number, day, groupStaffIds, fullTimeGroupIds);
+                    rowData.duty_number = effectiveDutyNumbers.get(shift.id) ?? 1;
                 }
                 rowData.start = shift.startTime;
                 rowData.end = shift.endTime;

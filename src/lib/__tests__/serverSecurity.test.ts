@@ -184,8 +184,9 @@ describe('server API security boundaries', () => {
 
         expect(response.status).toBe(200);
         expect(batch).toHaveBeenCalledTimes(1);
-        expect(prepared[0].sql).toContain('date NOT IN');
-        expect(prepared[0].binds).toEqual(['2025-06-01', '2025-07-01', '2025-06-10']);
+        const deleteStatement = prepared.find(statement => statement.sql.startsWith('DELETE FROM shifts'));
+        expect(deleteStatement?.sql).toContain('date NOT IN');
+        expect(deleteStatement?.binds).toEqual(['2025-06-01', '2025-07-01', '2025-06-10']);
     });
 
     it('月次シフト置換は不正な挿入データなら削除batchを実行しない', async () => {
@@ -231,6 +232,80 @@ describe('server API security boundaries', () => {
 
         expect(response.status).toBe(409);
         expect(batch).not.toHaveBeenCalled();
+    });
+
+    it('月次シフト置換は同一スタッフの時間重複なら削除batchを実行しない', async () => {
+        const batch = vi.fn();
+        const db = { prepare: (sql: string) => createStatement(sql), batch };
+        const context = await createContext(
+            'replace',
+            '',
+            db,
+            'https://example.com/api/shifts/replace',
+            {
+                yearMonth: '2025-06',
+                fixedDates: [],
+                shifts: [
+                    { date: '2025-06-02', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' },
+                    { date: '2025-06-02', staffId: 's1', startTime: '10:00', endTime: '12:00', classType: 'class_b' },
+                ],
+            }
+        );
+
+        const response = await replaceShifts(context as never);
+
+        expect(response.status).toBe(409);
+        expect(batch).not.toHaveBeenCalled();
+        await expect(response.json()).resolves.toMatchObject({
+            conflict: { date: '2025-06-02', staffId: 's1' },
+        });
+    });
+
+    it('月次シフト置換の途中失敗時は置換前データを復元する', async () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const batch = vi.fn()
+            .mockResolvedValueOnce([])
+            .mockRejectedValueOnce(new Error('second chunk failed'))
+            .mockResolvedValue([]);
+        const db = {
+            prepare: (sql: string) => createStatement(sql, query => query.startsWith('SELECT id, date')
+                ? [{
+                    id: 'old1',
+                    date: '2025-06-02',
+                    staffId: 's1',
+                    startTime: '09:00',
+                    endTime: '18:00',
+                    classType: 'class_a',
+                    isEarlyShift: 0,
+                    isError: 0,
+                    duty_number: null,
+                }]
+                : []),
+            batch,
+        };
+        const shifts = Array.from({ length: 100 }, (_, index) => ({
+            date: '2025-06-03',
+            staffId: `s${index}`,
+            startTime: '09:00',
+            endTime: '18:00',
+            classType: 'class_a',
+        }));
+        const context = await createContext(
+            'replace',
+            '',
+            db,
+            'https://example.com/api/shifts/replace',
+            { yearMonth: '2025-06', fixedDates: [], shifts }
+        );
+
+        const response = await replaceShifts(context as never);
+
+        expect(response.status).toBe(500);
+        expect(batch).toHaveBeenCalledTimes(3);
+        const restoreBatch = batch.mock.calls[2][0] as MockStatement[];
+        expect(restoreBatch[0].sql).toContain('DELETE FROM shifts');
+        expect(restoreBatch[1].binds[0]).toBe('old1');
+        consoleSpy.mockRestore();
     });
 });
 

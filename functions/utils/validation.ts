@@ -124,6 +124,14 @@ export function validateDate(date: string | null | undefined, fieldName: string 
     if (month < 1 || month > 12) return `${fieldName}の月が不正です`;
     if (day < 1 || day > 31) return `${fieldName}の日が不正です`;
     if (year < 2000 || year > 2100) return `${fieldName}の年が不正です`;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (
+        parsed.getUTCFullYear() !== year ||
+        parsed.getUTCMonth() !== month - 1 ||
+        parsed.getUTCDate() !== day
+    ) {
+        return `${fieldName}が実在しない日付です`;
+    }
     return null;
 }
 

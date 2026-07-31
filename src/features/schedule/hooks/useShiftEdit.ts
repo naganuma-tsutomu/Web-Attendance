@@ -195,10 +195,11 @@ interface UseShiftEditParams {
     onShiftUpdate?: () => void;
     onModifiedChange?: (modified: boolean) => void;
     saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
+    discardRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export function useShiftEdit({
-    shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef
+    shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef, discardRef
 }: UseShiftEditParams) {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
@@ -313,6 +314,14 @@ export function useShiftEdit({
     useEffect(() => {
         if (saveRef) saveRef.current = handleSave;
     }, [saveRef, handleSave]);
+
+    const handleDiscard = useCallback(() => {
+        dispatch({ type: 'INIT', payload: buildInitialLocalShifts(shifts, targetDateStr) });
+    }, [shifts, targetDateStr]);
+
+    useEffect(() => {
+        if (discardRef) discardRef.current = handleDiscard;
+    }, [discardRef, handleDiscard]);
 
     // ── Handlers ──
 

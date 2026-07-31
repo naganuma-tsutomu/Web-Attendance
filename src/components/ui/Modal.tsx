@@ -25,11 +25,16 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
     const mouseDownOnBackdrop = useRef(false);
     const contentRef = useRef<HTMLDivElement>(null);
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
 
     useEffect(() => {
         if (!isOpen) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') { onClose(); return; }
+            if (e.key === 'Escape') { onCloseRef.current(); return; }
             if (e.key !== 'Tab') return;
             const focusable = Array.from(
                 contentRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []
@@ -49,7 +54,7 @@ const Modal: React.FC<ModalProps> = ({
             firstFocusable?.focus();
         }
         return () => document.removeEventListener('keydown', onKey);
-    }, [autoFocusFirst, isOpen, onClose]);
+    }, [autoFocusFirst, isOpen]);
 
     if (!isOpen) return null;
 

@@ -38,3 +38,6 @@ coverage/
 
 # Local DB scripts (backups, resets — not for version control)
 db/
+
+# Review markdown files
+review-markdown/

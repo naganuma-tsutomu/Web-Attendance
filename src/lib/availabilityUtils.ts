@@ -1,5 +1,6 @@
 import { getDay } from 'date-fns';
 import type { Staff, ShiftPreference } from '../types';
+import { timeToMinutes } from '../utils/timeUtils';
 
 /**
  * スタッフの固定休（利用可能日設定による休日）を判定する
@@ -74,4 +75,37 @@ export const isStaffAvailable = (
     isNationalHoliday: boolean = false
 ): boolean => {
     return isStaffAvailableReason(staff, date, dateStr, preferences, closedDays, isNationalHoliday) === 'available';
+};
+
+/**
+ * Check whether a staff member is available throughout a time slot.
+ * The current scheduling specification only supports time slots within one day.
+ */
+export const isStaffAvailableDuringTime = (
+    staff: Staff,
+    date: Date,
+    dateStr: string,
+    startTime: string,
+    endTime: string,
+    preferences: ShiftPreference[],
+    closedDays: number[] = [],
+    isNationalHoliday: boolean = false
+): boolean => {
+    if (!isStaffAvailable(staff, date, dateStr, preferences, closedDays, isNationalHoliday)) {
+        return false;
+    }
+
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const preference = preferences.find(pref => pref.staffId === staff.id);
+
+    return !preference?.details?.some(detail => {
+        if (detail.date !== dateStr || !detail.startTime || !detail.endTime) {
+            return false;
+        }
+
+        const unavailableStart = timeToMinutes(detail.startTime);
+        const unavailableEnd = timeToMinutes(detail.endTime);
+        return startMinutes < unavailableEnd && endMinutes > unavailableStart;
+    });
 };

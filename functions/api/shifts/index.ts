@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateYearMonth, validateDate, validateTimeRange } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
+import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -57,6 +58,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             const timeError = validateTimeRange(shift.startTime, shift.endTime);
             if (timeError) return createValidationError(`${prefix}: ${timeError}`);
         }
+
+        const payloadConflict = validateNoShiftConflicts(shiftsData);
+        if (payloadConflict) return payloadConflict;
+
+        const existingShifts = await loadStaffShiftsForDates(context.env.DB, shiftsData);
+        const existingConflict = validateNoShiftConflicts([...existingShifts, ...shiftsData]);
+        if (existingConflict) return existingConflict;
 
         const stmt = context.env.DB.prepare(
             `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)

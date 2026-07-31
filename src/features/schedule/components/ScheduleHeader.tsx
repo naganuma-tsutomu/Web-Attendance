@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal } from 'lucide-react';
+import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal, Lock, LockOpen } from 'lucide-react';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
@@ -28,6 +28,8 @@ interface ScheduleHeaderProps {
     onViewChange: (view: View) => void;
     onGenerate: () => void;
     onClearShifts: () => void;
+    onLockAllShifts?: () => void;
+    onUnlockAllShifts?: () => void;
     onOpenBackups: () => void;
     onOpenImport: () => void;
     onOpenGenerationReport: () => void;
@@ -39,6 +41,7 @@ interface ScheduleHeaderProps {
     breakSettings?: BreakSettings;
     roles?: DynamicRole[];
     hasGenerationReport?: boolean;
+    isBulkLockPending?: boolean;
 }
 
 const ScheduleHeader = ({
@@ -61,6 +64,8 @@ const ScheduleHeader = ({
     onViewChange,
     onGenerate,
     onClearShifts,
+    onLockAllShifts = () => {},
+    onUnlockAllShifts = () => {},
     onOpenBackups,
     onOpenImport,
     onOpenGenerationReport,
@@ -71,15 +76,17 @@ const ScheduleHeader = ({
     excelSettings,
     breakSettings,
     roles = [],
-    hasGenerationReport = false
+    hasGenerationReport = false,
+    isBulkLockPending = false,
 }: ScheduleHeaderProps) => {
-    const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [showDesktopMoreMenu, setShowDesktopMoreMenu] = useState(false);
+    const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
 
     return (
         <div className="flex-shrink-0 p-4 sm:p-6 md:p-8 pb-4 md:pb-4 space-y-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
                 {/* Date Navigation & View Switcher */}
-                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto lg:flex-shrink-0">
                     <div className="flex bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-1 shadow-sm">
                         <button
                             onClick={() => {
@@ -138,7 +145,7 @@ const ScheduleHeader = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+                <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full lg:w-auto lg:justify-end">
                     <button
                         onClick={onGenerate}
                         disabled={generating}
@@ -150,25 +157,11 @@ const ScheduleHeader = ({
 
                     {/* デスクトップ: 個別ボタン */}
                     <button
-                        onClick={onClearShifts}
-                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
-                    >
-                        <Trash2 className="w-5 h-5 text-red-500" />
-                        <span className="whitespace-nowrap">消去</span>
-                    </button>
-                    <button
                         onClick={onOpenBackups}
-                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
+                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
                     >
                         <Archive className="w-5 h-5 text-indigo-500" />
                         <span className="whitespace-nowrap">バックアップ</span>
-                    </button>
-                    <button
-                        onClick={onOpenImport}
-                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
-                    >
-                        <FileUp className="w-5 h-5 text-emerald-600" />
-                        <span className="whitespace-nowrap">取込</span>
                     </button>
                     <button
                         onClick={onToggleSummary}
@@ -182,21 +175,48 @@ const ScheduleHeader = ({
                         <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                     </button>
                     <button
-                        onClick={onOpenGenerationReport}
-                        disabled={!hasGenerationReport}
-                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="直近の生成レポートを表示"
-                    >
-                        <BarChart2 className="w-5 h-5 text-emerald-600" />
-                        <span className="text-sm font-bold whitespace-nowrap">レポート</span>
-                    </button>
-                    <button
                         onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles)}
                         className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
                     >
                         <Download className="w-5 h-5 text-green-600" />
                         <span className="text-xs font-bold whitespace-nowrap">Excel</span>
                     </button>
+                    <div className="hidden sm:block relative">
+                        <button
+                            onClick={() => setShowDesktopMoreMenu(v => !v)}
+                            aria-expanded={showDesktopMoreMenu}
+                            aria-haspopup="menu"
+                            className="flex h-full items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+                            title="その他の操作"
+                        >
+                            <MoreHorizontal className="w-5 h-5 text-slate-500" />
+                            <span className="text-sm font-bold whitespace-nowrap">その他</span>
+                        </button>
+                        {showDesktopMoreMenu && (
+                            <>
+                                <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setShowDesktopMoreMenu(false)} />
+                                <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                                    <button onClick={() => { onOpenImport(); setShowDesktopMoreMenu(false); }} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                        <FileUp className="w-4 h-4 text-emerald-600" /> シフトを取込
+                                    </button>
+                                    <button onClick={() => { onOpenGenerationReport(); setShowDesktopMoreMenu(false); }} disabled={!hasGenerationReport} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <BarChart2 className="w-4 h-4 text-emerald-600" /> 生成レポート
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                    <button onClick={() => { onLockAllShifts(); setShowDesktopMoreMenu(false); }} disabled={isBulkLockPending} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
+                                        <Lock className="w-4 h-4 text-amber-600" /> すべてロック
+                                    </button>
+                                    <button onClick={() => { onUnlockAllShifts(); setShowDesktopMoreMenu(false); }} disabled={isBulkLockPending} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
+                                        <LockOpen className="w-4 h-4 text-slate-500" /> すべて解除
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                    <button onClick={() => { onClearShifts(); setShowDesktopMoreMenu(false); }} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                        <Trash2 className="w-4 h-4" /> シフトを消去
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
 
                     {/* モバイル: 労働時間 + バックアップ + ⋯ドロップダウン */}
                     <button
@@ -218,33 +238,25 @@ const ScheduleHeader = ({
                     </button>
                     <div className="sm:hidden relative">
                         <button
-                            onClick={() => setShowMoreMenu(v => !v)}
+                            onClick={() => setShowMobileMoreMenu(v => !v)}
                             className="flex items-center justify-center px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                             title="その他の操作"
                         >
                             <MoreHorizontal className="w-5 h-5" />
                         </button>
-                        {showMoreMenu && (
+                        {showMobileMoreMenu && (
                             <>
-                                <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                                <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setShowMobileMoreMenu(false)} />
                                 <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 animate-in fade-in zoom-in-95 duration-150">
                                     <button
-                                        onClick={() => { onClearShifts(); setShowMoreMenu(false); }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                        消去
-                                    </button>
-                                    <button
-                                        onClick={() => { onOpenImport(); setShowMoreMenu(false); }}
+                                        onClick={() => { onOpenImport(); setShowMobileMoreMenu(false); }}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                                     >
                                         <FileUp className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                                         取込
                                     </button>
-                                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
                                     <button
-                                        onClick={() => { onOpenGenerationReport(); setShowMoreMenu(false); }}
+                                        onClick={() => { onOpenGenerationReport(); setShowMobileMoreMenu(false); }}
                                         disabled={!hasGenerationReport}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -252,11 +264,36 @@ const ScheduleHeader = ({
                                         レポート
                                     </button>
                                     <button
-                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles); setShowMoreMenu(false); }}
+                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles); setShowMobileMoreMenu(false); }}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                                     >
                                         <Download className="w-4 h-4 text-green-600 flex-shrink-0" />
                                         Excel
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                    <button
+                                        onClick={() => { onLockAllShifts(); setShowMobileMoreMenu(false); }}
+                                        disabled={isBulkLockPending}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+                                    >
+                                        <Lock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                        すべてロック
+                                    </button>
+                                    <button
+                                        onClick={() => { onUnlockAllShifts(); setShowMobileMoreMenu(false); }}
+                                        disabled={isBulkLockPending}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                                    >
+                                        <LockOpen className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                                        すべて解除
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
+                                    <button
+                                        onClick={() => { onClearShifts(); setShowMobileMoreMenu(false); }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4 flex-shrink-0" />
+                                        シフトを消去
                                     </button>
                                 </div>
                             </>

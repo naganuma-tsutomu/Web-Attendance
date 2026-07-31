@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, FileSpreadsheet, BookOpen, RefreshCw, RotateCcw } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, FileSpreadsheet, BookOpen, History, RefreshCw, RotateCcw } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { useFacilityName } from '../lib/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUnsavedChanges } from '../lib/UnsavedChangesContext';
 
 const Layout = () => {
     const location = useLocation();
@@ -13,6 +14,7 @@ const Layout = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const queryClient = useQueryClient();
+    const { requestTransition } = useUnsavedChanges();
 
     const handleRefresh = useCallback(async () => {
         if (isRefreshing) return;
@@ -31,9 +33,11 @@ const Layout = () => {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/login');
+    const handleLogout = () => {
+        requestTransition(async () => {
+            await logout();
+            navigate('/login');
+        });
     };
 
     const navItems = [
@@ -47,6 +51,7 @@ const Layout = () => {
         { path: '/admin/settings/rotation', label: 'ローテーション設定', icon: RefreshCw },
         { path: '/admin/settings/excel', label: 'Excel出力設定', icon: FileSpreadsheet },
         { path: '/admin/manual', label: 'ユーザーマニュアル', icon: BookOpen },
+        { path: '/admin/update-history', label: '更新履歴', icon: History },
     ];
 
     return (
@@ -109,7 +114,15 @@ const Layout = () => {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                onClick={closeMenu}
+                                onClick={(event) => {
+                                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                                        closeMenu();
+                                        return;
+                                    }
+                                    event.preventDefault();
+                                    closeMenu();
+                                    requestTransition(() => navigate(item.path));
+                                }}
                                 className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
                                     ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
                                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'
@@ -134,6 +147,9 @@ const Layout = () => {
                         <LogOut className="w-5 h-5" />
                         <span>ログアウト</span>
                     </button>
+                    <p className="mt-3 text-center text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em]">
+                        Web Attendance v{__APP_VERSION__}
+                    </p>
                 </div>
             </nav>
 

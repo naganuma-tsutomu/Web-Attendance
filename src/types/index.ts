@@ -39,8 +39,9 @@ export type AvailableDayConfig = _AvailableDayConfig;
 // ==========================================
 
 /** スタッフ */
-export interface Staff extends Omit<StaffInferred, 'hoursTarget' | 'display_order'> {
+export interface Staff extends Omit<StaffInferred, 'hoursTarget' | 'weeklyHoursTarget' | 'display_order'> {
     hoursTarget: number | null;
+    weeklyHoursTarget: number | null;
     display_order?: number;
 }
 
@@ -120,6 +121,15 @@ export interface DynamicRole extends Omit<DynamicRoleInferred, 'display_order' |
 /** シフト要件 */
 export interface ShiftRequirement extends Omit<ShiftRequirementInferred, 'priority'> {
     priority: number;
+}
+
+/** 全クラスの必要人数設定をまとめた名前付きテンプレート */
+export interface ShiftRequirementTemplate {
+    id: string;
+    name: string;
+    itemCount: number;
+    createdAt: string;
+    updatedAt: string;
 }
 
 /** 祝日 */

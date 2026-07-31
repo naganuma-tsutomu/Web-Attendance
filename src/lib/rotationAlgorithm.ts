@@ -1,35 +1,49 @@
 import { format, getDay, startOfISOWeek } from 'date-fns';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
-import { isStaffAvailable } from './availabilityUtils';
+import { isStaffAvailable, isStaffAvailableDuringTime } from './availabilityUtils';
 import { calcDuration } from './algorithm';
+import { timeRangesOverlap } from '../utils/timeUtils';
 
 /**
  * Pick a class for a rotation shift.
  * Uses only the classes the staff is assigned to (classIds).
- * Falls back to all classes if the staff has no class assignment.
+ * Uses all auto-allocatable classes only if the staff has no class assignment.
  * Among eligible classes, picks the one with the fewest rotation shifts today.
  */
 const pickClassForRotation = (
     staff: Staff,
     classes: ShiftClass[],
     generatedShifts: Shift[],
-    dateStr: string
-): string => {
-    if (classes.length === 0) return '';
+    dateStr: string,
+    state: RotationState
+): string | null => {
+    const autoAllocatableClasses = classes.filter(c => c.auto_allocate !== 0);
+    if (autoAllocatableClasses.length === 0) return null;
 
     const eligibleClasses = staff.classIds && staff.classIds.length > 0
-        ? classes.filter(c => staff.classIds!.includes(c.id))
-        : classes;
+        ? autoAllocatableClasses.filter(c => staff.classIds!.includes(c.id))
+        : autoAllocatableClasses;
 
-    const pool = eligibleClasses.length > 0 ? eligibleClasses : classes;
-    if (pool.length === 1) return pool[0].id;
+    if (eligibleClasses.length === 0) return null;
+    if (eligibleClasses.length === 1) return eligibleClasses[0].id;
 
     // Among eligible classes, pick the one with the fewest shifts today
-    const counts = pool.map(c => ({
+    const counts = eligibleClasses.map(c => ({
         id: c.id,
-        count: generatedShifts.filter(s => s.date === dateStr && s.classType === c.id).length
+        displayOrder: c.display_order,
+        dailyCount: generatedShifts.filter(s => s.date === dateStr && s.classType === c.id).length,
+        monthlyCount: state.classAssignmentCount[c.id] || 0,
+        staffCount: state.staffClassAssignmentCount[staff.id]?.[c.id] || 0,
+        lastDate: state.lastClassAssignmentDate[c.id] || '2000-01-01',
     }));
-    counts.sort((a, b) => a.count - b.count);
+    counts.sort((a, b) =>
+        a.dailyCount - b.dailyCount ||
+        a.monthlyCount - b.monthlyCount ||
+        a.staffCount - b.staffCount ||
+        a.lastDate.localeCompare(b.lastDate) ||
+        a.displayOrder - b.displayOrder ||
+        a.id.localeCompare(b.id)
+    );
     return counts[0].id;
 };
 
@@ -46,9 +60,38 @@ const addRotationShift = (
     currentHours: Record<string, number>,
     currentWeeklyHours: Record<string, Record<string, number>>,
     shiftType: 'early' | 'late',
-    breakSettings?: BreakSettings
-): void => {
-    const classId = pickClassForRotation(staff, classes, generatedShifts, dateStr);
+    state: RotationState,
+    breakSettings?: BreakSettings,
+    preferences: ShiftPreference[] = [],
+    existingShifts: Shift[] = []
+): boolean => {
+    const classId = pickClassForRotation(staff, classes, generatedShifts, dateStr, state);
+    if (!classId) return false;
+
+    if (!isStaffAvailableDuringTime(
+        staff, date, dateStr, pattern.startTime, pattern.endTime, preferences
+    )) return false;
+
+    const hasOverlap = [...existingShifts, ...generatedShifts].some(shift =>
+        shift.staffId === staff.id &&
+        shift.date === dateStr &&
+        !shift.isError &&
+        timeRangesOverlap(pattern.startTime, pattern.endTime, shift.startTime, shift.endTime)
+    );
+    if (hasOverlap) return false;
+
+    const duration = calcDuration(pattern.startTime, pattern.endTime, breakSettings);
+    const staffCurrentHours = currentHours[staff.id] ?? 0;
+    if (staff.hoursTarget != null && staffCurrentHours + duration > staff.hoursTarget) {
+        return false;
+    }
+
+    const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+    const currentWeekHours = currentWeeklyHours[staff.id]?.[weekKey] ?? 0;
+    if (staff.weeklyHoursTarget != null && currentWeekHours + duration > staff.weeklyHoursTarget) {
+        return false;
+    }
+
     generatedShifts.push({
         id: `rot_${dateStr}_${shiftType}_${staff.id}`,
         date: dateStr,
@@ -58,10 +101,15 @@ const addRotationShift = (
         classType: classId
     });
 
-    const duration = calcDuration(pattern.startTime, pattern.endTime, breakSettings);
-    currentHours[staff.id] += duration;
-    const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
+    currentHours[staff.id] = staffCurrentHours + duration;
+    if (!currentWeeklyHours[staff.id]) currentWeeklyHours[staff.id] = {};
     currentWeeklyHours[staff.id][weekKey] = (currentWeeklyHours[staff.id][weekKey] || 0) + duration;
+    state.classAssignmentCount[classId] = (state.classAssignmentCount[classId] || 0) + 1;
+    state.lastClassAssignmentDate[classId] = dateStr;
+    if (!state.staffClassAssignmentCount[staff.id]) state.staffClassAssignmentCount[staff.id] = {};
+    state.staffClassAssignmentCount[staff.id][classId] =
+        (state.staffClassAssignmentCount[staff.id][classId] || 0) + 1;
+    return true;
 };
 
 // ==========================================
@@ -75,7 +123,70 @@ export interface RotationState {
     lastLateShift: Record<string, string>;
     earlyShiftCount: Record<string, number>;
     lateShiftCount: Record<string, number>;
+    saturdayShiftCount: Record<string, number>;
+    lastSaturdayShift: Record<string, string>;
+    classAssignmentCount: Record<string, number>;
+    lastClassAssignmentDate: Record<string, string>;
+    staffClassAssignmentCount: Record<string, Record<string, number>>;
 }
+
+const matchesPattern = (shift: Shift, pattern: ShiftTimePattern): boolean =>
+    shift.startTime === pattern.startTime && shift.endTime === pattern.endTime;
+
+const recordClassAssignment = (
+    state: RotationState,
+    staffId: string,
+    classId: string,
+    dateStr: string
+): void => {
+    state.classAssignmentCount[classId] = (state.classAssignmentCount[classId] || 0) + 1;
+    state.lastClassAssignmentDate[classId] = dateStr;
+    if (!state.staffClassAssignmentCount[staffId]) state.staffClassAssignmentCount[staffId] = {};
+    state.staffClassAssignmentCount[staffId][classId] =
+        (state.staffClassAssignmentCount[staffId][classId] || 0) + 1;
+};
+
+export const applyExistingDayToRotationState = (
+    dateStr: string,
+    existingShifts: Shift[],
+    rotationStaff: Staff[],
+    earlyPattern: ShiftTimePattern | null,
+    latePattern: ShiftTimePattern | null,
+    state: RotationState,
+    isSaturday = false
+): void => {
+    const rotationStaffIds = new Set(rotationStaff.map(staff => staff.id));
+    const earlyAssigned = new Set<string>();
+    const lateAssigned = new Set<string>();
+
+    for (const shift of existingShifts) {
+        if (
+            shift.date !== dateStr ||
+            shift.isError ||
+            !rotationStaffIds.has(shift.staffId)
+        ) continue;
+
+        if (earlyPattern && matchesPattern(shift, earlyPattern)) {
+            earlyAssigned.add(shift.staffId);
+            state.lastEarlyShift[shift.staffId] = dateStr;
+            state.earlyShiftCount[shift.staffId] = (state.earlyShiftCount[shift.staffId] || 0) + 1;
+            recordClassAssignment(state, shift.staffId, shift.classType, dateStr);
+        } else if (latePattern && matchesPattern(shift, latePattern)) {
+            lateAssigned.add(shift.staffId);
+            state.lastLateShift[shift.staffId] = dateStr;
+            state.lateShiftCount[shift.staffId] = (state.lateShiftCount[shift.staffId] || 0) + 1;
+            if (isSaturday) {
+                state.lastSaturdayShift[shift.staffId] = dateStr;
+                state.saturdayShiftCount[shift.staffId] =
+                    (state.saturdayShiftCount[shift.staffId] || 0) + 1;
+            }
+            recordClassAssignment(state, shift.staffId, shift.classType, dateStr);
+        }
+    }
+
+    state.previousDayEarly = [...earlyAssigned];
+    state.previousDayLate = [...lateAssigned];
+};
 
 /**
  * 前月の最終稼働日のシフトからローテーション状態を復元する
@@ -86,25 +197,38 @@ export const restorePreviousMonthState = (
     rotationStaff: Staff[],
     earlyPattern: ShiftTimePattern,
     latePattern: ShiftTimePattern,
-    state: RotationState
+    state: RotationState,
+    saturdayPattern?: ShiftTimePattern
 ): void => {
-    const prevMonthShifts = existingShifts.filter(s => s.date < format(firstDay, 'yyyy-MM-dd'));
+    const rotationStaffIds = new Set(rotationStaff.map(staff => staff.id));
+    const firstDateStr = format(firstDay, 'yyyy-MM-dd');
+    const prevMonthShifts = existingShifts.filter(shift =>
+        shift.date < firstDateStr &&
+        !shift.isError &&
+        rotationStaffIds.has(shift.staffId) &&
+        (
+            matchesPattern(shift, earlyPattern) ||
+            matchesPattern(shift, latePattern) ||
+            Boolean(saturdayPattern && matchesPattern(shift, saturdayPattern))
+        )
+    );
     if (prevMonthShifts.length === 0) return;
 
     const sortedDates = [...new Set(prevMonthShifts.map(s => s.date))].sort();
     const lastWorkingDay = sortedDates[sortedDates.length - 1];
 
     for (const shift of prevMonthShifts) {
-        if (!rotationStaff.some(rs => rs.id === shift.staffId)) continue;
-
-        if (shift.startTime === earlyPattern.startTime && shift.endTime === earlyPattern.endTime) {
+        if (matchesPattern(shift, earlyPattern)) {
             if (!state.lastEarlyShift[shift.staffId] || shift.date > state.lastEarlyShift[shift.staffId]) {
                 state.lastEarlyShift[shift.staffId] = shift.date;
             }
             if (shift.date === lastWorkingDay) {
                 state.previousDayEarly.push(shift.staffId);
             }
-        } else if (shift.startTime === latePattern.startTime && shift.endTime === latePattern.endTime) {
+        } else if (
+            matchesPattern(shift, latePattern) ||
+            Boolean(saturdayPattern && matchesPattern(shift, saturdayPattern))
+        ) {
             if (!state.lastLateShift[shift.staffId] || shift.date > state.lastLateShift[shift.staffId]) {
                 state.lastLateShift[shift.staffId] = shift.date;
             }
@@ -130,27 +254,38 @@ export const assignSaturdayShifts = (
     currentWeeklyHours: Record<string, Record<string, number>>,
     state: RotationState,
     breakSettings: BreakSettings | undefined,
-    sortByLatePriority: (a: Staff, b: Staff) => number
+    sortBySaturdayPriority: (a: Staff, b: Staff) => number,
+    preferences: ShiftPreference[] = [],
+    existingShifts: Shift[] = []
 ): void => {
     if (!settings.saturdayEnabled) return;
 
     let candidates: Staff[];
     if (settings.saturdayPreferFridayLate && state.previousDayLate.length > 0) {
-        const fridayLate = available.filter(s => state.previousDayLate.includes(s.id)).sort(sortByLatePriority);
-        const others = available.filter(s => !state.previousDayLate.includes(s.id)).sort(sortByLatePriority);
+        const fridayLate = available.filter(s => state.previousDayLate.includes(s.id)).sort(sortBySaturdayPriority);
+        const others = available.filter(s => !state.previousDayLate.includes(s.id)).sort(sortBySaturdayPriority);
         candidates = [...fridayLate, ...others];
     } else {
-        candidates = [...available].sort(sortByLatePriority);
+        candidates = [...available].sort(sortBySaturdayPriority);
     }
 
     const saturdayAssigned: string[] = [];
-    for (let i = 0; i < settings.saturdayCount && i < candidates.length; i++) {
-        addRotationShift(generatedShifts, dateStr, date, candidates[i], latePattern, classes, currentHours, currentWeeklyHours, 'late', breakSettings);
-        saturdayAssigned.push(candidates[i].id);
-        state.lastLateShift[candidates[i].id] = dateStr;
-        state.lateShiftCount[candidates[i].id] = (state.lateShiftCount[candidates[i].id] || 0) + 1;
+    for (const candidate of candidates) {
+        if (saturdayAssigned.length >= settings.saturdayCount) break;
+        const assigned = addRotationShift(
+            generatedShifts, dateStr, date, candidate, latePattern, classes,
+            currentHours, currentWeeklyHours, 'late', state, breakSettings, preferences, existingShifts
+        );
+        if (!assigned) continue;
+
+        saturdayAssigned.push(candidate.id);
+        state.lastLateShift[candidate.id] = dateStr;
+        state.lateShiftCount[candidate.id] = (state.lateShiftCount[candidate.id] || 0) + 1;
+        state.lastSaturdayShift[candidate.id] = dateStr;
+        state.saturdayShiftCount[candidate.id] = (state.saturdayShiftCount[candidate.id] || 0) + 1;
     }
-    state.previousDayLate = Array.from(new Set([...state.previousDayLate, ...saturdayAssigned]));
+    state.previousDayEarly = [];
+    state.previousDayLate = saturdayAssigned;
 };
 
 /**
@@ -170,7 +305,9 @@ export const assignWeekdayShifts = (
     state: RotationState,
     breakSettings: BreakSettings | undefined,
     sortByEarlyPriority: (a: Staff, b: Staff) => number,
-    sortByLatePriority: (a: Staff, b: Staff) => number
+    sortByLatePriority: (a: Staff, b: Staff) => number,
+    preferences: ShiftPreference[] = [],
+    existingShifts: Shift[] = []
 ): void => {
     const earlyAssigned: string[] = [];
     const lateAssigned: string[] = [];
@@ -179,28 +316,34 @@ export const assignWeekdayShifts = (
     const prevEarlyForEarly = available.filter(s => state.previousDayEarly.includes(s.id)).sort(sortByEarlyPriority);
     const earlyCandidates = [...normalForEarly, ...prevEarlyForEarly];
 
-    for (let i = 0; i < settings.weekdayEarlyCount; i++) {
-        const candidate = earlyCandidates.find(s => !earlyAssigned.includes(s.id));
-        if (candidate) {
-            addRotationShift(generatedShifts, dateStr, date, candidate, earlyPattern, classes, currentHours, currentWeeklyHours, 'early', breakSettings);
-            earlyAssigned.push(candidate.id);
-            state.lastEarlyShift[candidate.id] = dateStr;
-            state.earlyShiftCount[candidate.id] = (state.earlyShiftCount[candidate.id] || 0) + 1;
-        }
+    for (const candidate of earlyCandidates) {
+        if (earlyAssigned.length >= settings.weekdayEarlyCount) break;
+        const assigned = addRotationShift(
+            generatedShifts, dateStr, date, candidate, earlyPattern, classes,
+            currentHours, currentWeeklyHours, 'early', state, breakSettings, preferences, existingShifts
+        );
+        if (!assigned) continue;
+
+        earlyAssigned.push(candidate.id);
+        state.lastEarlyShift[candidate.id] = dateStr;
+        state.earlyShiftCount[candidate.id] = (state.earlyShiftCount[candidate.id] || 0) + 1;
     }
 
     const normalForLate = available.filter(s => !state.previousDayLate.includes(s.id) && !earlyAssigned.includes(s.id)).sort(sortByLatePriority);
     const prevLateForLate = available.filter(s => state.previousDayLate.includes(s.id) && !earlyAssigned.includes(s.id)).sort(sortByLatePriority);
     const lateCandidates = [...normalForLate, ...prevLateForLate];
 
-    for (let i = 0; i < settings.weekdayLateCount; i++) {
-        const candidate = lateCandidates.find(s => !earlyAssigned.includes(s.id) && !lateAssigned.includes(s.id));
-        if (candidate) {
-            addRotationShift(generatedShifts, dateStr, date, candidate, latePattern, classes, currentHours, currentWeeklyHours, 'late', breakSettings);
-            lateAssigned.push(candidate.id);
-            state.lastLateShift[candidate.id] = dateStr;
-            state.lateShiftCount[candidate.id] = (state.lateShiftCount[candidate.id] || 0) + 1;
-        }
+    for (const candidate of lateCandidates) {
+        if (lateAssigned.length >= settings.weekdayLateCount) break;
+        const assigned = addRotationShift(
+            generatedShifts, dateStr, date, candidate, latePattern, classes,
+            currentHours, currentWeeklyHours, 'late', state, breakSettings, preferences, existingShifts
+        );
+        if (!assigned) continue;
+
+        lateAssigned.push(candidate.id);
+        state.lastLateShift[candidate.id] = dateStr;
+        state.lateShiftCount[candidate.id] = (state.lateShiftCount[candidate.id] || 0) + 1;
     }
 
     state.previousDayEarly = earlyAssigned;
@@ -236,6 +379,9 @@ export const applyRotation = (
     const earlyPattern = allPatterns.find(p => p.id === settings.earlyPatternId);
     const latePattern = allPatterns.find(p => p.id === settings.latePatternId);
     if (!earlyPattern || !latePattern) return;
+    const saturdayPattern = settings.saturdayPatternId
+        ? allPatterns.find(p => p.id === settings.saturdayPatternId) ?? latePattern
+        : latePattern;
 
     const state: RotationState = {
         previousDayEarly: [],
@@ -244,9 +390,22 @@ export const applyRotation = (
         lastLateShift: {},
         earlyShiftCount: Object.fromEntries(rotationStaff.map(s => [s.id, 0])),
         lateShiftCount: Object.fromEntries(rotationStaff.map(s => [s.id, 0])),
+        saturdayShiftCount: Object.fromEntries(rotationStaff.map(s => [s.id, 0])),
+        lastSaturdayShift: {},
+        classAssignmentCount: Object.fromEntries(classes.map(c => [c.id, 0])),
+        lastClassAssignmentDate: {},
+        staffClassAssignmentCount: Object.fromEntries(rotationStaff.map(s => [s.id, {}])),
     };
 
-    restorePreviousMonthState(existingShifts, days[0], rotationStaff, earlyPattern, latePattern, state);
+    restorePreviousMonthState(
+        existingShifts,
+        days[0],
+        rotationStaff,
+        earlyPattern,
+        latePattern,
+        state,
+        saturdayPattern
+    );
 
     const sortByEarlyPriority = (a: Staff, b: Staff) => {
         const countA = state.earlyShiftCount[a.id] || 0;
@@ -257,7 +416,15 @@ export const applyRotation = (
         const dateB = state.lastEarlyShift[b.id] || '2000-01-01';
         if (dateA !== dateB) return dateA.localeCompare(dateB);
 
-        return currentHours[a.id] - currentHours[b.id];
+        const totalDiff =
+            (state.earlyShiftCount[a.id] || 0) + (state.lateShiftCount[a.id] || 0) -
+            (state.earlyShiftCount[b.id] || 0) - (state.lateShiftCount[b.id] || 0);
+        if (totalDiff !== 0) return totalDiff;
+
+        const hoursDiff = currentHours[a.id] - currentHours[b.id];
+        if (hoursDiff !== 0) return hoursDiff;
+        const displayOrderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+        return displayOrderDiff || a.id.localeCompare(b.id);
     };
 
     const sortByLatePriority = (a: Staff, b: Staff) => {
@@ -269,14 +436,46 @@ export const applyRotation = (
         const dateB = state.lastLateShift[b.id] || '2000-01-01';
         if (dateA !== dateB) return dateA.localeCompare(dateB);
 
-        return currentHours[a.id] - currentHours[b.id];
+        const totalDiff =
+            (state.earlyShiftCount[a.id] || 0) + (state.lateShiftCount[a.id] || 0) -
+            (state.earlyShiftCount[b.id] || 0) - (state.lateShiftCount[b.id] || 0);
+        if (totalDiff !== 0) return totalDiff;
+
+        const hoursDiff = currentHours[a.id] - currentHours[b.id];
+        if (hoursDiff !== 0) return hoursDiff;
+        const displayOrderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+        return displayOrderDiff || a.id.localeCompare(b.id);
+    };
+
+    const sortBySaturdayPriority = (a: Staff, b: Staff) => {
+        const countDiff =
+            (state.saturdayShiftCount[a.id] || 0) - (state.saturdayShiftCount[b.id] || 0);
+        if (countDiff !== 0) return countDiff;
+        const dateA = state.lastSaturdayShift[a.id] || '2000-01-01';
+        const dateB = state.lastSaturdayShift[b.id] || '2000-01-01';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        return sortByLatePriority(a, b);
     };
 
     for (const date of days) {
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
 
-        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
+        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr)) {
+            continue;
+        }
+
+        if (fixedDates.includes(dateStr)) {
+            if (dayOfWeek < 1 || dayOfWeek > 6) continue;
+            applyExistingDayToRotationState(
+                dateStr,
+                existingShifts,
+                rotationStaff,
+                dayOfWeek >= 1 && dayOfWeek <= 5 ? earlyPattern : null,
+                dayOfWeek === 6 ? saturdayPattern : latePattern,
+                state,
+                dayOfWeek === 6
+            );
             continue;
         }
 
@@ -284,15 +483,21 @@ export const applyRotation = (
         if (available.length === 0) continue;
 
         if (dayOfWeek === 6) {
-            const saturdayPattern = settings.saturdayPatternId
-                ? allPatterns.find(p => p.id === settings.saturdayPatternId) ?? latePattern
-                : latePattern;
-            assignSaturdayShifts(date, dateStr, available, settings, saturdayPattern, classes, generatedShifts, currentHours, currentWeeklyHours, state, breakSettings, sortByLatePriority);
+            assignSaturdayShifts(
+                date, dateStr, available, settings, saturdayPattern, classes,
+                generatedShifts, currentHours, currentWeeklyHours, state,
+                breakSettings, sortBySaturdayPriority, preferences, existingShifts
+            );
             continue;
         }
 
         if (dayOfWeek < 1 || dayOfWeek > 5) continue;
 
-        assignWeekdayShifts(date, dateStr, available, settings, earlyPattern, latePattern, classes, generatedShifts, currentHours, currentWeeklyHours, state, breakSettings, sortByEarlyPriority, sortByLatePriority);
+        assignWeekdayShifts(
+            date, dateStr, available, settings, earlyPattern, latePattern, classes,
+            generatedShifts, currentHours, currentWeeklyHours, state,
+            breakSettings, sortByEarlyPriority, sortByLatePriority,
+            preferences, existingShifts
+        );
     }
 };

@@ -1,5 +1,6 @@
-import { handleServerError, createValidationError } from '../../utils/validation';
-import type { Env, D1BindParam } from '../../types';
+import { handleServerError, createValidationError, validateTimeFormat, validateTimeRange } from '../../utils/validation';
+import type { Env, D1BindParam, D1Row } from '../../types';
+import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 
 // shifts テーブルで更新を許可するカラム名のホワイトリスト
 const ALLOWED_SHIFT_COLUMNS = new Set([
@@ -26,6 +27,43 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             classType: string; isEarlyShift: boolean; isError: boolean;
             duty_number: number | null;
         }>;
+
+        const current = await context.env.DB.prepare(
+            `SELECT id, date, staffId, startTime, endTime, classType, isError
+             FROM shifts WHERE id = ?`
+        ).bind(id).first<D1Row>();
+        if (!current) {
+            return new Response(JSON.stringify({ error: 'シフトが見つかりません' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (body.startTime !== undefined) {
+            const error = validateTimeFormat(body.startTime, '開始時間');
+            if (error) return createValidationError(error);
+        }
+        if (body.endTime !== undefined) {
+            const error = validateTimeFormat(body.endTime, '終了時間');
+            if (error) return createValidationError(error);
+        }
+        const mergedShift = {
+            id,
+            date: String(current.date),
+            staffId: body.staffId ?? String(current.staffId),
+            startTime: body.startTime ?? String(current.startTime),
+            endTime: body.endTime ?? String(current.endTime),
+            classType: body.classType ?? String(current.classType),
+            isError: body.isError ?? (current.isError === 1 || current.isError === true),
+        };
+        const timeError = validateTimeRange(mergedShift.startTime, mergedShift.endTime);
+        if (timeError) return createValidationError(timeError);
+        if (!mergedShift.staffId.trim()) return createValidationError('staffId は必須です');
+        if (!mergedShift.classType.trim()) return createValidationError('classType は必須です');
+
+        const existingShifts = await loadStaffShiftsForDates(context.env.DB, [mergedShift], id);
+        const conflictResponse = validateNoShiftConflicts([...existingShifts, mergedShift]);
+        if (conflictResponse) return conflictResponse;
 
         // addSetClause() でホワイトリスト検証済みのカラム名のみ追加
         const setClauses: string[] = [];

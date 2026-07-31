@@ -14,8 +14,8 @@ export const StaffSchema = z.object({
   id: z.string(),
   name: z.string(),
   role: z.string(),
-  hoursTarget: z.number().nullable().optional(),
-  weeklyHoursTarget: z.number().nullable().optional(),
+  hoursTarget: z.number().nullable().default(null),
+  weeklyHoursTarget: z.number().nullable().default(null),
   classIds: z.array(z.string()).optional(),
   availableDays: z.array(z.union([z.number(), AvailableDayConfigSchema])).optional(),
   defaultWorkingHoursStart: z.string().optional().nullable(),
@@ -105,6 +105,14 @@ export const ShiftRequirementSchema = z.object({
   priority: z.number().optional().nullable(),
 });
 
+export const ShiftRequirementTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  itemCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export const HolidaySchema = z.object({
   id: z.string(),
   date: z.string(),
@@ -153,10 +161,10 @@ export const RotationSettingsSchema = z.object({
   roleId: z.string().default(''),
   earlyPatternId: z.string().default(''),
   latePatternId: z.string().default(''),
-  weekdayEarlyCount: z.number().int().default(1),
-  weekdayLateCount: z.number().int().default(2),
+  weekdayEarlyCount: z.number().int().min(0).max(100).default(1),
+  weekdayLateCount: z.number().int().min(0).max(100).default(2),
   saturdayEnabled: z.boolean().default(false),
-  saturdayCount: z.number().int().default(1),
+  saturdayCount: z.number().int().min(0).max(100).default(1),
   saturdayPreferFridayLate: z.boolean().default(true),
   saturdayPatternId: z.string().optional(),
 });

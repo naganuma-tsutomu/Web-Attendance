@@ -18,6 +18,7 @@ import ClassSelector from './ClassSelector';
 import ClassBasicInfoCard from './ClassBasicInfoCard';
 import ClassRequirementsCard from './ClassRequirementsCard';
 import DeleteRequirementConfirm from './DeleteRequirementConfirm';
+import RequirementTemplateManager from './RequirementTemplateManager';
 import { SHIFT_DAY } from '../../../constants';
 
 const createEmptyRequirement = (classId: string): ShiftRequirement => ({
@@ -61,6 +62,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
     const [savedRequirements, setSavedRequirements] = useState<ShiftRequirement[]>([]);
     const [saving, setSaving] = useState(false);
     const [deleteReqId, setDeleteReqId] = useState<string | null>(null);
+    const [showDeleteAllRequirements, setShowDeleteAllRequirements] = useState(false);
 
     const { data: requirementsData, isLoading: reqLoading } = useShiftRequirements();
 
@@ -120,7 +122,11 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
             toast.success(`クラス「${deleteConfirm.name}」を削除しました`);
             setDeleteConfirm(null);
             setSelectedClassId('');
-            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes });
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.classes }),
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftRequirements }),
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftRequirementTemplates }),
+            ]);
             onUpdate();
         } catch (err) {
             handleApiError(err, '削除に失敗しました');
@@ -227,6 +233,8 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
                 }}
             />
 
+            <RequirementTemplateManager hasUnsavedChanges={isReqDirty} />
+
             {selectedClass && (
                 <>
                     <ClassBasicInfoCard
@@ -247,6 +255,7 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
                         onAdd={addTimeSlot}
                         onUpdate={updateRequirement}
                         onDeleteRequest={setDeleteReqId}
+                        onDeleteAllRequest={() => setShowDeleteAllRequirements(true)}
                         onDragEnd={handleDragEnd}
                         onCancel={() => setRequirements(savedRequirements)}
                         onSave={handleSaveRequirements}
@@ -285,6 +294,20 @@ const ClassManagement = ({ classes, staffs, loading, onUpdate }: ClassManagement
                     setRequirements(prev => prev.filter(r => r.id !== deleteReqId));
                     setDeleteReqId(null);
                 }}
+            />
+
+            <ConfirmModal
+                isOpen={showDeleteAllRequirements}
+                title="必要人数設定の一括削除"
+                message={`クラス「${selectedClass?.name ?? ''}」の必要人数設定 ${filteredRequirements.length}件をすべて削除します。続けますか？`}
+                confirmLabel="一括削除する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    setRequirements(prev => prev.filter(r => r.classId !== selectedClassId));
+                    setShowDeleteAllRequirements(false);
+                }}
+                onCancel={() => setShowDeleteAllRequirements(false)}
+                variant="danger"
             />
         </div>
     );

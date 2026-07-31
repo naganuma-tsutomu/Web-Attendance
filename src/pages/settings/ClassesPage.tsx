@@ -31,8 +31,8 @@ const ClassesPage = () => {
     }, []);
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
-            <div className="max-w-5xl mx-auto space-y-6">
+        <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 md:p-8">
+            <div className="max-w-5xl mx-auto w-full space-y-6">
                 <div className="flex items-center space-x-3 mb-2">
                     <GraduationCap className="w-8 h-8 text-indigo-500" />
                     <div>

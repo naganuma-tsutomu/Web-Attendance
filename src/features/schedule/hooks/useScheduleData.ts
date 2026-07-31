@@ -13,7 +13,6 @@ import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
 import { useScheduleQueries } from './useScheduleQueries';
 import { useCalendarEvents } from './useCalendarEvents';
 import { useScheduleActions } from './useScheduleActions';
-import type { ShiftPreference } from '../../../types';
 
 export type { CalendarEvent } from './useCalendarEvents';
 
@@ -33,6 +32,7 @@ export const useScheduleData = () => {
     // UI State
     const [isDayModified, setIsDayModified] = useState(false);
     const daySaveRef = useRef<(() => Promise<void>) | null>(null);
+    const dayDiscardRef = useRef<(() => void) | null>(null);
 
     // 静的データ
     const { data: staffList = [], isLoading: isLoadingStaff } = useStaffList();
@@ -75,18 +75,10 @@ export const useScheduleData = () => {
     const actions = useScheduleActions({
         currentDate,
         targetYearMonth,
-        rawShifts,
         fixedDates,
-        preferences: preferences as ShiftPreference[],
-        staffList,
-        roles,
+        rawShifts,
         classes,
-        holidays,
-        businessHours,
-        excelSettings,
-        breakSettings,
         autoOpenGenerationReport: schedulePreferences?.autoOpenGenerationReport ?? true,
-        timePatterns,
     });
 
     useEffect(() => {
@@ -125,6 +117,7 @@ export const useScheduleData = () => {
         view,
         isDayModified,
         daySaveRef,
+        dayDiscardRef,
 
         // 派生値
         targetYearMonth,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import Modal from './Modal';
 
@@ -8,10 +8,11 @@ interface ConfirmModalProps {
     message: string;
     confirmLabel?: string;
     cancelLabel?: string;
-    onConfirm: () => void;
+    onConfirm: (checked?: boolean) => void;
     onCancel: () => void;
     variant?: 'danger' | 'info';
     isLoading?: boolean;
+    checkboxLabel?: string;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -23,18 +24,32 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     onConfirm,
     onCancel,
     variant = 'danger',
-    isLoading = false
+    isLoading = false,
+    checkboxLabel,
 }) => {
+    const [checked, setChecked] = useState(false);
+
     const confirmButtonClass = variant === 'danger'
         ? 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-500'
         : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500';
 
     return (
-        <Modal isOpen={isOpen} onClose={onCancel} zIndex="z-[100]" aria-label={title}>
+        <Modal
+            isOpen={isOpen}
+            onClose={() => {
+                setChecked(false);
+                onCancel();
+            }}
+            zIndex="z-[100]"
+            aria-label={title}
+        >
             <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md animate-in zoom-in-95 duration-200">
                 <div className="absolute right-4 top-4">
                     <button
-                        onClick={onCancel}
+                        onClick={() => {
+                            setChecked(false);
+                            onCancel();
+                        }}
                         aria-label="閉じる"
                         className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     >
@@ -54,6 +69,20 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                                 {message}
                             </p>
+                            {checkboxLabel && (
+                                <label className="mt-4 flex items-start gap-2 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-900/20 p-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={(event) => setChecked(event.target.checked)}
+                                        disabled={isLoading}
+                                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                    />
+                                    <span className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                                        {checkboxLabel}
+                                    </span>
+                                </label>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -61,7 +90,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     <button
                         type="button"
-                        onClick={onCancel}
+                        onClick={() => {
+                            setChecked(false);
+                            onCancel();
+                        }}
                         disabled={isLoading}
                         className="inline-flex w-full justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all sm:w-auto"
                     >
@@ -69,7 +101,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     </button>
                     <button
                         type="button"
-                        onClick={onConfirm}
+                        onClick={() => {
+                            onConfirm(checked);
+                        }}
                         disabled={isLoading}
                         className={`inline-flex w-full justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all sm:w-auto ${confirmButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >

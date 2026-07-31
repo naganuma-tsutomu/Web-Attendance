@@ -1,40 +1,38 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
 import { handleApiError } from '../../../lib/errorHandler';
-import { getShiftRequirements, getShiftsByMonth, getRotationSettings } from '../../../lib/api';
+import {
+    getShiftRequirements, getShiftsByMonth, getRotationSettings, getStaffList,
+    getPreferencesByMonth, getRoles, getClasses, getHolidays, getBusinessHours,
+    getExcelSettings, getBreakSettings, getTimePatterns, getFixedDates,
+} from '../../../lib/api';
 import {
     useSaveShiftsBatch, useReplaceShiftsForMonth, useUpdateShift,
-    useDeleteShiftsByMonth, useSaveFixedDates, useCreateShiftSnapshot,
+    useDeleteShiftsByMonth, useCreateShiftSnapshot, useToggleFixedDate,
+    useSaveFixedDates,
 } from '../../../lib/hooks';
 import { generateShiftsForMonth } from '../../../lib/algorithm';
+import { findShiftConflict } from '../../../../shared/shiftIntegrity';
 import { UNASSIGNED_STAFF_ID } from '../../../constants';
 import { buildGenerationReport } from '../utils/generationReport';
-import type { GenerationReport, Shift, ShiftPreference, Staff, DynamicRole, ShiftClass, ShiftTimePattern, BusinessHours, ExcelSettings, BreakSettings } from '../../../types';
+import type { GenerationReport, Shift, ShiftClass } from '../../../types';
 import type { EditFormData } from './useScheduleData';
 
 interface UseScheduleActionsParams {
     currentDate: Date;
     targetYearMonth: string;
-    rawShifts: Shift[];
     fixedDates: Set<string>;
-    preferences: ShiftPreference[];
-    staffList: Staff[];
-    roles: DynamicRole[];
+    rawShifts: Shift[];
     classes: ShiftClass[];
-    holidays: { date: string; isWorkday: boolean }[];
-    businessHours: BusinessHours | undefined;
-    excelSettings: ExcelSettings | undefined;
-    breakSettings: BreakSettings | undefined;
     autoOpenGenerationReport: boolean;
-    timePatterns: ShiftTimePattern[];
 }
 
 export function useScheduleActions({
-    currentDate, targetYearMonth, rawShifts, fixedDates, preferences,
-    staffList, roles, classes, holidays, businessHours, excelSettings,
-    breakSettings, autoOpenGenerationReport, timePatterns,
+    currentDate, targetYearMonth, fixedDates, rawShifts, classes, autoOpenGenerationReport,
 }: UseScheduleActionsParams) {
+    const fixedDatesRef = useRef(fixedDates);
+    fixedDatesRef.current = fixedDates;
     const [generating, setGenerating] = useState(false);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
     const [generationReport, setGenerationReport] = useState<GenerationReport | null>(null);
@@ -42,14 +40,16 @@ export function useScheduleActions({
     const [confirmAction, setConfirmAction] = useState<{
         title: string;
         message: string;
-        onConfirm: () => void;
+        onConfirm: (checked?: boolean) => void;
         variant?: 'danger' | 'info';
+        checkboxLabel?: string;
     } | null>(null);
 
     const saveShiftsMutation = useSaveShiftsBatch();
     const replaceShiftsMutation = useReplaceShiftsForMonth();
     const updateShiftMutation = useUpdateShift();
     const deleteShiftsMutation = useDeleteShiftsByMonth();
+    const toggleFixedDateMutation = useToggleFixedDate();
     const saveFixedDatesMutation = useSaveFixedDates();
     const createShiftSnapshotMutation = useCreateShiftSnapshot();
 
@@ -57,10 +57,71 @@ export function useScheduleActions({
         setIsActionExecuting(true);
         setGenerating(true);
         try {
-            const [requirements, rotationSettings] = await Promise.all([
+            const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
+            const nextMonth = format(addMonths(currentDate, 1), 'yyyy-MM');
+            const [
+                latestStaffList,
+                latestPreferences,
+                latestRoles,
+                latestClasses,
+                latestHolidays,
+                latestBusinessHours,
+                latestExcelSettings,
+                latestBreakSettings,
+                latestTimePatterns,
+                requirements,
+                rotationSettings,
+                targetMonthShifts,
+                previousMonthShifts,
+                nextMonthShifts,
+                latestFixedDates,
+            ] = await Promise.all([
+                getStaffList(),
+                getPreferencesByMonth(targetYearMonth),
+                getRoles(),
+                getClasses(),
+                getHolidays(currentDate.getFullYear()),
+                getBusinessHours(),
+                getExcelSettings(),
+                getBreakSettings(),
+                getTimePatterns(),
                 getShiftRequirements(),
-                getRotationSettings()
+                getRotationSettings(),
+                getShiftsByMonth(targetYearMonth),
+                getShiftsByMonth(prevMonth),
+                getShiftsByMonth(nextMonth),
+                getFixedDates(targetYearMonth),
             ]);
+
+            const fixedDateSet = new Set(latestFixedDates);
+            const fixedContextShifts = targetMonthShifts.filter(s => fixedDateSet.has(s.date));
+            const mergedContext = [...previousMonthShifts, ...nextMonthShifts, ...fixedContextShifts];
+
+            const generatedShifts = generateShiftsForMonth(
+                targetYearMonth,
+                latestStaffList,
+                latestPreferences,
+                latestRoles,
+                latestClasses,
+                latestHolidays.filter(h => !h.isWorkday).map(h => h.date),
+                requirements,
+                mergedContext,
+                latestFixedDates,
+                latestBusinessHours.closedDays,
+                rotationSettings,
+                latestTimePatterns,
+                latestBreakSettings,
+                latestExcelSettings.leaderRoleId ?? null
+            );
+            const generatedConflict = findShiftConflict(generatedShifts);
+            if (generatedConflict) {
+                const staffName = latestStaffList.find(s => s.id === generatedConflict.first.staffId)?.name
+                    ?? generatedConflict.first.staffId;
+                throw new Error(
+                    `${generatedConflict.first.date}の${staffName}に重複するシフトが生成されました。保存は行われていません。`
+                );
+            }
+            const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
 
             await createShiftSnapshotMutation.mutateAsync({
                 yearMonth: targetYearMonth,
@@ -68,50 +129,19 @@ export function useScheduleActions({
                 label: `${format(currentDate, 'yyyy年M月')} 自動生成前`,
             });
 
-            const prevMonth = format(subMonths(currentDate, 1), 'yyyy-MM');
-            const nextMonth = format(addMonths(currentDate, 1), 'yyyy-MM');
-            const existingContextShifts = await Promise.all([
-                getShiftsByMonth(prevMonth),
-                getShiftsByMonth(nextMonth)
-            ]).then(results => results.flat());
-
-            const fixedContextShifts = rawShifts.filter(s => s.date.startsWith(targetYearMonth) && fixedDates.has(s.date));
-            const mergedContext = [...existingContextShifts, ...fixedContextShifts];
-
-            const datesForTargetMonth = Array.from(fixedDates).filter(d => d.startsWith(targetYearMonth));
-            await saveFixedDatesMutation.mutateAsync({ yearMonth: targetYearMonth, dates: datesForTargetMonth });
-
-            const generatedShifts = generateShiftsForMonth(
-                targetYearMonth,
-                staffList,
-                preferences,
-                roles,
-                classes,
-                holidays.filter(h => !h.isWorkday).map(h => h.date),
-                requirements,
-                mergedContext,
-                Array.from(fixedDates),
-                businessHours?.closedDays,
-                rotationSettings,
-                timePatterns,
-                breakSettings,
-                excelSettings?.leaderRoleId ?? null
-            );
-            const errCount = generatedShifts.filter(s => s.staffId === UNASSIGNED_STAFF_ID).length;
-
             await replaceShiftsMutation.mutateAsync({
                 yearMonth: targetYearMonth,
                 shifts: generatedShifts,
-                fixedDates: datesForTargetMonth,
+                fixedDates: latestFixedDates,
             });
 
             setGenerationReport(buildGenerationReport({
                 yearMonth: targetYearMonth,
                 shifts: generatedShifts,
-                staffList,
-                classes,
-                fixedDateCount: datesForTargetMonth.length,
-                breakSettings,
+                staffList: latestStaffList,
+                classes: latestClasses,
+                fixedDateCount: latestFixedDates.length,
+                breakSettings: latestBreakSettings,
             }));
             setIsGenerationReportOpen(autoOpenGenerationReport);
             setConfirmAction(null);
@@ -130,6 +160,10 @@ export function useScheduleActions({
     };
 
     const handleGenerate = () => {
+        if (toggleFixedDateMutation.isPending) {
+            toast.warning('固定日の保存完了後に自動生成を実行してください。');
+            return;
+        }
         setConfirmAction({
             title: 'シフトの自動生成',
             message: `${format(currentDate, 'yyyy年M月')} のシフトを自動生成します。既存のシフトは上書きされます。よろしいですか？`,
@@ -141,8 +175,9 @@ export function useScheduleActions({
     const handleClearShifts = () => {
         setConfirmAction({
             title: 'シフトの消去',
-            message: 'この月のシフトをすべて削除してよろしいですか？',
-            onConfirm: async () => {
+            message: 'この月のロックされていないシフトを削除します。',
+            checkboxLabel: 'ロック済みのシフトも削除する（ロックも解除されます）',
+            onConfirm: async (includeFixedDates = false) => {
                 setIsActionExecuting(true);
                 try {
                     await createShiftSnapshotMutation.mutateAsync({
@@ -150,8 +185,18 @@ export function useScheduleActions({
                         reason: 'before-clear',
                         label: `${format(currentDate, 'yyyy年M月')} 消去前`,
                     });
-                    await deleteShiftsMutation.mutateAsync({ yearMonth: targetYearMonth });
-                    toast.success('削除しました');
+                    await deleteShiftsMutation.mutateAsync({
+                        yearMonth: targetYearMonth,
+                        exceptDates: includeFixedDates ? [] : Array.from(fixedDatesRef.current),
+                        clearFixedDates: includeFixedDates,
+                    });
+                    if (includeFixedDates) {
+                        fixedDatesRef.current = new Set();
+                    }
+                    toast.success(includeFixedDates
+                        ? 'ロック済みを含むシフトを削除し、ロックを解除しました'
+                        : 'ロックされていないシフトを削除しました'
+                    );
                     setConfirmAction(null);
                 } catch (err) {
                     handleApiError(err, '削除に失敗しました');
@@ -161,6 +206,56 @@ export function useScheduleActions({
             },
             variant: 'danger'
         });
+    };
+
+    const handleLockAllShifts = async () => {
+        if (toggleFixedDateMutation.isPending) {
+            toast.warning('個別ロックの保存完了後に実行してください');
+            return;
+        }
+        const shiftDates = new Set(
+            rawShifts
+                .filter(shift => shift.date.startsWith(targetYearMonth))
+                .map(shift => shift.date)
+        );
+        if (shiftDates.size === 0) {
+            toast.info('ロックできるシフトがありません');
+            return;
+        }
+
+        const next = new Set(fixedDatesRef.current);
+        shiftDates.forEach(date => next.add(date));
+        try {
+            await saveFixedDatesMutation.mutateAsync({
+                yearMonth: targetYearMonth,
+                dates: Array.from(next).sort(),
+            });
+            fixedDatesRef.current = next;
+            toast.success(`${shiftDates.size}日分のシフトをロックしました`);
+        } catch (err) {
+            handleApiError(err, '一括ロックに失敗しました');
+        }
+    };
+
+    const handleUnlockAllShifts = async () => {
+        if (toggleFixedDateMutation.isPending) {
+            toast.warning('個別ロックの保存完了後に実行してください');
+            return;
+        }
+        if (fixedDatesRef.current.size === 0) {
+            toast.info('解除するロックがありません');
+            return;
+        }
+        try {
+            await saveFixedDatesMutation.mutateAsync({
+                yearMonth: targetYearMonth,
+                dates: [],
+            });
+            fixedDatesRef.current = new Set();
+            toast.success('この月のロックをすべて解除しました');
+        } catch (err) {
+            handleApiError(err, '一括ロック解除に失敗しました');
+        }
     };
 
     const handleUpdateShift = async (
@@ -197,12 +292,16 @@ export function useScheduleActions({
     };
 
     const toggleFixedDate = (dateStr: string) => {
-        const next = new Set(fixedDates);
-        if (next.has(dateStr)) next.delete(dateStr);
-        else next.add(dateStr);
-        const yearMonthOfDate = dateStr.slice(0, 7);
-        const datesForMonth = Array.from(next).filter(d => d.startsWith(yearMonthOfDate));
-        saveFixedDatesMutation.mutate({ yearMonth: yearMonthOfDate, dates: datesForMonth }, {
+        if (saveFixedDatesMutation.isPending) {
+            toast.warning('一括ロック操作の完了後に変更してください');
+            return;
+        }
+        const next = new Set(fixedDatesRef.current);
+        const fixed = !next.has(dateStr);
+        if (fixed) next.add(dateStr);
+        else next.delete(dateStr);
+        fixedDatesRef.current = next;
+        toggleFixedDateMutation.mutate({ date: dateStr, fixed }, {
             onError: (err: Error) => handleApiError(err, '固定日の保存に失敗しました')
         });
     };
@@ -219,5 +318,8 @@ export function useScheduleActions({
         handleClearShifts,
         handleUpdateShift,
         toggleFixedDate,
+        handleLockAllShifts,
+        handleUnlockAllShifts,
+        isBulkLockPending: saveFixedDatesMutation.isPending || toggleFixedDateMutation.isPending,
     };
 }

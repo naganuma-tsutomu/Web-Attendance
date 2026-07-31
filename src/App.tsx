@@ -20,6 +20,8 @@ import StaffLoginPage from './pages/StaffLoginPage';
 import StaffPreferencePage from './pages/StaffPreferencePage';
 import LandingPage from './pages/LandingPage';
 import UserManualPage from './pages/UserManualPage';
+import UpdateHistoryPage from './pages/UpdateHistoryPage';
+import { UnsavedChangesProvider } from './lib/UnsavedChangesContext';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -41,8 +43,9 @@ const AppRoutes = () => {
 
   return (
     <Router>
-      <ScrollToTop />
-      <Routes>
+      <UnsavedChangesProvider>
+        <ScrollToTop />
+        <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route
           path="/login"
@@ -68,10 +71,12 @@ const AppRoutes = () => {
           <Route path="settings/excel" element={<ExcelSettingsPage />} />
           <Route path="settings/rotation" element={<RotationPage />} />
           <Route path="manual" element={<UserManualPage />} />
+          <Route path="update-history" element={<UpdateHistoryPage />} />
         </Route>
         <Route path="/staff/login" element={<StaffLoginPage />} />
         <Route path="/staff/preference" element={<StaffPreferencePage />} />
-      </Routes>
+        </Routes>
+      </UnsavedChangesProvider>
     </Router>
   );
 };

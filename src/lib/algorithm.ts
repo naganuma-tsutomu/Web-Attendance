@@ -1,10 +1,10 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek, subDays } from 'date-fns';
-import { timeToMinutes, calculateActualWorkingHours } from '../utils/timeUtils';
+import { timeToMinutes, calculateActualWorkingHours, timeRangesOverlap } from '../utils/timeUtils';
 import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS, EARLY_SHIFT_BOUNDARY } from '../constants';
 import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
 
 export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
-import { isStaffAvailable } from './availabilityUtils';
+import { isStaffAvailable, isStaffAvailableDuringTime } from './availabilityUtils';
 import { applyRotation } from './rotationAlgorithm';
 import { applyLeaderRebalance } from './leaderRebalance';
 
@@ -34,30 +34,20 @@ const isStaffAvailableForTimeSlot = (
     holidays: string[] = [], // YYYY-MM-DD
     closedDays: number[] = [] // 0=日, 1=月, ..., 6=土, 7=祝日
 ): { available: boolean; matchingPattern?: ShiftTimePattern } => {
-    // First check basic day availability (full-day unavailable)
-    // closedDays と isNationalHoliday を専門の引数経由で渡す
-    if (!isStaffAvailable(staff, date, dateStr, preferences, closedDays, holidays.includes(dateStr))) return { available: false };
+    // Check full-day and partial-day availability.
+    if (!isStaffAvailableDuringTime(
+        staff, date, dateStr, startTime, endTime, preferences,
+        closedDays, holidays.includes(dateStr)
+    )) return { available: false };
 
-    // Check partial-day unavailability from preference details
-    const pref = preferences.find(p => p.staffId === staff.id);
-    if (pref?.details) {
-        const partialEntries = pref.details.filter(d => d.date === dateStr && d.startTime && d.endTime);
-        for (const entry of partialEntries) {
-            // Convert to minutes for robust comparison (handles midnight crossing better if it occurs)
-            const sMin = timeToMinutes(startTime);
-            let eMin = timeToMinutes(endTime);
-            if (eMin < sMin) eMin += 24 * 60;
-
-            const usMin = timeToMinutes(entry.startTime!);
-            let ueMin = timeToMinutes(entry.endTime!);
-            if (ueMin < usMin) ueMin += 24 * 60;
-
-            // Check if [sMin, eMin] overlaps with [usMin, ueMin]
-            if (sMin < ueMin && eMin > usMin) {
-                return { available: false };
-            }
-        }
-    }
+    // 1人につき1日1シフト。同日の勤務時間が重ならない場合でも、
+    // すでに配置済みのスタッフを別の時間枠へ再配置しない。
+    const alreadyAssignedToday = existingShifts.some(shift =>
+        shift.staffId === staff.id &&
+        shift.date === dateStr &&
+        !shift.isError
+    );
+    if (alreadyAssignedToday) return { available: false };
 
     const roleMap = buildRoleMap(roles);
     const roleRecord = roleMap.get(staff.role);
@@ -102,32 +92,12 @@ const isStaffAvailableForTimeSlot = (
         const matchedPattern = potentialPatterns[0];
         if (!matchedPattern) return { available: false };
 
-        // Check for overlapping shifts
-        const checkStart = matchedPattern.startTime;
-        const checkEnd = matchedPattern.endTime;
-
-        const hasOverlap = existingShifts.some(shift => {
-            if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
-            if (shift.isError) return false;
-            return (checkStart < shift.endTime && checkEnd > shift.startTime);
-        });
-
-        if (hasOverlap) return { available: false };
-
         return { available: true, matchingPattern: matchedPattern };
     }
 
     // Default behavior if no role patterns are defined (direct time slot matching)
     // But usually we want to enforce patterns if they exist.
     // If no patterns are defined for the role, we fall back to the requirement's time.
-    const hasOverlap = existingShifts.some(shift => {
-        if (shift.staffId !== staff.id || shift.date !== dateStr) return false;
-        if (shift.isError) return false;
-        return (startTime < shift.endTime && endTime > shift.startTime);
-    });
-
-    if (hasOverlap) return { available: false };
-
     return { available: true };
 };
 
@@ -148,7 +118,7 @@ const countStaffInTimeSlot = (
         if (shift.staffId === UNASSIGNED_STAFF_ID) return false;
 
         // Check if the shift overlaps with the time slot
-        return (shift.startTime < endTime && shift.endTime > startTime);
+        return timeRangesOverlap(shift.startTime, shift.endTime, startTime, endTime);
     }).length;
 };
 
@@ -237,11 +207,11 @@ const findAvailableStaff = (
             const shiftEnd = pattern ? pattern.endTime : endTime;
             const duration = calcDuration(shiftStart, shiftEnd, breakSettings);
 
-            if (staff.hoursTarget !== null && currentHours[staff.id] + duration > staff.hoursTarget) {
+            if (staff.hoursTarget != null && currentHours[staff.id] + duration > staff.hoursTarget) {
                 return false;
             }
 
-            if (staff.weeklyHoursTarget !== null && staff.weeklyHoursTarget !== undefined) {
+            if (staff.weeklyHoursTarget != null) {
                 const weekKey = `w-${format(startOfISOWeek(date), 'yyyy-MM-dd')}`;
                 if (!currentWeeklyHours[staff.id]) {
                     currentWeeklyHours[staff.id] = {};

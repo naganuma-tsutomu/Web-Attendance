@@ -6,6 +6,7 @@ import type { Staff, ShiftPreference, DynamicRole, ShiftRequirement } from '../.
 // テスト用のスタッフデータ
 const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role: string }): Staff => ({
     hoursTarget: 160,
+    weeklyHoursTarget: null,
     ...overrides,
 });
 
@@ -65,7 +66,7 @@ describe('generateShiftsForMonth', () => {
         expect(errorShifts[0].staffId).toBe(UNASSIGNED_STAFF_ID);
     });
 
-    it('同一スタッフが重複して割り当てられない', () => {
+    it('時間帯が重なる場合、同一スタッフが重複して割り当てられない', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
         const reqs = [
             makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '12:00' }),
@@ -80,6 +81,33 @@ describe('generateShiftsForMonth', () => {
         // もう一方はエラー（UNASSIGNED）になるはず
         const errorShifts = shifts.filter(s => s.isError && s.date === '2025-06-02');
         expect(errorShifts.length).toBe(1);
+    });
+
+    it('時間帯が重ならなくても同一スタッフを同じ日に複数配置しない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [
+            makeReq({ id: 'r1', classId: 'class_niji', startTime: '07:30', endTime: '12:00' }),
+            makeReq({ id: 'r2', classId: 'class_smile', startTime: '13:30', endTime: '18:30' }),
+        ];
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+
+        const targetDate = shifts.filter(s => s.date === '2025-06-02');
+        expect(targetDate.filter(s => s.staffId === 's1')).toHaveLength(1);
+        expect(targetDate.filter(s => s.isError)).toHaveLength(1);
+    });
+
+    it('同一時間帯を要求する別クラスに同じスタッフを配置しない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [
+            makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '18:00' }),
+            makeReq({ id: 'r2', classId: 'class_smile', startTime: '09:00', endTime: '18:00' }),
+        ];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs);
+        const targetDate = shifts.filter(s => s.date === '2025-06-02');
+
+        expect(targetDate.filter(s => s.staffId === 's1')).toHaveLength(1);
+        expect(targetDate.filter(s => s.isError)).toHaveLength(1);
     });
 
     it('hourTargetを尊重して割り当てが抑制される', () => {
@@ -217,6 +245,37 @@ describe('generateShiftsForMonth', () => {
         // 希望休の日に割り当てがされていないことを確認
         expect(myShifts.find(s => s.date === '2025-06-05')).toBeUndefined();
         expect(myShifts.find(s => s.date === '2025-06-06')).toBeUndefined();
+    });
+
+    it('部分時間希望休と重なる要件には割り当てられない', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const prefs: ShiftPreference[] = [{
+            id: 'p1',
+            staffId: 's1',
+            yearMonth: '2025-06',
+            details: [{ date: '2025-06-02', startTime: '10:00', endTime: '12:00', type: null }],
+        }];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '18:00' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, prefs, emptyRoles, dummyClasses, [], reqs);
+
+        expect(shifts.find(s => s.date === '2025-06-02' && s.staffId === 's1')).toBeUndefined();
+        expect(shifts.find(s => s.date === '2025-06-02' && s.isError)).toBeDefined();
+    });
+
+    it('部分時間希望休と境界が接するだけなら割り当てられる', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const prefs: ShiftPreference[] = [{
+            id: 'p1',
+            staffId: 's1',
+            yearMonth: '2025-06',
+            details: [{ date: '2025-06-02', startTime: '18:00', endTime: '19:00', type: null }],
+        }];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji', startTime: '09:00', endTime: '18:00' })];
+
+        const shifts = generateShiftsForMonth('2025-06', staff, prefs, emptyRoles, dummyClasses, [], reqs);
+
+        expect(shifts.find(s => s.date === '2025-06-02' && s.staffId === 's1')).toBeDefined();
     });
 
     it('ShiftRequirementのdayOfWeek=7（平日のみ）が正しく機能する', () => {

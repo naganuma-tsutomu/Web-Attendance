@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, ShiftRequirementTemplate, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
 import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
-    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
+    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, ShiftRequirementTemplateSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
     BreakSettingsSchema, SchedulePreferencesSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
@@ -139,10 +139,14 @@ export const replaceShiftsForMonth = async (yearMonth: string, shifts: Omit<Shif
     });
 };
 
-export const deleteShiftsByMonth = async (yearMonth: string, exceptDates: string[] = []): Promise<void> => {
+export const deleteShiftsByMonth = async (
+    yearMonth: string,
+    exceptDates: string[] = [],
+    clearFixedDates = false
+): Promise<void> => {
     await apiFetch('/shifts/clear', {
         method: 'POST',
-        body: JSON.stringify({ yearMonth, exceptDates })
+        body: JSON.stringify({ yearMonth, exceptDates, clearFixedDates })
     });
 };
 
@@ -332,6 +336,47 @@ export const deleteShiftRequirement = async (id: string): Promise<void> => {
     });
 };
 
+export const getShiftRequirementTemplates = async (): Promise<ShiftRequirementTemplate[]> => {
+    return apiFetch<ShiftRequirementTemplate[]>(
+        '/settings/shift-requirement-templates',
+        {},
+        z.array(ShiftRequirementTemplateSchema)
+    );
+};
+
+export const createShiftRequirementTemplate = async (name: string): Promise<string> => {
+    const result = await apiFetch<{ id: string }>('/settings/shift-requirement-templates', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+    });
+    return result.id;
+};
+
+export const renameShiftRequirementTemplate = async (id: string, name: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name })
+    });
+};
+
+export const deleteShiftRequirementTemplate = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+    });
+};
+
+export const applyShiftRequirementTemplate = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}/apply`, {
+        method: 'POST'
+    });
+};
+
+export const overwriteShiftRequirementTemplate = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/shift-requirement-templates/${encodeURIComponent(id)}/capture`, {
+        method: 'POST'
+    });
+};
+
 // ==========================================
 // Holidays API (祝日管理)
 // ==========================================
@@ -405,6 +450,13 @@ export const saveFixedDates = async (yearMonth: string, dates: string[]): Promis
     await apiFetch('/fixed-dates', {
         method: 'POST',
         body: JSON.stringify({ yearMonth, dates })
+    });
+};
+
+export const toggleFixedDate = async (date: string, fixed: boolean): Promise<void> => {
+    await apiFetch('/fixed-dates', {
+        method: 'PATCH',
+        body: JSON.stringify({ date, fixed })
     });
 };
 

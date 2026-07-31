@@ -179,10 +179,12 @@ const RotationSettings = () => {
                                 <input
                                     id="rotation-weekday-early"
                                     type="number"
-                                    min={1}
-                                    max={10}
+                                    min={0}
+                                    max={100}
                                     value={settings.weekdayEarlyCount}
-                                    onChange={e => update({ weekdayEarlyCount: Math.max(1, parseInt(e.target.value) || 1) })}
+                                    onChange={e => update({
+                                        weekdayEarlyCount: Math.min(100, Math.max(0, Number.parseInt(e.target.value) || 0))
+                                    })}
                                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
                                 />
                             </div>
@@ -193,10 +195,12 @@ const RotationSettings = () => {
                                 <input
                                     id="rotation-weekday-late"
                                     type="number"
-                                    min={1}
-                                    max={10}
+                                    min={0}
+                                    max={100}
                                     value={settings.weekdayLateCount}
-                                    onChange={e => update({ weekdayLateCount: Math.max(1, parseInt(e.target.value) || 1) })}
+                                    onChange={e => update({
+                                        weekdayLateCount: Math.min(100, Math.max(0, Number.parseInt(e.target.value) || 0))
+                                    })}
                                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
                                 />
                             </div>
@@ -242,10 +246,12 @@ const RotationSettings = () => {
                                     <input
                                         id="rotation-saturday-count"
                                         type="number"
-                                        min={1}
-                                        max={10}
+                                        min={0}
+                                        max={100}
                                         value={settings.saturdayCount}
-                                        onChange={e => update({ saturdayCount: Math.max(1, parseInt(e.target.value) || 1) })}
+                                        onChange={e => update({
+                                            saturdayCount: Math.min(100, Math.max(0, Number.parseInt(e.target.value) || 0))
+                                        })}
                                         className="w-full max-w-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-3 py-2"
                                     />
                                 </div>

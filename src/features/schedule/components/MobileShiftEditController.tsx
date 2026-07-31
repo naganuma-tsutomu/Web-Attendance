@@ -1,6 +1,6 @@
 import { timeToMinutes } from '../../../utils/timeUtils';
 import { buildLeaderMatcher } from '../../../utils/roleMatch';
-import { getEffectiveDutyNumber } from '../../../utils/dutyNumber';
+import { getEffectiveDutyNumbers } from '../../../utils/dutyNumber';
 import type { DynamicRole, Shift, Staff } from '../../../types';
 import type { LocalShiftData } from '../hooks/useShiftEdit';
 import MobileShiftEditModal from './MobileShiftEditModal';
@@ -63,18 +63,26 @@ const MobileShiftEditController = ({
         const err = loc ? loc.isError : s.isError;
         return cls === (localShifts[shift.id]?.classType ?? shift.classType) && !err;
     });
-    const groupStaffIds = groupShifts.map(s => s.staffId);
     const matcher = buildLeaderMatcher(leaderRoleId, roles);
-    const fullTimeIds = leaderRoleId
-        ? groupStaffIds.filter(id => {
-            const st = staffList.find(st2 => st2.id === id);
-            return st ? matcher(st) : false;
-        })
+    const fullTimeStaffIds = leaderRoleId
+        ? staffList.filter(matcher).map(st => st.id)
         : undefined;
-    const pendingDuty = localShifts[shift.id]?.dutyNumber !== undefined
-        ? localShifts[shift.id]?.dutyNumber
-        : shift.duty_number;
-    const dutyValue = getEffectiveDutyNumber(shift.staffId, pendingDuty, date, groupStaffIds, fullTimeIds);
+    const dutyOrderedGroupShifts = [...groupShifts].sort((a, b) =>
+        staffList.findIndex(st => st.id === a.staffId) -
+        staffList.findIndex(st => st.id === b.staffId)
+    );
+    const dutyNumbers = getEffectiveDutyNumbers(
+        dutyOrderedGroupShifts.map(groupShift => ({
+            id: groupShift.id,
+            staffId: groupShift.staffId,
+            storedNumber: localShifts[groupShift.id]?.dutyNumber !== undefined
+                ? localShifts[groupShift.id]?.dutyNumber
+                : groupShift.duty_number,
+        })),
+        date,
+        fullTimeStaffIds
+    );
+    const dutyValue = dutyNumbers.get(shift.id) ?? 1;
 
     return (
         <MobileShiftEditModal

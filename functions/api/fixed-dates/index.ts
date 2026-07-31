@@ -49,3 +49,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         return handleServerError(e, 'POST /fixed-dates');
     }
 };
+
+export const onRequestPatch: PagesFunction<Env> = async (context) => {
+    try {
+        const body: { date?: string, fixed?: boolean } = await context.request.json();
+        const { date, fixed } = body;
+
+        if (
+            typeof date !== 'string' ||
+            !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date) ||
+            Number.isNaN(new Date(`${date}T00:00:00Z`).getTime()) ||
+            new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
+        ) {
+            return createValidationError('dateはYYYY-MM-DD形式の有効な日付で指定してください');
+        }
+        if (typeof fixed !== 'boolean') {
+            return createValidationError('fixedはbooleanで指定してください');
+        }
+
+        const yearMonth = date.slice(0, 7);
+        if (fixed) {
+            await context.env.DB.prepare(
+                'INSERT OR REPLACE INTO fixed_dates (date, yearMonth) VALUES (?, ?)'
+            ).bind(date, yearMonth).run();
+        } else {
+            await context.env.DB.prepare(
+                'DELETE FROM fixed_dates WHERE date = ?'
+            ).bind(date).run();
+        }
+
+        return Response.json({ success: true });
+    } catch (e) {
+        return handleServerError(e, 'PATCH /fixed-dates');
+    }
+};

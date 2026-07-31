@@ -20,8 +20,33 @@ import {
     savePreference,
     getClasses,
     getRoles,
-    getTimePatterns
+    getTimePatterns,
+    toggleFixedDate
 } from '../api';
+
+describe('API - Fixed dates', () => {
+    beforeEach(() => {
+        mockFetch.mockReset();
+    });
+
+    it('固定日を日単位で更新できる', async () => {
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ success: true }),
+        });
+
+        await toggleFixedDate('2026-07-31', true);
+
+        expect(mockFetch).toHaveBeenCalledWith(
+            '/api/fixed-dates',
+            expect.objectContaining({
+                method: 'PATCH',
+                body: JSON.stringify({ date: '2026-07-31', fixed: true }),
+            })
+        );
+    });
+});
 
 describe('API - Staff functions', () => {
     beforeEach(() => {
@@ -35,8 +60,8 @@ describe('API - Staff functions', () => {
     describe('getStaffList', () => {
         it('スタッフリストを取得できる', async () => {
             const mockStaff = [
-                { id: 's1', name: '田中太郎', role: '正社員', hoursTarget: 160 },
-                { id: 's2', name: '佐藤花子', role: 'パート', hoursTarget: 80 }
+                { id: 's1', name: '田中太郎', role: '正社員', hoursTarget: 160, weeklyHoursTarget: null },
+                { id: 's2', name: '佐藤花子', role: 'パート', hoursTarget: 80, weeklyHoursTarget: null }
             ];
             
             mockFetch.mockResolvedValueOnce({
@@ -48,6 +73,20 @@ describe('API - Staff functions', () => {
             expect(result).toEqual(mockStaff);
             expect(mockFetch).toHaveBeenCalled();
             expect(mockFetch.mock.calls[0][0]).toContain('/api/staffs');
+        });
+
+        it('勤務時間上限の未設定値をnullへ正規化する', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve([
+                    { id: 's1', name: '田中太郎', role: '正社員' }
+                ])
+            });
+
+            const result = await getStaffList();
+
+            expect(result[0].hoursTarget).toBeNull();
+            expect(result[0].weeklyHoursTarget).toBeNull();
         });
 
         it('APIエラー時に例外をスローする', async () => {
@@ -82,7 +121,7 @@ describe('API - Staff functions', () => {
 
     describe('createStaff', () => {
         it('新規スタッフを作成できる', async () => {
-            const newStaff = { name: '新規スタッフ', role: 'パート', hoursTarget: 100 };
+            const newStaff = { name: '新規スタッフ', role: 'パート', hoursTarget: 100, weeklyHoursTarget: null };
             const mockResponse = { id: 'new-id-123' };
             
             mockFetch.mockResolvedValueOnce({
@@ -247,7 +286,33 @@ describe('API - Shift functions', () => {
                 '/api/shifts/clear',
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify({ yearMonth: '2025-06', exceptDates: [] })
+                    body: JSON.stringify({
+                        yearMonth: '2025-06',
+                        exceptDates: [],
+                        clearFixedDates: false,
+                    })
+                })
+            );
+        });
+
+        it('ロック済みシフトを削除するときはロック解除も指定できる', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 204,
+                json: () => Promise.resolve({})
+            });
+
+            await deleteShiftsByMonth('2025-06', [], true);
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                '/api/shifts/clear',
+                expect.objectContaining({
+                    method: 'POST',
+                    body: JSON.stringify({
+                        yearMonth: '2025-06',
+                        exceptDates: [],
+                        clearFixedDates: true,
+                    })
                 })
             );
         });

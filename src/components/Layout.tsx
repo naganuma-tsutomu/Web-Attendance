@@ -147,6 +147,9 @@ const Layout = () => {
                         <LogOut className="w-5 h-5" />
                         <span>ログアウト</span>
                     </button>
+                    <p className="mt-3 text-center text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-[0.2em]">
+                        Web Attendance v{__APP_VERSION__}
+                    </p>
                 </div>
             </nav>
 

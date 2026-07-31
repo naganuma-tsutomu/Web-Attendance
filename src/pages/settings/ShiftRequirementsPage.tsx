@@ -372,7 +372,7 @@ const ShiftRequirementsPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 md:p-8 flex items-center justify-center">
+            <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 md:p-8 flex items-center justify-center">
                 <div className="flex items-center space-x-3 text-indigo-600 dark:text-indigo-400">
                     <Loader2 className="w-6 h-6 animate-spin" />
                     <span className="font-medium">読み込み中...</span>
@@ -383,7 +383,7 @@ const ShiftRequirementsPage = () => {
 
     if (loadingError) {
         return (
-            <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 md:p-8 flex items-center justify-center">
+            <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 md:p-8 flex items-center justify-center">
                 <div className="text-center max-w-md">
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 flex flex-col items-center animate-in fade-in">
                         <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mb-3" />
@@ -402,8 +402,8 @@ const ShiftRequirementsPage = () => {
     }
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 md:p-8">
-            <div className="max-w-5xl mx-auto space-y-6">
+        <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 md:p-8">
+            <div className="max-w-5xl mx-auto w-full space-y-6">
                 {/* Header */}
                 <div className="flex items-center space-x-3 mb-6">
                     <Users className="w-8 h-8 text-indigo-500" />

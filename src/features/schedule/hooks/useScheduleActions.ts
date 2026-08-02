@@ -5,7 +5,7 @@ import { handleApiError } from '../../../lib/errorHandler';
 import {
     getShiftRequirements, getShiftsByMonth, getRotationSettings, getStaffList,
     getPreferencesByMonth, getRoles, getClasses, getHolidays, getBusinessHours,
-    getExcelSettings, getBreakSettings, getTimePatterns, getFixedDates,
+    getExcelSettings, getBreakSettings, getTimePatterns, getFixedDates, getBusinessDayOverrides,
 } from '../../../lib/api';
 import {
     useSaveShiftsBatch, useReplaceShiftsForMonth, useUpdateShift,
@@ -75,6 +75,7 @@ export function useScheduleActions({
                 previousMonthShifts,
                 nextMonthShifts,
                 latestFixedDates,
+                latestBusinessDayOverrides,
             ] = await Promise.all([
                 getStaffList(),
                 getPreferencesByMonth(targetYearMonth),
@@ -91,6 +92,7 @@ export function useScheduleActions({
                 getShiftsByMonth(prevMonth),
                 getShiftsByMonth(nextMonth),
                 getFixedDates(targetYearMonth),
+                getBusinessDayOverrides(targetYearMonth),
             ]);
 
             const fixedDateSet = new Set(latestFixedDates);
@@ -103,7 +105,9 @@ export function useScheduleActions({
                 latestPreferences,
                 latestRoles,
                 latestClasses,
-                latestHolidays.filter(h => !h.isWorkday).map(h => h.date),
+                latestBusinessHours.closedDays.includes(7)
+                    ? latestHolidays.filter(h => !h.isWorkday).map(h => h.date)
+                    : [],
                 requirements,
                 mergedContext,
                 latestFixedDates,
@@ -111,7 +115,8 @@ export function useScheduleActions({
                 rotationSettings,
                 latestTimePatterns,
                 latestBreakSettings,
-                latestExcelSettings.leaderRoleId ?? null
+                latestExcelSettings.leaderRoleId ?? null,
+                latestBusinessDayOverrides
             );
             const generatedConflict = findShiftConflict(generatedShifts);
             if (generatedConflict) {

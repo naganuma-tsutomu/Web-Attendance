@@ -5,7 +5,8 @@ import { X, Loader2 } from 'lucide-react';
 import { savePreference } from '../../../lib/api';
 import { CLOSED_DAY_HOLIDAY } from '../../../constants';
 import { isFixedHoliday as checkFixedHoliday } from '../../../lib/holidayUtils';
-import type { ShiftPreferenceDetail, Shift, Holiday } from '../../../types';
+import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
+import type { ShiftPreferenceDetail, Shift, Holiday, BusinessDayOverride } from '../../../types';
 
 interface PreferenceTabProps {
     staff: { id: string; name: string };
@@ -18,6 +19,7 @@ interface PreferenceTabProps {
     setMessage: (msg: { type: 'success' | 'error', text: string } | null) => void;
     myShifts: Shift[];
     holidays: Holiday[];
+    businessDayOverrides: BusinessDayOverride[];
     myAvailableDays: any;
     closedDays: number[];
 }
@@ -33,6 +35,7 @@ export default function PreferenceTab({
     setMessage,
     myShifts,
     holidays,
+    businessDayOverrides,
     myAvailableDays,
     closedDays
 }: PreferenceTabProps) {
@@ -48,8 +51,18 @@ export default function PreferenceTab({
         [...savedPreferences].sort((a, b) => a.date.localeCompare(b.date))
     ), [preferences, savedPreferences]);
 
-    const isFixedHoliday = (date: Date): boolean =>
-        checkFixedHoliday(date, holidays, closedDays, CLOSED_DAY_HOLIDAY, myAvailableDays);
+    const overrideMap = useMemo(() => createBusinessDayOverrideMap(businessDayOverrides), [businessDayOverrides]);
+    const isFixedHoliday = (date: Date): boolean => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const override = overrideMap.get(dateStr);
+        const holiday = holidays.find(item => item.date === dateStr);
+        const facility = resolveBusinessDay({ date, dateStr, closedDays, holiday, override });
+        if (!facility.isOpen) return true;
+        const effectiveClosedDays = override?.status === 'open'
+            ? closedDays.filter(day => day !== getDay(date) && day !== CLOSED_DAY_HOLIDAY)
+            : closedDays;
+        return checkFixedHoliday(date, holidays, effectiveClosedDays, CLOSED_DAY_HOLIDAY, myAvailableDays);
+    };
 
     const handleDateClick = (dateStr: string) => {
         const existing = preferences.find(p => p.date === dateStr);

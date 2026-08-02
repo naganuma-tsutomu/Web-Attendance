@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
 import { syncHolidays } from '../../lib/api';
-import { useStaffList, usePreferencesByMonth, useSavePreference, useUpdatePreferenceSubmitted, useHolidays, useBusinessHours } from '../../lib/hooks';
+import { useStaffList, usePreferencesByMonth, useSavePreference, useUpdatePreferenceSubmitted, useHolidays, useBusinessHours, useBusinessDayOverrides } from '../../lib/hooks';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
@@ -34,6 +34,7 @@ const PreferencesPage = () => {
     const { data: staffList = [], isLoading: staffLoading } = useStaffList();
     const { data: rawPrefs = [], isLoading: prefLoading, isError: prefHasError, refetch: refetchPrefs } = usePreferencesByMonth(yearMonth);
     const { data: holidays = [] } = useHolidays(targetDate.getFullYear());
+    const { data: businessDayOverrides = [] } = useBusinessDayOverrides(yearMonth);
     const { data: businessHours } = useBusinessHours();
     const closedDays = useMemo(() => businessHours?.closedDays || [], [businessHours]);
 
@@ -68,13 +69,18 @@ const PreferencesPage = () => {
     }, [selectedStaffId, yearMonth]);
 
     const basePreferences = useMemo(() => {
-        const baseDays = generateMonthDays(targetDate, holidays);
+        const baseDays = generateMonthDays(targetDate, holidays, closedDays, businessDayOverrides);
         if (!selectedStaffId) return baseDays;
         const staff = staffList.find(s => s.id === selectedStaffId);
         const unavailable = allPrefsForMonth[selectedStaffId]?.details || [];
         return baseDays.map(day => {
+            const override = businessDayOverrides.find(item => item.date === day.dateStr);
+            const date = new Date(`${day.dateStr}T00:00:00`);
+            const effectiveClosedDays = override?.status === 'open'
+                ? closedDays.filter(value => value !== date.getDay() && value !== 7)
+                : closedDays;
             const isFixedHoliday = staff
-                ? isStaffFixedHoliday(staff, new Date(day.dateStr), closedDays, !!day.isNationalHoliday)
+                ? isStaffFixedHoliday(staff, date, effectiveClosedDays, override?.status === 'open' ? false : !!day.isNationalHoliday)
                 : false;
             if (isFixedHoliday) return { ...day, status: 'fixed' as const };
             const pref = unavailable.find(u => u.date === day.dateStr);
@@ -86,7 +92,7 @@ const PreferencesPage = () => {
                 type: pref?.type,
             };
         });
-    }, [selectedStaffId, targetDate, allPrefsForMonth, staffList, holidays, closedDays]);
+    }, [selectedStaffId, targetDate, allPrefsForMonth, staffList, holidays, closedDays, businessDayOverrides]);
 
     const preferences = useMemo(() => {
         if (Object.keys(draftEdits).length === 0) return basePreferences;

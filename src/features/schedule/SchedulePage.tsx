@@ -143,6 +143,7 @@ const SchedulePage = () => {
                 timePatterns={schedule.timePatterns}
                 preferences={schedule.preferences}
                 holidays={schedule.holidays}
+                businessDayOverrides={schedule.businessDayOverrides}
                 onDateChange={handleDateChange}
                 onViewChange={handleViewChange}
                 onGenerate={schedule.handleGenerate}

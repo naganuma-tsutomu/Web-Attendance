@@ -212,6 +212,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_staffs_access_key ON staffs(access_key) WH
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
 
+-- 日付単位の営業・休業上書き
+CREATE TABLE IF NOT EXISTS business_day_overrides (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+    name TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_business_day_overrides_date
+    ON business_day_overrides(date);
+
 -- シフト・希望休検索用インデックス
 CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
 CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);

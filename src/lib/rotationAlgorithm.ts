@@ -1,5 +1,5 @@
 import { format, getDay, startOfISOWeek } from 'date-fns';
-import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
+import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftTimePattern, RotationSettings, BreakSettings, BusinessDayOverride } from '../types';
 import { isStaffAvailable, isStaffAvailableDuringTime } from './availabilityUtils';
 import { calcDuration } from './algorithm';
 import { timeRangesOverlap } from '../utils/timeUtils';
@@ -368,7 +368,8 @@ export const applyRotation = (
     allPatterns: ShiftTimePattern[],
     classes: ShiftClass[],
     roles: DynamicRole[],
-    breakSettings?: BreakSettings
+    breakSettings?: BreakSettings,
+    businessDayOverrides: BusinessDayOverride[] = []
 ): void => {
     const selectedRole = roles.find(r => r.id === settings.roleId);
     const rotationStaff = selectedRole
@@ -379,6 +380,7 @@ export const applyRotation = (
     const earlyPattern = allPatterns.find(p => p.id === settings.earlyPatternId);
     const latePattern = allPatterns.find(p => p.id === settings.latePatternId);
     if (!earlyPattern || !latePattern) return;
+    const businessDayOverrideMap = new Map(businessDayOverrides.map(item => [item.date, item]));
     const saturdayPattern = settings.saturdayPatternId
         ? allPatterns.find(p => p.id === settings.saturdayPatternId) ?? latePattern
         : latePattern;
@@ -460,8 +462,10 @@ export const applyRotation = (
     for (const date of days) {
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
+        const businessDayOverride = businessDayOverrideMap.get(dateStr);
+        const individuallyOpen = businessDayOverride?.status === 'open';
 
-        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr)) {
+        if (businessDayOverride?.status === 'closed' || (!individuallyOpen && (closedDays.includes(dayOfWeek) || holidays.includes(dateStr)))) {
             continue;
         }
 
@@ -479,7 +483,8 @@ export const applyRotation = (
             continue;
         }
 
-        const available = rotationStaff.filter(s => isStaffAvailable(s, date, dateStr, preferences, closedDays, holidays.includes(dateStr)));
+        const effectiveClosedDays = individuallyOpen ? closedDays.filter(day => day !== dayOfWeek && day !== 7) : closedDays;
+        const available = rotationStaff.filter(s => isStaffAvailable(s, date, dateStr, preferences, effectiveClosedDays, holidays.includes(dateStr)));
         if (available.length === 0) continue;
 
         if (dayOfWeek === 6) {

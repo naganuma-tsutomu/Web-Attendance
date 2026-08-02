@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, ShiftRequirementTemplate, Holiday, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, ShiftRequirementTemplate, Holiday, BusinessDayOverride, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
 import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
-    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, ShiftRequirementTemplateSchema, HolidaySchema, BusinessHoursSchema, ExcelSettingsSchema,
+    DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, ShiftRequirementTemplateSchema, HolidaySchema, BusinessDayOverrideSchema, BusinessHoursSchema, ExcelSettingsSchema,
     BreakSettingsSchema, SchedulePreferencesSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
@@ -407,6 +407,32 @@ export const deleteHoliday = async (id: string): Promise<void> => {
     await apiFetch(`/settings/holidays/${encodeURIComponent(id)}`, {
         method: 'DELETE'
     });
+};
+
+// ==========================================
+// Business Day Overrides API (個別営業日・休業日)
+// ==========================================
+
+export const getBusinessDayOverrides = async (yearMonth?: string, year?: number): Promise<BusinessDayOverride[]> => {
+    const query = yearMonth ? `?yearMonth=${encodeURIComponent(yearMonth)}` : year ? `?year=${year}` : '';
+    return apiFetch<BusinessDayOverride[]>(`/settings/business-day-overrides${query}`, {}, z.array(BusinessDayOverrideSchema));
+};
+
+export const createBusinessDayOverride = async (data: Omit<BusinessDayOverride, 'id' | 'created_at' | 'updated_at'>): Promise<string> => {
+    const result = await apiFetch<{ id: string }>('/settings/business-day-overrides', {
+        method: 'POST', body: JSON.stringify(data)
+    }, z.object({ id: z.string() }));
+    return result.id;
+};
+
+export const updateBusinessDayOverride = async (id: string, data: Pick<BusinessDayOverride, 'status' | 'name'>): Promise<void> => {
+    await apiFetch(`/settings/business-day-overrides/${encodeURIComponent(id)}`, {
+        method: 'PUT', body: JSON.stringify(data)
+    });
+};
+
+export const deleteBusinessDayOverride = async (id: string): Promise<void> => {
+    await apiFetch(`/settings/business-day-overrides/${encodeURIComponent(id)}`, { method: 'DELETE' });
 };
 
 const SyncHolidaysResultSchema = z.object({

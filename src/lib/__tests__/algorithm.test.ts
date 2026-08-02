@@ -133,6 +133,30 @@ describe('generateShiftsForMonth', () => {
         expect(targetDayShifts).toHaveLength(0);
     });
 
+    it('個別営業は固定休館曜日を上書きする', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const shifts = generateShiftsForMonth(
+            '2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs,
+            [], [], [0], undefined, undefined, undefined, null,
+            [{ id: 'o1', date: '2025-06-01', status: 'open', name: '日曜営業' }]
+        );
+
+        expect(shifts.some(s => s.date === '2025-06-01')).toBe(true);
+    });
+
+    it('個別休業は通常営業日を上書きする', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const shifts = generateShiftsForMonth(
+            '2025-06', staff, emptyPrefs, emptyRoles, dummyClasses, [], reqs,
+            [], [], [], undefined, undefined, undefined, null,
+            [{ id: 'o1', date: '2025-06-02', status: 'closed', name: '夏季休業' }]
+        );
+
+        expect(shifts.some(s => s.date === '2025-06-02')).toBe(false);
+    });
+
     it('登録されたパターンに合致しない時間は割り当てられない', () => {
         const roles: DynamicRole[] = [
             {

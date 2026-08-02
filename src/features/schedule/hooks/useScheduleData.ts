@@ -7,8 +7,9 @@ import {
 import {
     useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
     useBusinessHours, useExcelSettings, useBreakSettings,
-    useSchedulePreferences,
+    useSchedulePreferences, useBusinessDayOverrides,
 } from '../../../lib/hooks';
+import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
 import { useScheduleQueries } from './useScheduleQueries';
 import { useCalendarEvents } from './useCalendarEvents';
@@ -40,6 +41,7 @@ export const useScheduleData = () => {
     const { data: timePatterns = [], isLoading: isLoadingPatterns } = useTimePatterns();
     const { data: roles = [], isLoading: isLoadingRoles } = useRoles();
     const { data: holidays = [], isLoading: isLoadingHolidays } = useHolidays(currentDate.getFullYear());
+    const { data: businessDayOverrides = [], isLoading: isLoadingBusinessDayOverrides } = useBusinessDayOverrides(targetYearMonth);
     const { data: businessHours } = useBusinessHours();
     const { data: excelSettings } = useExcelSettings();
     const { data: breakSettings } = useBreakSettings();
@@ -50,25 +52,35 @@ export const useScheduleData = () => {
 
     // カレンダーイベント構築
     const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(
-        rawShifts, staffList, classes, preferences, currentDate, view, targetYearMonth, businessHours
+        rawShifts, staffList, classes, preferences, currentDate, view, targetYearMonth, businessHours,
+        holidays, businessDayOverrides
     );
 
     // 祝日マップ
     const holidayMap = useMemo(() => new Map(holidays.map(h => [h.date, h])), [holidays]);
+    const businessDayOverrideMap = useMemo(() => createBusinessDayOverrideMap(businessDayOverrides), [businessDayOverrides]);
+
+    const resolveDate = (date: Date) => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        return resolveBusinessDay({
+            date, dateStr,
+            closedDays: businessHours?.closedDays ?? [],
+            holiday: holidayMap.get(dateStr),
+            override: businessDayOverrideMap.get(dateStr),
+        });
+    };
 
     const getHolidayNameForDate = (date: Date): string => {
         const dateStr = format(date, 'yyyy-MM-dd');
-        return holidayMap.get(dateStr)?.name || '';
+        return businessDayOverrideMap.get(dateStr)?.name || holidayMap.get(dateStr)?.name || '';
     };
 
     const isHolidayDate = (date: Date): boolean => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const holiday = holidayMap.get(dateStr);
-        return holiday !== undefined && !holiday.isWorkday;
+        return !resolveDate(date).isOpen;
     };
 
     // Loading & Error States
-    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays;
+    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays || isLoadingBusinessDayOverrides;
     const loadError = isError ? 'データの読み込みに失敗しました。' : null;
 
     // 変更ハンドラ群（生成・消去・更新・固定日切り替え）
@@ -102,6 +114,7 @@ export const useScheduleData = () => {
         roles,
         fixedDates,
         holidays,
+        businessDayOverrides,
         businessHours,
         excelSettings,
         breakSettings,

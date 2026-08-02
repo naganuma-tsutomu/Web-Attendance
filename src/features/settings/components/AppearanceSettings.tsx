@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { getWeekStartsOn, setWeekStartsOn as saveWeekStartsOn, STORAGE_KEYS } from '../../../utils/dateUtils';
 import FacilityNameSection from './FacilityNameSection';
 import BusinessHoursSection from './BusinessHoursSection';
+import BusinessDayOverridesSection from './BusinessDayOverridesSection';
 import BreakSettingsSection from './BreakSettingsSection';
 import DutyNumberSection from './DutyNumberSection';
 import DisplayPreferencesSection from './DisplayPreferencesSection';
@@ -73,6 +74,8 @@ const AppearanceSettings = () => {
             />
 
             <BusinessHoursSection />
+
+            <BusinessDayOverridesSection />
 
             <BreakSettingsSection />
 

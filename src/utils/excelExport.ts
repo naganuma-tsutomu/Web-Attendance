@@ -4,9 +4,10 @@ import { ja } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { calculateDuration, calculateActualWorkingHours, calculateBreakMinutes } from './timeUtils';
 import { handleApiError } from '../lib/errorHandler';
-import { createHolidayMap, isHoliday } from '../lib/holidayUtils';
+import { createHolidayMap } from '../lib/holidayUtils';
+import { createBusinessDayOverrideMap, resolveBusinessDay } from '../lib/businessDayUtils';
 import { SHIFT_STEP_MINS } from '../constants';
-import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../types';
+import type { Staff, Shift, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole, BusinessDayOverride } from '../types';
 import { buildLeaderMatcher } from './roleMatch';
 import { getEffectiveDutyNumbers } from './dutyNumber';
 
@@ -46,9 +47,11 @@ export const exportToExcelAdvanced = async (
     holidays: Holiday[] = [],
     excelSettings?: ExcelSettings,
     breakSettings?: BreakSettings,
-    roles: DynamicRole[] = []
+    roles: DynamicRole[] = [],
+    businessDayOverrides: BusinessDayOverride[] = []
 ) => {
     const holidayMap = createHolidayMap(holidays);
+    const businessDayOverrideMap = createBusinessDayOverrideMap(businessDayOverrides);
     // 休日理由の判定と色・テキストを返す
     const getHolidayInfo = (staff: Staff, date: Date, dateStr: string) => {
         const pref = preferences.find(p => p.staffId === staff.id);
@@ -154,7 +157,13 @@ export const exportToExcelAdvanced = async (
     days.forEach((day) => {
         const dateStr = format(day, 'yyyy-MM-dd');
         const dayOfWeek = getDay(day);
-        if (isHoliday(dateStr, holidayMap) || businessHours?.closedDays?.includes(dayOfWeek)) return;
+        const resolution = resolveBusinessDay({
+            date: day, dateStr,
+            closedDays: businessHours?.closedDays ?? [],
+            holiday: holidayMap.get(dateStr),
+            override: businessDayOverrideMap.get(dateStr),
+        });
+        if (!resolution.isOpen) return;
 
         const dayShifts = shifts.filter(s => s.date === dateStr);
         const startRowForDay = currentRow;

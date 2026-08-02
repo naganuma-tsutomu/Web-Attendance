@@ -1,7 +1,7 @@
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth, startOfISOWeek, subDays } from 'date-fns';
 import { timeToMinutes, calculateActualWorkingHours, timeRangesOverlap } from '../utils/timeUtils';
 import { UNASSIGNED_STAFF_ID, SHIFT_DAY, DEFAULT_CLOSED_DAYS, EARLY_SHIFT_BOUNDARY } from '../constants';
-import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern, RotationSettings, BreakSettings } from '../types';
+import type { Staff, ShiftPreference, Shift, DynamicRole, ShiftClass, ShiftRequirement, ShiftTimePattern, RotationSettings, BreakSettings, BusinessDayOverride } from '../types';
 
 export { isStaffAvailable, isStaffAvailableReason } from './availabilityUtils';
 import { isStaffAvailable, isStaffAvailableDuringTime } from './availabilityUtils';
@@ -293,7 +293,8 @@ export const generateShiftsForMonth = (
     rotationSettings?: RotationSettings, // ローテーション設定
     timePatterns?: ShiftTimePattern[], // 追加: アプリ全体のシフトパターン
     breakSettings?: BreakSettings, // 休憩設定
-    leaderRoleId: string | null = null // 1番ローテーション対象区分（post-pass用）
+    leaderRoleId: string | null = null, // 1番ローテーション対象区分（post-pass用）
+    businessDayOverrides: BusinessDayOverride[] = []
 ): Shift[] => {
     const [year, month] = yearMonth.split('-').map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
@@ -301,6 +302,7 @@ export const generateShiftsForMonth = (
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
     const generatedShifts: Shift[] = [];
+    const businessDayOverrideMap = new Map(businessDayOverrides.map(item => [item.date, item]));
 
     // Tracking staff hours for the month to balance
     const currentHours: Record<string, number> = {};
@@ -334,7 +336,8 @@ export const generateShiftsForMonth = (
         applyRotation(
             days, rotationSettings, staffList, preferences,
             generatedShifts, currentHours, currentWeeklyHours,
-            closedDays, holidays, fixedDates, existingShifts, allPatterns, classes, roles, breakSettings
+            closedDays, holidays, fixedDates, existingShifts, allPatterns, classes, roles, breakSettings,
+            businessDayOverrides
         );
     }
 
@@ -344,13 +347,18 @@ export const generateShiftsForMonth = (
     days.forEach(date => {
         const dateStr = format(date, 'yyyy-MM-dd');
         const dayOfWeek = getDay(date);
+        const businessDayOverride = businessDayOverrideMap.get(dateStr);
+        const individuallyOpen = businessDayOverride?.status === 'open';
 
-        if (closedDays.includes(dayOfWeek) || holidays.includes(dateStr) || fixedDates.includes(dateStr)) {
+        if (businessDayOverride?.status === 'closed' || (!individuallyOpen && (closedDays.includes(dayOfWeek) || holidays.includes(dateStr))) || fixedDates.includes(dateStr)) {
             return; // 休館日・祝日・固定日はスキップ
         }
 
+        const effectiveClosedDays = individuallyOpen ? closedDays.filter(day => day !== dayOfWeek && day !== 7) : closedDays;
+        const effectiveHoliday = individuallyOpen ? false : holidays.includes(dateStr);
+
         const availableStaff = staffList.filter(staff =>
-            isStaffAvailable(staff, date, dateStr, preferences, closedDays, holidays.includes(dateStr))
+            isStaffAvailable(staff, date, dateStr, preferences, effectiveClosedDays, effectiveHoliday)
         );
 
         // 曜日の必要要件を取得（優先度順）
@@ -394,7 +402,7 @@ export const generateShiftsForMonth = (
                         roles,
                         holidays,
                         breakSettings,
-                        closedDays,
+                        effectiveClosedDays,
                         slot.req.classId
                     );
 

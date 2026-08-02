@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Views, type View } from 'react-big-calendar';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
 import { isStaffAvailableReason } from '../../../lib/algorithm';
 import { CALENDAR_COLORS, DEFAULT_CLOSED_DAYS } from '../../../constants';
-import type { Shift, Staff, ShiftClass, ShiftPreference, BusinessHours } from '../../../types';
+import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
+import type { Shift, Staff, ShiftClass, ShiftPreference, BusinessHours, Holiday, BusinessDayOverride } from '../../../types';
 
 export interface CalendarEvent {
     id: string;
@@ -26,7 +27,9 @@ export const useCalendarEvents = (
     currentDate: Date,
     view: View,
     targetYearMonth: string,
-    businessHours: BusinessHours | undefined
+    businessHours: BusinessHours | undefined,
+    holidays: Holiday[] = [],
+    businessDayOverrides: BusinessDayOverride[] = []
 ) => {
     const { events, errorCount, errorDates } = useMemo(() => {
         const errorByDate = new Map<string, number>();
@@ -83,17 +86,17 @@ export const useCalendarEvents = (
         const dEnd = endOfMonth(dStart);
         const daysInMonth = eachDayOfInterval({ start: dStart, end: dEnd });
         const closedDays = businessHours?.closedDays || DEFAULT_CLOSED_DAYS;
+        const holidayMap = new Map(holidays.map(item => [item.date, item]));
+        const overrideMap = createBusinessDayOverrideMap(businessDayOverrides);
 
         daysInMonth.forEach(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
+            if (!resolveBusinessDay({ date: day, dateStr, closedDays, holiday: holidayMap.get(dateStr), override: overrideMap.get(dateStr) }).isOpen) return;
             if (!dailySummary[dateStr]) {
                 dailySummary[dateStr] = { classes: {}, insufficient: 0, requestedOff: 0, training: 0, fixedOff: 0 };
             }
 
             staffList.forEach(staff => {
-                const dayOfWeek = getDay(day);
-                if (closedDays.includes(dayOfWeek)) return;
-
                 const pref = preferences.find(p => p.staffId === staff.id);
                 let isTraining = false;
                 let isReqOff = false;
@@ -136,7 +139,7 @@ export const useCalendarEvents = (
             if (data.fixedOff > 0) summaries.push({ id: `summary-fixed-off-${dateStr}`, title: `固定休: ${data.fixedOff}名`, start: baseDate, end: baseDate, resourceId: '', isError: false, isSummary: true, type: 'fixed-off' });
         });
         return summaries;
-    }, [view, targetYearMonth, events, staffList, preferences, classes, businessHours?.closedDays]);
+    }, [view, targetYearMonth, events, staffList, preferences, classes, businessHours?.closedDays, holidays, businessDayOverrides]);
 
     const eventStyleGetter = (event: CalendarEvent) => {
         const style: Record<string, string | number> = {

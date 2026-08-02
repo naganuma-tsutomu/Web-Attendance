@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock } from 'lucide-react';
-import { getShiftsByMonth, getPreferencesByMonth, getStaffList, getClasses, getTimePatterns, getRoles, getHolidays, getBusinessHours } from '../lib/api';
+import { getShiftsByMonth, getPreferencesByMonth, getStaffList, getClasses, getTimePatterns, getRoles, getHolidays, getBusinessHours, getBusinessDayOverrides } from '../lib/api';
 import { QUERY_KEYS } from '../lib/hooks';
 import type { ShiftPreferenceDetail } from '../types';
 
@@ -68,6 +68,11 @@ const StaffPreferencePage = () => {
         queryFn: () => getHolidays(currentYear),
         enabled: !!staff,
         staleTime: 24 * 60 * 60 * 1000,
+    });
+    const { data: businessDayOverrides = [] } = useQuery({
+        queryKey: QUERY_KEYS.businessDayOverrides(monthStr),
+        queryFn: () => getBusinessDayOverrides(monthStr),
+        enabled: !!staff,
     });
     const { data: prefsData, isLoading: prefsLoading } = useQuery({
         queryKey: QUERY_KEYS.preferences(monthStr),
@@ -179,6 +184,7 @@ const StaffPreferencePage = () => {
                         setMessage={setMessage}
                         myShifts={myShifts}
                         holidays={holidays}
+                        businessDayOverrides={businessDayOverrides}
                         myAvailableDays={myAvailableDays}
                         closedDays={closedDays}
                     />

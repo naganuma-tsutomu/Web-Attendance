@@ -124,6 +124,15 @@ export const HolidaySchema = z.object({
   updated_at: z.string().optional().nullable(),
 });
 
+export const BusinessDayOverrideSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  status: z.enum(['open', 'closed']),
+  name: z.string(),
+  created_at: z.string().optional().nullable(),
+  updated_at: z.string().optional().nullable(),
+});
+
 export const BusinessHoursSchema = z.object({
   startHour: z.number().multipleOf(0.5),
   endHour: z.number().multipleOf(0.5),

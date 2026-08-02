@@ -18,8 +18,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         
         query += ' ORDER BY date';
         
-        const { results: holidays } = await context.env.DB.prepare(query).bind(...params).all();
-        return Response.json(holidays);
+        const { results: holidays } = await context.env.DB.prepare(query).bind(...params).all<Record<string, unknown>>();
+        return Response.json(holidays.map(holiday => ({
+            ...holiday,
+            isWorkday: Boolean(holiday.is_workday),
+        })));
     } catch (e) { 
         return handleServerError(e, 'Database error fetching holidays'); 
     }

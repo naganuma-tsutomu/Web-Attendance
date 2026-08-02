@@ -33,9 +33,7 @@ const WeeklyTimelineView: React.FC<WeeklyTimelineViewProps> = ({
     const weekStartsOn = getWeekStartsOn();
     const weekStart = startOfWeek(startDate, { locale: ja, weekStartsOn });
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).filter(day => {
-        const isClosedDay = businessHours?.closedDays?.includes(day.getDay()) || false;
-        const isNationalHoliday = isHolidayDate ? isHolidayDate(day) : false;
-        return !isClosedDay && !isNationalHoliday;
+        return !(isHolidayDate ? isHolidayDate(day) : businessHours?.closedDays?.includes(day.getDay()));
     });
 
     return (

@@ -3,9 +3,11 @@ import { addMonths, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth,
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-    useBusinessDayOverrides, useCreateBusinessDayOverride,
+    useBusinessDayOverrides, useBusinessHours, useCreateBusinessDayOverride,
     useDeleteBusinessDayOverride, useUpdateBusinessDayOverride,
+    useHolidays,
 } from '../../../lib/hooks';
+import { resolveBusinessDay } from '../../../lib/businessDayUtils';
 import type { BusinessDayOverride } from '../../../types';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -13,7 +15,9 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const BusinessDayOverridesSection = () => {
     const [month, setMonth] = useState(() => startOfMonth(new Date()));
     const yearMonth = format(month, 'yyyy-MM');
-    const { data: overrides = [], isLoading } = useBusinessDayOverrides(yearMonth);
+    const { data: overrides = [], isLoading: isLoadingOverrides } = useBusinessDayOverrides(yearMonth);
+    const { data: businessHours, isLoading: isLoadingBusinessHours } = useBusinessHours();
+    const { data: holidays = [], isLoading: isLoadingHolidays } = useHolidays(month.getFullYear());
     const createMutation = useCreateBusinessDayOverride();
     const updateMutation = useUpdateBusinessDayOverride();
     const deleteMutation = useDeleteBusinessDayOverride();
@@ -22,14 +26,26 @@ const BusinessDayOverridesSection = () => {
     const [name, setName] = useState('');
 
     const overrideMap = useMemo(() => new Map(overrides.map(item => [item.date, item])), [overrides]);
+    const holidayMap = useMemo(() => new Map(holidays.map(item => [item.date, item])), [holidays]);
+    const closedDays = businessHours?.closedDays ?? [];
     const days = useMemo(() => eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) }), [month]);
     const selected = selectedDate ? overrideMap.get(selectedDate) : undefined;
     const saving = createMutation.isPending || updateMutation.isPending;
+    const isLoading = isLoadingOverrides || isLoadingBusinessHours || isLoadingHolidays;
 
     const selectDate = (date: string) => {
         const item = overrideMap.get(date);
+        const day = new Date(`${date}T00:00:00`);
+        const current = resolveBusinessDay({
+            date: day,
+            dateStr: date,
+            closedDays,
+            holiday: holidayMap.get(date),
+            override: item,
+        });
         setSelectedDate(date);
-        setStatus(item?.status ?? 'closed');
+        // 未設定の日は、現在の営業状態を反転する選択肢を初期値にする。
+        setStatus(item?.status ?? (current.isOpen ? 'closed' : 'open'));
         setName(item?.name ?? '');
     };
 
@@ -83,14 +99,34 @@ const BusinessDayOverridesSection = () => {
                     {days.map(day => {
                         const date = format(day, 'yyyy-MM-dd');
                         const item = overrideMap.get(date);
+                        const holiday = holidayMap.get(date);
+                        const isNationalHoliday = !!holiday && !holiday.isWorkday;
+                        const current = resolveBusinessDay({ date: day, dateStr: date, closedDays, holiday, override: item });
                         const active = selectedDate === date;
+                        const stateLabel = item
+                            ? `個別${current.isOpen ? '営業' : '休業'}: ${item.name}`
+                            : isNationalHoliday
+                                ? `祝日（${current.isOpen ? '営業' : '休業'}）: ${holiday.name}`
+                                : current.reason === 'weekly_closed'
+                                    ? '固定休館日'
+                                    : '営業日';
                         return (
-                            <button key={date} type="button" onClick={() => selectDate(date)} title={item?.name}
-                                className={`aspect-square rounded-lg text-sm border transition-colors ${active ? 'ring-2 ring-indigo-500' : ''} ${item?.status === 'open' ? 'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' : item?.status === 'closed' ? 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/40 dark:text-red-200' : 'border-slate-100 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700'}`}>
-                                {format(day, 'd')}
+                            <button key={date} type="button" onClick={() => selectDate(date)} title={stateLabel}
+                                aria-label={`${format(day, 'M月d日')} ${stateLabel}`}
+                                className={`aspect-square rounded-lg text-sm border transition-colors flex flex-col items-center justify-center ${active ? 'ring-2 ring-indigo-500' : ''} ${item?.status === 'open' ? 'bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200' : item?.status === 'closed' ? 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/40 dark:text-red-200' : isNationalHoliday && !current.isOpen ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/30 dark:border-red-900 dark:text-red-300' : current.reason === 'weekly_closed' ? 'bg-slate-100 border-slate-300 text-slate-500 dark:bg-slate-900/60 dark:border-slate-600 dark:text-slate-400' : isNationalHoliday ? 'border-red-200 text-red-500 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/20' : 'border-slate-100 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700'}`}>
+                                <span>{format(day, 'd')}</span>
+                                {item && <span className="text-[8px] font-bold leading-none mt-0.5">個別</span>}
+                                {!item && isNationalHoliday && <span className="text-[8px] font-bold leading-none mt-0.5">祝日</span>}
+                                {!item && !isNationalHoliday && current.reason === 'weekly_closed' && <span className="text-[8px] font-bold leading-none mt-0.5">休館</span>}
                             </button>
                         );
                     })}
+                </div>
+                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3 text-xs text-slate-500 dark:text-slate-400">
+                    <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-slate-200 dark:bg-slate-600 mr-1" />固定休館日</span>
+                    <span><span className="inline-block w-2.5 h-2.5 rounded-sm border border-red-300 bg-red-50 dark:bg-red-900 mr-1" />祝日</span>
+                    <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-200 dark:bg-emerald-800 mr-1" />個別営業</span>
+                    <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-300 dark:bg-red-700 mr-1" />個別休業</span>
                 </div>
             </div>
 

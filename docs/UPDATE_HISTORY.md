@@ -4,6 +4,16 @@ Web-Attendanceの主な機能追加と変更内容を、バージョンごとに
 
 [GitHubリポジトリ](https://github.com/naganuma-tsutomu/Web-Attendance) / [リリース一覧](https://github.com/naganuma-tsutomu/Web-Attendance/releases)
 
+## v2.7.3
+
+[GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v2.7.3)
+
+- **スマートフォン表示を統一**: 管理画面のタイトル、横幅、余白、追加ボタンを共通のサイズとレイアウトに揃えました
+- **ダッシュボードをスマートフォン向けに改善**: 集計カードを2列表示にし、スタッフ別予定時間を横スクロール不要のカード表示へ変更しました
+- **月ナビゲーションを共通化**: ダッシュボード、スタッフ管理、休日管理、操作履歴で同じ月選択を使用し、タップ領域とカレンダーアイコンを統一しました
+- **操作履歴の視認性を改善**: 履歴内容の左端を揃え、操作種別をスマートフォンでは右側、PCではイベント名の直後に表示するようにしました
+- **スマートフォンメニューを改善**: ハンバーガーメニューをヘッダー左側へ移動し、施設名との間隔を調整しました
+
 ## v2.7.2
 
 [GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v2.7.2)

@@ -1,6 +1,7 @@
 import { createValidationError, handleServerError, validateYearMonth, validateDate, validateTimeRange } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
 import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { writeAuditLog } from '../../utils/auditLog';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -115,6 +116,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             throw batchError;
         }
 
+        await writeAuditLog(context.env, context.request, { action: 'create', entityType: 'shift', yearMonth: shiftsData[0]?.date.slice(0, 7), summary: `${shiftsData.length}件のシフトを追加`, metadata: { count: shiftsData.length, ids: insertedIds } });
         return Response.json({ success: true, message: `Successfully inserted ${shiftsData.length} shifts` });
     } catch (e) {
         return handleServerError(e, 'POST /shifts');
@@ -130,10 +132,10 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
         const [y, m] = yearMonth!.split('-').map(Number);
         const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-        await context.env.DB.prepare(
+        const result = await context.env.DB.prepare(
             "DELETE FROM shifts WHERE date >= ? AND date < ?"
         ).bind(`${yearMonth}-01`, nextMonth).run();
-
+        await writeAuditLog(context.env, context.request, { action: 'delete', entityType: 'shift_month', yearMonth, summary: `${yearMonth}のシフトを削除`, metadata: { count: result.meta.changes } });
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
         return handleServerError(e, 'DELETE /shifts');

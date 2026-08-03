@@ -92,7 +92,7 @@ wrangler pages deploy dist
 2. **マイグレーション実行**
 
    ```bash
-   wrangler d1 execute web-attendance-db --file=migrations/0001_initial_schema_updates.sql
+wrangler d1 execute web-attendance-db --file=migrations/0001_initial_schema_updates.sql
    ```
 
    ローカルで事前検証する場合:
@@ -102,6 +102,12 @@ wrangler pages deploy dist
    ```
 
 > **注意**: 新規環境（初回セットアップ）は `schema.sql` のみで OK。マイグレーションは不要。
+
+機能追加後のマイグレーションは番号順に適用する。操作履歴機能を利用する環境では、次も実行する。
+
+```bash
+wrangler d1 execute web-attendance-db --file=migrations/0004_audit_logs.sql
+```
 
 ### 環境
 
@@ -129,6 +135,9 @@ wrangler pages deploy dist --env preview
 | CSV インポート | 外部で作成したシフトデータを CSV 形式でインポート |
 | ローテーション設定 | 早番・遅番のローテーションルール（平日・土曜別）を設定画面から管理 |
 | 生成レポート表示設定 | 自動生成後に生成レポートを自動表示するかを表示設定から切り替え可能 |
+| シフト常時チェック | 希望休競合、休業日勤務、営業時間外、必要人数不足、目標時間超過などを月単位で検出 |
+| 集計ダッシュボード | スタッフ別予定時間、クラス別充足率、未割当、希望休提出状況を表示 |
+| 操作履歴 | シフト、希望休、ロック、バックアップ復元、個別営業日・休業日の主要変更を記録 |
 
 ## 運用上のセキュリティ設定
 

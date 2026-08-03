@@ -21,6 +21,8 @@ import StaffPreferencePage from './pages/StaffPreferencePage';
 import LandingPage from './pages/LandingPage';
 import UserManualPage from './pages/UserManualPage';
 import UpdateHistoryPage from './pages/UpdateHistoryPage';
+import DashboardPage from './features/dashboard/DashboardPage';
+import AuditLogPage from './features/audit/AuditLogPage';
 import { UnsavedChangesProvider } from './lib/UnsavedChangesContext';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -60,6 +62,8 @@ const AppRoutes = () => {
           }
         >
           <Route index element={<SchedulePage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="audit-logs" element={<AuditLogPage />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="preferences" element={<PreferencesPage />} />
           <Route path="settings" element={<Navigate to="/admin/settings/patterns" replace />} />

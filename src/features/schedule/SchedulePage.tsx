@@ -25,6 +25,8 @@ import { useScheduleData, type CalendarEvent, type EditFormData } from './hooks/
 import { getWeekStartsOn } from '../../utils/dateUtils';
 import { UNASSIGNED_STAFF_ID } from '../../constants';
 import { useUnsavedChanges } from '../../lib/UnsavedChangesContext';
+import { analyzeSchedule } from '../../lib/scheduleAnalysis';
+import ScheduleIssuesPanel from '../schedule-analysis/components/ScheduleIssuesPanel';
 
 const localizer = dateFnsLocalizer({
     format,
@@ -72,6 +74,19 @@ const SchedulePage = () => {
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isIssuesOpen, setIsIssuesOpen] = useState(false);
+    const analysis = useMemo(() => analyzeSchedule({
+        yearMonth: schedule.targetYearMonth,
+        shifts: schedule.rawShifts,
+        staffs: schedule.staffList,
+        classes: schedule.classes,
+        preferences: schedule.preferences,
+        requirements: schedule.requirements,
+        holidays: schedule.holidays,
+        businessDayOverrides: schedule.businessDayOverrides,
+        businessHours: schedule.businessHours,
+        breakSettings: schedule.breakSettings,
+    }), [schedule.targetYearMonth, schedule.rawShifts, schedule.staffList, schedule.classes, schedule.preferences, schedule.requirements, schedule.holidays, schedule.businessDayOverrides, schedule.businessHours, schedule.breakSettings]);
 
     const handleOpenTimeline = useCallback((date: Date) => {
         setSelectedDateForTimeline(date);
@@ -163,7 +178,11 @@ const SchedulePage = () => {
                 roles={schedule.roles}
                 hasGenerationReport={!!schedule.generationReport}
                 isBulkLockPending={schedule.isBulkLockPending}
+                analysisErrorCount={analysis.summary.errorCount}
+                analysisWarningCount={analysis.summary.warningCount}
+                onOpenIssues={() => setIsIssuesOpen(true)}
             />
+            <ScheduleIssuesPanel analysis={analysis} isOpen={isIssuesOpen} onClose={() => setIsIssuesOpen(false)} onSelectDate={(date) => handleOpenTimeline(new Date(`${date}T00:00:00`))} />
 
             {/* Calendar and Summary Area */}
             <div className="flex-1 overflow-hidden px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8 flex flex-col lg:flex-row gap-4">

@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1Row, Env } from '../../../types';
+import { writeAuditLog } from '../../../utils/auditLog';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
@@ -27,6 +28,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             `UPDATE business_day_overrides SET ${sets.join(', ')} WHERE id = ?`
         ).bind(...params).run();
         if (!result.meta.changes) return Response.json({ error: '個別設定が見つかりません' }, { status: 404 });
+        const updated = context.env.ADMIN_PASSWORD
+            ? await context.env.DB.prepare('SELECT * FROM business_day_overrides WHERE id = ?').bind(id).first<D1Row>()
+            : null;
+        await writeAuditLog(context.env, context.request, { action: 'update', entityType: 'business_day_override', entityId: id, yearMonth: updated ? String(updated.date).slice(0, 7) : null, targetDate: updated ? String(updated.date) : null, summary: '個別営業日・休業日を更新', after: updated ?? body });
         return new Response(null, { status: 204 });
     } catch (e) {
         return handleServerError(e, 'Database error updating business day override');
@@ -35,10 +40,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
+        const id = context.params.id as string;
+        const current = context.env.ADMIN_PASSWORD
+            ? await context.env.DB.prepare('SELECT * FROM business_day_overrides WHERE id = ?').bind(id).first<D1Row>()
+            : null;
         const result = await context.env.DB.prepare(
             'DELETE FROM business_day_overrides WHERE id = ?'
-        ).bind(context.params.id as string).run();
+        ).bind(id).run();
         if (!result.meta.changes) return Response.json({ error: '個別設定が見つかりません' }, { status: 404 });
+        await writeAuditLog(context.env, context.request, { action: 'delete', entityType: 'business_day_override', entityId: id, yearMonth: current ? String(current.date).slice(0, 7) : null, targetDate: current ? String(current.date) : null, summary: '個別営業日・休業日を削除', before: current ?? undefined });
         return new Response(null, { status: 204 });
     } catch (e) {
         return handleServerError(e, 'Database error deleting business day override');

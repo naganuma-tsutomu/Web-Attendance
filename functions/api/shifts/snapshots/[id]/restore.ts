@@ -2,6 +2,7 @@ import { createValidationError, handleServerError, validateYearMonth } from '../
 import type { Env, D1Row } from '../../../../types';
 import { parseSnapshotFixedDates, parseSnapshotShifts } from '../index';
 import { validateNoShiftConflicts } from '../../../../utils/shiftIntegrity';
+import { writeAuditLog } from '../../../../utils/auditLog';
 
 const SNAPSHOT_KEEP_LIMIT = 20;
 
@@ -122,6 +123,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                  LIMIT ?
                )`
         ).bind(yearMonth, yearMonth, SNAPSHOT_KEEP_LIMIT).run();
+
+        await writeAuditLog(context.env, context.request, { action: 'restore', entityType: 'shift_snapshot', entityId: id, yearMonth, summary: `${yearMonth}のバックアップを復元`, metadata: { restoredShiftCount: shifts.length, restoredFixedDateCount: fixedDates.length, preRestoreSnapshotId } });
 
         return Response.json({
             success: true,

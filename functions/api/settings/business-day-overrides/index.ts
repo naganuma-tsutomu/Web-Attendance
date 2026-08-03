@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateDate, validateYearMonth } from '../../../utils/validation';
 import type { Env } from '../../../types';
+import { writeAuditLog } from '../../../utils/auditLog';
 
 type OverrideInput = { date?: string; status?: string; name?: string };
 
@@ -55,6 +56,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         await context.env.DB.prepare(
             'INSERT INTO business_day_overrides (id, date, status, name) VALUES (?, ?, ?, ?)'
         ).bind(id, body.date!, body.status!, (body.name ?? '').trim()).run();
+        await writeAuditLog(context.env, context.request, { action: 'create', entityType: 'business_day_override', entityId: id, yearMonth: body.date!.slice(0, 7), targetDate: body.date, summary: '個別営業日・休業日を作成', after: body });
         return Response.json({ id }, { status: 201 });
     } catch (e) {
         if (e instanceof Error && e.message.includes('UNIQUE constraint failed')) {

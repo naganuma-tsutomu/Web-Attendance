@@ -12,7 +12,7 @@ import {
     getBreakSettings, updateBreakSettings,
     getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot,
     getShiftRequirementTemplates, toggleFixedDate, createBusinessDayOverride,
-    updateBusinessDayOverride, deleteBusinessDayOverride, createBusinessDayOverridesBulk
+    updateBusinessDayOverride, deleteBusinessDayOverride, createBusinessDayOverridesBulk, getAuditLogs
 } from './api';
 import type { Staff, Shift, ShiftPreference, BusinessDayOverride, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
 
@@ -36,7 +36,15 @@ export const QUERY_KEYS = {
     schedulePreferences: ['schedulePreferences'],
     rotationSettings: ['rotationSettings'],
     breakSettings: ['breakSettings'],
+    auditLogs: (yearMonth: string, action: string) => ['auditLogs', yearMonth, action],
 };
+
+export const useAuditLogs = (yearMonth: string, action = '') => useQuery({
+    queryKey: QUERY_KEYS.auditLogs(yearMonth, action),
+    queryFn: () => getAuditLogs({ yearMonth, action: action || undefined, limit: 100 }),
+    staleTime: 0,
+    refetchOnMount: 'always',
+});
 
 // ==============================
 // Queries (データ取得)

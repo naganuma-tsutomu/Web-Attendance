@@ -24,7 +24,8 @@ import type {
     BusinessHoursInferred,
     SchedulePreferencesInferred,
     ExcelSettingsSchema,
-    ExcelHighlightRuleSchema
+    ExcelHighlightRuleSchema,
+    AuditLogInferred,
 } from './schemas';
 
 // ==========================================
@@ -183,3 +184,5 @@ export interface RotationSettings {
     saturdayPreferFridayLate: boolean;
     saturdayPatternId?: string;
 }
+
+export type AuditLog = AuditLogInferred;

@@ -3,6 +3,7 @@ import type { ShiftPreference } from '../../../src/types';
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
 import { getRequestAuthState, type RequestAuthState } from '../../utils';
+import { writeAuditLog } from '../../utils/auditLog';
 
 function buildStaffFilter(authState: RequestAuthState): { where: string; extra: string[] } {
     if (authState.kind === 'staff') {
@@ -120,6 +121,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         });
 
         await context.env.DB.batch(statements);
+        await writeAuditLog(context.env, context.request, { action: existing ? 'update' : 'create', entityType: 'shift_preference', entityId: pref.staffId, yearMonth: pref.yearMonth, summary: '希望休を保存', after: { staffId: pref.staffId, submitted: pref.submitted, details }, metadata: { detailCount: details.length } });
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'POST /preferences');
@@ -152,6 +154,8 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
                 "UPDATE shift_preferences SET submitted = ? WHERE staffId = ? AND yearMonth = ?"
             ).bind(submittedValue, body.staffId, body.yearMonth).run();
         }
+
+        await writeAuditLog(context.env, context.request, { action: 'update', entityType: 'preference_submission', entityId: body.staffId, yearMonth: body.yearMonth, summary: body.submitted ? '希望休を提出済みに変更' : '希望休を未提出に変更', after: { submitted: body.submitted } });
 
         return Response.json({ success: true });
     } catch (e) {

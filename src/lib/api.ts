@@ -1,14 +1,23 @@
 import { z } from 'zod';
-import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, ShiftRequirementTemplate, Holiday, BusinessDayOverride, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata } from '../types';
+import type { Staff, ShiftPreference, Shift, ShiftTimePattern, DynamicRole, ShiftClass, ShiftRequirement, ShiftRequirementTemplate, Holiday, BusinessDayOverride, BusinessHours, ExcelSettings, RotationSettings, BreakSettings, SchedulePreferences, ShiftSnapshotMetadata, AuditLog } from '../types';
 import {
     StaffSchema, ShiftPreferenceSchema, ShiftSchema, ShiftTimePatternSchema,
     DynamicRoleSchema, ShiftClassSchema, ShiftRequirementSchema, ShiftRequirementTemplateSchema, HolidaySchema, BusinessDayOverrideSchema, BusinessHoursSchema, ExcelSettingsSchema,
-    BreakSettingsSchema, SchedulePreferencesSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema
+    BreakSettingsSchema, SchedulePreferencesSchema, RotationSettingsSchema, ShiftSnapshotMetadataSchema, AuditLogPageSchema
 } from '../types/schemas';
 import { getLastHolidaySyncDate, setLastHolidaySyncDate } from '../utils/dateUtils';
 import { ApiError } from './errorHandler';
 
 const API_BASE = '/api';
+
+export const getAuditLogs = async (params: { yearMonth?: string; action?: string; cursor?: string; limit?: number } = {}): Promise<{ items: AuditLog[]; nextCursor: string | null }> => {
+    const search = new URLSearchParams();
+    if (params.yearMonth) search.set('yearMonth', params.yearMonth);
+    if (params.action) search.set('action', params.action);
+    if (params.cursor) search.set('cursor', params.cursor);
+    if (params.limit) search.set('limit', String(params.limit));
+    return apiFetch(`/audit-logs?${search.toString()}`, {}, AuditLogPageSchema) as Promise<{ items: AuditLog[]; nextCursor: string | null }>;
+};
 
 type ParseableSchema = {
     safeParse(data: unknown): { success: boolean; data?: unknown; error?: { format(): unknown } };

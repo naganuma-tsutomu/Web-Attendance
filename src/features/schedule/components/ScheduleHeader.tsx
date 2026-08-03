@@ -43,6 +43,9 @@ interface ScheduleHeaderProps {
     roles?: DynamicRole[];
     hasGenerationReport?: boolean;
     isBulkLockPending?: boolean;
+    analysisErrorCount?: number;
+    analysisWarningCount?: number;
+    onOpenIssues?: () => void;
 }
 
 const ScheduleHeader = ({
@@ -80,6 +83,9 @@ const ScheduleHeader = ({
     roles = [],
     hasGenerationReport = false,
     isBulkLockPending = false,
+    analysisErrorCount = 0,
+    analysisWarningCount = 0,
+    onOpenIssues = () => {},
 }: ScheduleHeaderProps) => {
     const [showDesktopMoreMenu, setShowDesktopMoreMenu] = useState(false);
     const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
@@ -303,6 +309,10 @@ const ScheduleHeader = ({
                     </div>
                 </div>
             </div>
+            <button onClick={onOpenIssues} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors ${analysisErrorCount > 0 ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300' : analysisWarningCount > 0 ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'}`}>
+                <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4" />シフトチェック</span>
+                <span className="font-bold">エラー {analysisErrorCount}件・警告 {analysisWarningCount}件</span>
+            </button>
 
             {/* Warning Banner */}
             {errorCount > 0 && (

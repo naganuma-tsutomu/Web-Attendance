@@ -8,7 +8,7 @@ import {
 import {
     QUERY_KEYS, useStaffList, useClasses, useTimePatterns, useRoles,
     useBusinessHours, useExcelSettings, useBreakSettings,
-    useSchedulePreferences,
+    useSchedulePreferences, useShiftRequirements,
 } from '../../../lib/hooks';
 import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
@@ -45,6 +45,7 @@ export const useScheduleData = () => {
     const { data: excelSettings } = useExcelSettings();
     const { data: breakSettings } = useBreakSettings();
     const { data: schedulePreferences } = useSchedulePreferences();
+    const { data: requirements = [], isLoading: isLoadingRequirements } = useShiftRequirements();
 
     // 動的な複数月データフェッチ
     const { rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
@@ -111,7 +112,7 @@ export const useScheduleData = () => {
     };
 
     // Loading & Error States
-    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays || isLoadingBusinessDayOverrides;
+    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingRequirements || isLoadingHolidays || isLoadingBusinessDayOverrides;
     const loadError = isError || hasBusinessDayQueryError ? 'データの読み込みに失敗しました。' : null;
 
     // 変更ハンドラ群（生成・消去・更新・固定日切り替え）
@@ -149,6 +150,7 @@ export const useScheduleData = () => {
         businessHours,
         excelSettings,
         breakSettings,
+        requirements,
         summaryEvents,
 
         // UI状態

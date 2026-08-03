@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env } from '../../types';
+import { writeAuditLog } from '../../utils/auditLog';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -44,6 +45,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         await context.env.DB.batch(statements);
 
+        await writeAuditLog(context.env, context.request, { action: 'update', entityType: 'fixed_dates', yearMonth, summary: `${yearMonth}のロック日を一括更新`, after: uniqueDates, metadata: { count: uniqueDates.length } });
+
         return Response.json({ success: true, message: `Successfully updated fixed dates` });
     } catch (e) {
         return handleServerError(e, 'POST /fixed-dates');
@@ -77,6 +80,8 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
                 'DELETE FROM fixed_dates WHERE date = ?'
             ).bind(date).run();
         }
+
+        await writeAuditLog(context.env, context.request, { action: fixed ? 'lock' : 'unlock', entityType: 'fixed_date', entityId: date, yearMonth, targetDate: date, summary: fixed ? `${date}をロック` : `${date}のロックを解除` });
 
         return Response.json({ success: true });
     } catch (e) {

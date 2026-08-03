@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateDate } from '../../../utils/validation';
 import type { Env } from '../../../types';
+import { writeAuditLog } from '../../../utils/auditLog';
 
 type BulkInput = { startDate?: string; endDate?: string; status?: string; name?: string };
 
@@ -47,6 +48,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             'INSERT INTO business_day_overrides (id, date, status, name) VALUES (?, ?, ?, ?)'
         ).bind(ids[index], date, body.status!, (body.name ?? '').trim()));
         await context.env.DB.batch(statements);
+        await writeAuditLog(context.env, context.request, { action: 'create', entityType: 'business_day_override_bulk', yearMonth: body.startDate!.slice(0, 7), targetDate: body.startDate, summary: `${ids.length}日分の個別営業日・休業日を一括作成`, after: body, metadata: { endDate: body.endDate, count: ids.length } });
         return Response.json({ ids, count: ids.length }, { status: 201 });
     } catch (e) {
         return handleServerError(e, 'Database error bulk creating business day overrides');

@@ -141,9 +141,17 @@ export default function PreferenceTab({
                             const isPartial = pref && pref.startTime && pref.endTime && !isTraining;
                             const hasShift = myShifts.some(s => s.date === dateStr);
                             const isSunday = getDay(day) === 0;
-                            const fixedHoliday = isSunday || isFixedHoliday(day);
+                            const override = overrideMap.get(dateStr);
+                            const fixedHoliday = isFixedHoliday(day);
                             const holidayData = holidays.find(h => h.date === dateStr);
                             const isNationalHoliday = !!holidayData && !holidayData.isWorkday;
+                            const closedLabel = override?.status === 'closed'
+                                ? override.name
+                                : isNationalHoliday
+                                    ? (holidayData?.name || '祝日')
+                                    : isSunday
+                                        ? '休日'
+                                        : '固定休';
 
                             return (
                                 <button
@@ -168,7 +176,7 @@ export default function PreferenceTab({
                                 >
                                     <span className="text-sm font-black">{format(day, 'd')}</span>
                                     {fixedHoliday && (
-                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{isNationalHoliday ? (holidayData?.name || '祝日') : isSunday ? '休日' : '固定休'}</span>
+                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{closedLabel}</span>
                                     )}
                                     {!fixedHoliday && isNationalHoliday && !isSelected && (
                                         <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{holidayData?.name || '祝日'}</span>

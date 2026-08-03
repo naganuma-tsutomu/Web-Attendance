@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format } from 'date-fns';
+import { useQueries } from '@tanstack/react-query';
 import {
-    syncHolidaysIfNeeded,
+    getBusinessDayOverrides, getHolidays, syncHolidaysIfNeeded,
 } from '../../../lib/api';
 import {
-    useStaffList, useClasses, useTimePatterns, useRoles, useHolidays,
+    QUERY_KEYS, useStaffList, useClasses, useTimePatterns, useRoles,
     useBusinessHours, useExcelSettings, useBreakSettings,
-    useSchedulePreferences, useBusinessDayOverrides,
+    useSchedulePreferences,
 } from '../../../lib/hooks';
 import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
@@ -40,15 +41,31 @@ export const useScheduleData = () => {
     const { data: classes = [], isLoading: isLoadingClasses } = useClasses();
     const { data: timePatterns = [], isLoading: isLoadingPatterns } = useTimePatterns();
     const { data: roles = [], isLoading: isLoadingRoles } = useRoles();
-    const { data: holidays = [], isLoading: isLoadingHolidays } = useHolidays(currentDate.getFullYear());
-    const { data: businessDayOverrides = [], isLoading: isLoadingBusinessDayOverrides } = useBusinessDayOverrides(targetYearMonth);
     const { data: businessHours } = useBusinessHours();
     const { data: excelSettings } = useExcelSettings();
     const { data: breakSettings } = useBreakSettings();
     const { data: schedulePreferences } = useSchedulePreferences();
 
     // 動的な複数月データフェッチ
-    const { rawShifts, preferences, fixedDates, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
+    const { rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
+    const yearsToFetch = useMemo(() => Array.from(new Set(monthsToFetch.map(month => Number(month.slice(0, 4))))), [monthsToFetch]);
+
+    const holidayQueries = useQueries({
+        queries: yearsToFetch.map(year => ({
+            queryKey: QUERY_KEYS.holidays(year),
+            queryFn: () => getHolidays(year),
+        })),
+    });
+    const overrideQueries = useQueries({
+        queries: monthsToFetch.map(month => ({
+            queryKey: QUERY_KEYS.businessDayOverrides(month),
+            queryFn: () => getBusinessDayOverrides(month),
+        })),
+    });
+    const holidays = useMemo(() => holidayQueries.flatMap(query => query.data ?? []), [holidayQueries]);
+    const businessDayOverrides = useMemo(() => overrideQueries.flatMap(query => query.data ?? []), [overrideQueries]);
+    const isLoadingHolidays = holidayQueries.some(query => query.isLoading);
+    const isLoadingBusinessDayOverrides = overrideQueries.some(query => query.isLoading);
 
     // カレンダーイベント構築
     const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(

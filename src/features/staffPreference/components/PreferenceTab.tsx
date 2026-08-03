@@ -173,7 +173,7 @@ export default function PreferenceTab({
                                                 ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400 cursor-not-allowed'
                                                 : isSelected
                                                     ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400'
-                                                    : isNationalHoliday && !isIndividuallyOpen
+                                                    : isNationalHoliday
                                                         ? 'bg-white dark:bg-slate-900 border-red-200 hover:border-red-300 dark:border-red-800 text-red-600 dark:text-red-400'
                                                         : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                                     }`}

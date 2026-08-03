@@ -4,6 +4,16 @@ Web-Attendanceの主な機能追加と変更内容を、バージョンごとに
 
 [GitHubリポジトリ](https://github.com/naganuma-tsutomu/Web-Attendance) / [リリース一覧](https://github.com/naganuma-tsutomu/Web-Attendance/releases)
 
+## v2.7.1
+
+[GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v2.7.1)
+
+- **個別営業日・休業日の期間登録に対応**: 1日だけでなく、開始日から終了日までの連続した日付をまとめて営業または休業に設定できるようになりました
+- **理由を任意入力に変更**: 通常は未入力のまま登録でき、夏季休業などの説明が必要な場合だけ理由を記録できるようになりました
+- **既存シフトがある休業設定を改善**: 登録前に対象シフト数を表示し、設定のみ保存するか、シフトも削除して保存するかを選択できるようになりました
+- **営業・休業の表示を統一**: 個別設定は「営業」または「休業」と表示し、理由がある休業日はその理由、固定休館日は「固定休」、祝日は祝日名をカレンダー・シフト表・休日管理で共通表示するようにしました
+- **Excel出力の営業日判定を統一**: 個別休業日のシフトを出力対象から除外し、画面の営業日判定と一致するようにしました
+
 ## v2.7.0
 
 [GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v2.7.0)

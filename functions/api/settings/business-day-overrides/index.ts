@@ -1,4 +1,4 @@
-import { createValidationError, handleServerError, validateDate, validateName, validateYearMonth } from '../../../utils/validation';
+import { createValidationError, handleServerError, validateDate, validateYearMonth } from '../../../utils/validation';
 import type { Env } from '../../../types';
 
 type OverrideInput = { date?: string; status?: string; name?: string };
@@ -9,7 +9,9 @@ const validateInput = (body: OverrideInput): string | null => {
     if (body.status !== 'open' && body.status !== 'closed') {
         return '営業状態はopenまたはclosedで指定してください';
     }
-    return validateName(body.name ?? '', '名称', 100);
+    if (body.name !== undefined && typeof body.name !== 'string') return '理由は文字列で入力してください';
+    if ((body.name ?? '').trim().length > 100) return '理由は100文字以内で入力してください';
+    return null;
 };
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -52,7 +54,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const id = `bdo_${crypto.randomUUID()}`;
         await context.env.DB.prepare(
             'INSERT INTO business_day_overrides (id, date, status, name) VALUES (?, ?, ?, ?)'
-        ).bind(id, body.date, body.status, body.name!.trim()).run();
+        ).bind(id, body.date!, body.status!, (body.name ?? '').trim()).run();
         return Response.json({ id }, { status: 201 });
     } catch (e) {
         if (e instanceof Error && e.message.includes('UNIQUE constraint failed')) {

@@ -20,7 +20,9 @@ export const generateMonthDays = (baseDate: Date, holidays: Holiday[], closedDay
             isHoliday: !resolution.isOpen,
             status: 'available',
             isNationalHoliday: !!h && !h.isWorkday,
-            holidayName: override?.name || h?.name
+            holidayName: override ? override.name : h?.name,
+            businessDayStatus: override?.status,
+            businessDayReason: resolution.reason,
         };
     });
 };

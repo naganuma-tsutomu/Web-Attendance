@@ -1,4 +1,4 @@
-import { createValidationError, handleServerError, validateName } from '../../../utils/validation';
+import { createValidationError, handleServerError } from '../../../utils/validation';
 import type { Env } from '../../../types';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
@@ -9,8 +9,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             return createValidationError('営業状態はopenまたはclosedで指定してください');
         }
         if (body.name !== undefined) {
-            const error = validateName(body.name, '名称', 100);
-            if (error) return createValidationError(error);
+            if (typeof body.name !== 'string' || body.name.trim().length > 100) {
+                return createValidationError('理由は100文字以内で入力してください');
+            }
         }
         if (body.status === undefined && body.name === undefined) {
             return createValidationError('更新するデータがありません');

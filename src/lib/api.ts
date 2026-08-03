@@ -163,6 +163,14 @@ export const deleteShift = async (id: string): Promise<void> => {
     });
 };
 
+export const deleteShiftsByDateRange = async (startDate: string, endDate: string): Promise<number> => {
+    const result = await apiFetch<{ deletedCount: number }>('/shifts/range', {
+        method: 'DELETE',
+        body: JSON.stringify({ startDate, endDate }),
+    }, z.object({ deletedCount: z.number().int().nonnegative() }));
+    return result.deletedCount;
+};
+
 // ==========================================
 // Shift Snapshot API (シフトバックアップ)
 // ==========================================
@@ -424,6 +432,15 @@ export const createBusinessDayOverride = async (data: Omit<BusinessDayOverride, 
     }, z.object({ id: z.string() }));
     return result.id;
 };
+
+export const createBusinessDayOverridesBulk = async (data: {
+    startDate: string;
+    endDate: string;
+    status: BusinessDayOverride['status'];
+    name: string;
+}): Promise<{ ids: string[]; count: number }> => apiFetch('/settings/business-day-overrides/bulk', {
+    method: 'POST', body: JSON.stringify(data)
+}, z.object({ ids: z.array(z.string()), count: z.number().int().nonnegative() }));
 
 export const updateBusinessDayOverride = async (id: string, data: Pick<BusinessDayOverride, 'status' | 'name'>): Promise<void> => {
     await apiFetch(`/settings/business-day-overrides/${encodeURIComponent(id)}`, {

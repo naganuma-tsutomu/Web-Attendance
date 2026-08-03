@@ -100,6 +100,16 @@ export const exportToExcelAdvanced = async (
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(startDate);
     const days = eachDayOfInterval({ start: startDate, end: endDate });
+    const excludedClosedShifts = days.reduce((count, day) => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const resolution = resolveBusinessDay({
+            date: day, dateStr,
+            closedDays: businessHours?.closedDays ?? [],
+            holiday: holidayMap.get(dateStr),
+            override: businessDayOverrideMap.get(dateStr),
+        });
+        return resolution.isOpen ? count : count + shifts.filter(shift => shift.date === dateStr).length;
+    }, 0);
 
     // --- カラム定義 ---
     const showDutyNumbers = excelSettings?.showDutyNumbers ?? false;
@@ -400,7 +410,12 @@ export const exportToExcelAdvanced = async (
     // 書き出し
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), `シフト表_${yearMonth}.xlsx`);
-    toast.success('Excelファイルを出力しました', { id: toastId });
+    toast.success(
+        excludedClosedShifts > 0
+            ? `Excelファイルを出力しました（休業日のシフト${excludedClosedShifts}件は除外）`
+            : 'Excelファイルを出力しました',
+        { id: toastId }
+    );
     } catch (err) {
         handleApiError(err, 'Excelファイルの出力に失敗しました');
     }

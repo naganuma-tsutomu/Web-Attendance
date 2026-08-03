@@ -4,10 +4,12 @@ import type { DateHeaderProps } from 'react-big-calendar';
 import { useCalendarDisplay } from '../context/CalendarDisplayContext';
 
 const CalendarDateHeader = (props: DateHeaderProps) => {
-    const { fixedDates, toggleFixedDate, getHolidayNameForDate, handleOpenTimeline, lastTouchOpenRef } = useCalendarDisplay();
+    const { fixedDates, toggleFixedDate, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, handleOpenTimeline, lastTouchOpenRef } = useCalendarDisplay();
     const dateStr = format(props.date, 'yyyy-MM-dd');
     const isFixed = fixedDates.has(dateStr);
     const holidayName = getHolidayNameForDate(props.date);
+    const isClosed = isHolidayDate(props.date);
+    const explicitStatus = getBusinessDayStatusForDate(props.date);
 
     const openTimeline = () => {
         if (Date.now() - lastTouchOpenRef.current < 500) return;
@@ -37,9 +39,9 @@ const CalendarDateHeader = (props: DateHeaderProps) => {
             >
                 {isFixed ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
             </button>
-            {holidayName && (
-                <span className="hidden sm:inline text-xs text-red-600 dark:text-red-400 font-medium truncate flex-1 text-center px-1" title={holidayName}>
-                    {holidayName}
+            {(isClosed || explicitStatus) && (
+                <span className={`hidden sm:inline text-xs font-medium truncate flex-1 text-center px-1 ${isClosed ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`} title={holidayName}>
+                    {holidayName || (isClosed ? '休業' : '営業')}
                 </span>
             )}
             <span className="font-medium text-slate-700 dark:text-slate-300 pr-1 shrink-0">{props.label}</span>

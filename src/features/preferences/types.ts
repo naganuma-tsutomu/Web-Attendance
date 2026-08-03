@@ -8,6 +8,8 @@ export interface DayStatus {
     type?: string | null;
     isNationalHoliday?: boolean;
     holidayName?: string;
+    businessDayStatus?: 'open' | 'closed';
+    businessDayReason?: 'override' | 'holiday' | 'weekly_closed' | 'normal';
 }
 
 export type AllPrefsForMonth = Record<string, {

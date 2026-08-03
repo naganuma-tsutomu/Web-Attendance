@@ -84,15 +84,16 @@ const SchedulePage = () => {
         handleOpenTimeline
     );
 
-    const { fixedDates, getHolidayNameForDate, isHolidayDate, toggleFixedDate } = schedule;
+    const { fixedDates, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, toggleFixedDate } = schedule;
     const calendarDisplayValue = useMemo(() => ({
         fixedDates,
         toggleFixedDate,
         getHolidayNameForDate,
+        getBusinessDayStatusForDate,
         isHolidayDate,
         handleOpenTimeline,
         lastTouchOpenRef,
-    }), [fixedDates, toggleFixedDate, getHolidayNameForDate, isHolidayDate, handleOpenTimeline, lastTouchOpenRef]);
+    }), [fixedDates, toggleFixedDate, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, handleOpenTimeline, lastTouchOpenRef]);
 
     const calendarComponents = useMemo(() => ({
         toolbar: () => null,
@@ -237,6 +238,8 @@ const SchedulePage = () => {
                                     roles={schedule.roles}
                                     businessHours={schedule.businessHours}
                                     isHolidayDate={schedule.isHolidayDate}
+                                    getHolidayNameForDate={schedule.getHolidayNameForDate}
+                                    getBusinessDayStatusForDate={schedule.getBusinessDayStatusForDate}
                                     onDateClick={(date) => handleOpenTimeline(date)}
                                 />
                             </div>

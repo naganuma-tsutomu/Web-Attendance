@@ -13,6 +13,8 @@ interface ConfirmModalProps {
     variant?: 'danger' | 'info';
     isLoading?: boolean;
     checkboxLabel?: string;
+    secondaryLabel?: string;
+    onSecondary?: () => void;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -26,6 +28,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     variant = 'danger',
     isLoading = false,
     checkboxLabel,
+    secondaryLabel,
+    onSecondary,
 }) => {
     const [checked, setChecked] = useState(false);
 
@@ -43,7 +47,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             zIndex="z-[100]"
             aria-label={title}
         >
-            <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md animate-in zoom-in-95 duration-200">
+            <div className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl animate-in zoom-in-95 duration-200">
                 <div className="absolute right-4 top-4">
                     <button
                         onClick={() => {
@@ -61,7 +65,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ${variant === 'danger' ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20'}`}>
                         <AlertTriangle className="h-6 w-6" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0 pr-10">
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-6">
                             {title}
                         </h3>
@@ -95,17 +99,27 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             onCancel();
                         }}
                         disabled={isLoading}
-                        className="inline-flex w-full justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all sm:w-auto"
+                        className="inline-flex w-full shrink-0 whitespace-nowrap justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all sm:w-auto"
                     >
                         {cancelLabel}
                     </button>
+                    {secondaryLabel && onSecondary && (
+                        <button
+                            type="button"
+                            onClick={onSecondary}
+                            disabled={isLoading}
+                            className="inline-flex w-full shrink-0 whitespace-nowrap justify-center rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 transition-all sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {secondaryLabel}
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => {
                             onConfirm(checked);
                         }}
                         disabled={isLoading}
-                        className={`inline-flex w-full justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all sm:w-auto ${confirmButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                        className={`inline-flex w-full shrink-0 whitespace-nowrap justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all sm:w-auto ${confirmButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {isLoading ? (
                             <div className="flex items-center space-x-2">

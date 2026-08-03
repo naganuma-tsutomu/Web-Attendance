@@ -33,9 +33,9 @@ const PreferencesPage = () => {
 
     const { data: staffList = [], isLoading: staffLoading } = useStaffList();
     const { data: rawPrefs = [], isLoading: prefLoading, isError: prefHasError, refetch: refetchPrefs } = usePreferencesByMonth(yearMonth);
-    const { data: holidays = [] } = useHolidays(targetDate.getFullYear());
-    const { data: businessDayOverrides = [] } = useBusinessDayOverrides(yearMonth);
-    const { data: businessHours } = useBusinessHours();
+    const { data: holidays = [], isLoading: holidayLoading, isError: holidayHasError, refetch: refetchHolidays } = useHolidays(targetDate.getFullYear());
+    const { data: businessDayOverrides = [], isLoading: overrideLoading, isError: overrideHasError, refetch: refetchOverrides } = useBusinessDayOverrides(yearMonth);
+    const { data: businessHours, isLoading: businessHoursLoading, isError: businessHoursHasError, refetch: refetchBusinessHours } = useBusinessHours();
     const closedDays = useMemo(() => businessHours?.closedDays || [], [businessHours]);
 
     const savePreferenceMutation = useSavePreference();
@@ -44,7 +44,9 @@ const PreferencesPage = () => {
     const updateSubmittedMutation = useUpdatePreferenceSubmitted();
     const updatingSubmitted = updateSubmittedMutation.isPending;
 
-    const prefError = prefHasError ? '希望休データの読み込みに失敗しました。' : null;
+    const calendarLoading = prefLoading || holidayLoading || overrideLoading || businessHoursLoading;
+    const calendarHasError = prefHasError || holidayHasError || overrideHasError || businessHoursHasError;
+    const calendarError = calendarHasError ? '希望休または営業日データの読み込みに失敗しました。' : null;
 
     const allPrefsForMonth = useMemo(() => {
         const map: AllPrefsForMonth = {};
@@ -103,6 +105,7 @@ const PreferencesPage = () => {
     }, [basePreferences, draftEdits]);
 
     const handleDateClick = (index: number) => {
+        if (calendarLoading || calendarHasError) return;
         const item = preferences[index];
         if (item.status === 'fixed' || item.isHoliday) return;
         setIsEditingModalMode(false);
@@ -132,7 +135,7 @@ const PreferencesPage = () => {
     };
 
     const handleSave = async () => {
-        if (!selectedStaffId) return;
+        if (!selectedStaffId || calendarLoading || calendarHasError) return;
         try {
             const details = preferences
                 .filter(p => p.status === 'unavailable')
@@ -250,19 +253,24 @@ const PreferencesPage = () => {
 
 
                                 {/* エラー */}
-                                {prefError && (
+                                {calendarError && (
                                     <div className="mx-5 mt-4 p-3 rounded-xl flex items-center justify-between gap-2 text-sm font-medium border bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300" role="alert">
                                         <div className="flex items-center gap-2">
                                             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                            {prefError}
+                                            {calendarError}
                                         </div>
                                         <button
-                                            onClick={() => refetchPrefs()}
-                                            disabled={prefLoading}
+                                            onClick={() => {
+                                                refetchPrefs();
+                                                refetchHolidays();
+                                                refetchOverrides();
+                                                refetchBusinessHours();
+                                            }}
+                                            disabled={calendarLoading}
                                             className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
                                             aria-label="再試行"
                                         >
-                                            {prefLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                            {calendarLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                             再試行
                                         </button>
                                     </div>
@@ -270,7 +278,8 @@ const PreferencesPage = () => {
 
                                 <CalendarGrid
                                     preferences={preferences}
-                                    prefLoading={prefLoading}
+                                    prefLoading={calendarLoading}
+                                    disabled={calendarHasError}
                                     handleDateClick={handleDateClick}
                                 />
 
@@ -298,7 +307,7 @@ const PreferencesPage = () => {
                                     allPrefsForMonth={allPrefsForMonth}
                                     handleSave={handleSave}
                                     saving={saving}
-                                    prefLoading={prefLoading}
+                                    prefLoading={calendarLoading || calendarHasError}
                                     handleToggleSubmitted={handleToggleSubmitted}
                                     updatingSubmitted={updatingSubmitted}
                                 />

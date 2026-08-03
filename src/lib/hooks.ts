@@ -3,7 +3,7 @@ import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
     getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays, getBusinessDayOverrides,
     getPreferencesByMonth, getShiftRequirements, saveShiftsBatch, replaceShiftsForMonth,
-    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference, updatePreferenceSubmitted,
+    updateShift, deleteShiftsByMonth, deleteShiftsByDateRange, saveFixedDates, savePreference, updatePreferenceSubmitted,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
     getSchedulePreferences, updateSchedulePreferences,
@@ -12,7 +12,7 @@ import {
     getBreakSettings, updateBreakSettings,
     getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot,
     getShiftRequirementTemplates, toggleFixedDate, createBusinessDayOverride,
-    updateBusinessDayOverride, deleteBusinessDayOverride
+    updateBusinessDayOverride, deleteBusinessDayOverride, createBusinessDayOverridesBulk
 } from './api';
 import type { Staff, Shift, ShiftPreference, BusinessDayOverride, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
 
@@ -101,6 +101,14 @@ export const useCreateBusinessDayOverride = () => {
     return useMutation({
         mutationFn: (data: Omit<BusinessDayOverride, 'id' | 'created_at' | 'updated_at'>) => createBusinessDayOverride(data),
         onSuccess: (_, data) => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessDayOverrides(data.date.slice(0, 7)) }),
+    });
+};
+
+export const useCreateBusinessDayOverridesBulk = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createBusinessDayOverridesBulk,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['businessDayOverrides'] }),
     });
 };
 
@@ -207,6 +215,14 @@ export const useReplaceShiftsForMonth = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['shifts'] });
         },
+    });
+};
+
+export const useDeleteShiftsByDateRange = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ startDate, endDate }: { startDate: string; endDate: string }) => deleteShiftsByDateRange(startDate, endDate),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shifts'] }),
     });
 };
 

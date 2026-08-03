@@ -145,13 +145,17 @@ export default function PreferenceTab({
                             const fixedHoliday = isFixedHoliday(day);
                             const holidayData = holidays.find(h => h.date === dateStr);
                             const isNationalHoliday = !!holidayData && !holidayData.isWorkday;
+                            const isIndividuallyOpen = override?.status === 'open';
+                            const facility = resolveBusinessDay({ date: day, dateStr, closedDays, holiday: holidayData, override });
                             const closedLabel = override?.status === 'closed'
-                                ? override.name
-                                : isNationalHoliday
+                                ? (override.name || '休業')
+                                : facility.reason === 'holiday'
                                     ? (holidayData?.name || '祝日')
-                                    : isSunday
-                                        ? '休日'
-                                        : '固定休';
+                                    : facility.reason === 'weekly_closed'
+                                        ? '固定休'
+                                        : isSunday
+                                            ? '休日'
+                                            : '固定休';
 
                             return (
                                 <button
@@ -169,7 +173,7 @@ export default function PreferenceTab({
                                                 ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-500 text-amber-600 dark:text-amber-400 cursor-not-allowed'
                                                 : isSelected
                                                     ? 'bg-red-50 dark:bg-red-900/30 border-red-500 text-red-600 dark:text-red-400'
-                                                    : isNationalHoliday
+                                                    : isNationalHoliday && !isIndividuallyOpen
                                                         ? 'bg-white dark:bg-slate-900 border-red-200 hover:border-red-300 dark:border-red-800 text-red-600 dark:text-red-400'
                                                         : 'bg-white dark:bg-slate-900 border-transparent hover:border-slate-200 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
                                     }`}
@@ -179,7 +183,10 @@ export default function PreferenceTab({
                                         <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{closedLabel}</span>
                                     )}
                                     {!fixedHoliday && isNationalHoliday && !isSelected && (
-                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{holidayData?.name || '祝日'}</span>
+                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{isIndividuallyOpen ? (override.name || '営業') : (holidayData?.name || '祝日')}</span>
+                                    )}
+                                    {!fixedHoliday && isIndividuallyOpen && !isNationalHoliday && !isSelected && (
+                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{override.name || '営業'}</span>
                                     )}
                                     {!fixedHoliday && hasShift && !isSelected && (
                                         <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-0.5" />

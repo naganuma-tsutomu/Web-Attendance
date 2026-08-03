@@ -66,6 +66,7 @@ export const useScheduleData = () => {
     const businessDayOverrides = useMemo(() => overrideQueries.flatMap(query => query.data ?? []), [overrideQueries]);
     const isLoadingHolidays = holidayQueries.some(query => query.isLoading);
     const isLoadingBusinessDayOverrides = overrideQueries.some(query => query.isLoading);
+    const hasBusinessDayQueryError = holidayQueries.some(query => query.isError) || overrideQueries.some(query => query.isError);
 
     // カレンダーイベント構築
     const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(
@@ -89,16 +90,29 @@ export const useScheduleData = () => {
 
     const getHolidayNameForDate = (date: Date): string => {
         const dateStr = format(date, 'yyyy-MM-dd');
-        return businessDayOverrideMap.get(dateStr)?.name || holidayMap.get(dateStr)?.name || '';
+        const resolution = resolveDate(date);
+        const override = businessDayOverrideMap.get(dateStr);
+        const label = override
+            ? override.name
+            : holidayMap.get(dateStr)?.name || (resolution.reason === 'weekly_closed' ? '固定休' : resolution.label || '');
+        const shiftCount = rawShifts.filter(shift => shift.date === dateStr).length;
+        return !resolution.isOpen && shiftCount > 0
+            ? `${label || '休業'}（シフト${shiftCount}件あり）`
+            : label;
     };
 
     const isHolidayDate = (date: Date): boolean => {
         return !resolveDate(date).isOpen;
     };
 
+    const getBusinessDayStatusForDate = (date: Date): 'open' | 'closed' | null => {
+        const override = businessDayOverrideMap.get(format(date, 'yyyy-MM-dd'));
+        return override?.status ?? null;
+    };
+
     // Loading & Error States
     const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingHolidays || isLoadingBusinessDayOverrides;
-    const loadError = isError ? 'データの読み込みに失敗しました。' : null;
+    const loadError = isError || hasBusinessDayQueryError ? 'データの読み込みに失敗しました。' : null;
 
     // 変更ハンドラ群（生成・消去・更新・固定日切り替え）
     const actions = useScheduleActions({
@@ -160,6 +174,7 @@ export const useScheduleData = () => {
         loadShifts,
         eventStyleGetter,
         getHolidayNameForDate,
+        getBusinessDayStatusForDate,
         isHolidayDate,
 
         // 変更ハンドラ群（useScheduleActions から）

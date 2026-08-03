@@ -262,5 +262,5 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, enti
 -- ============================================================
 -- このファイルは新規環境の初期化にのみ使用する。
 -- 既存 D1 データベースへのスキーマ変更 (FK 追加・インデックス追加等) は
--- migrations/ ディレクトリ内のマイグレーション SQL を実行すること。
+-- db/migrations/ ディレクトリ内のマイグレーション SQL を実行すること。
 -- 詳細は README.md の「スキーマ変更時のマイグレーション」を参照。

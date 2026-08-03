@@ -2,7 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
 import { BookOpen } from 'lucide-react';
-import manualContent from '../../USER_MANUAL.md?raw';
+import manualContent from '../../docs/USER_MANUAL.md?raw';
 
 const UserManualPage = () => {
     return (

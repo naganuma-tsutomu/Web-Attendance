@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { History } from 'lucide-react';
-import historyContent from '../../UPDATE_HISTORY.md?raw';
+import historyContent from '../../docs/UPDATE_HISTORY.md?raw';
 
 const UpdateHistoryPage = () => (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 md:p-8">

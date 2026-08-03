@@ -24,7 +24,8 @@ import type {
     BusinessHoursInferred,
     SchedulePreferencesInferred,
     ExcelSettingsSchema,
-    ExcelHighlightRuleSchema
+    ExcelHighlightRuleSchema,
+    AuditLogInferred,
 } from './schemas';
 
 // ==========================================
@@ -140,6 +141,16 @@ export interface Holiday extends Omit<HolidayInferred, 'type' | 'isWorkday' | 'i
     updated_at?: string;
 }
 
+/** 日付単位の施設営業・休業上書き */
+export interface BusinessDayOverride {
+    id: string;
+    date: string;
+    status: 'open' | 'closed';
+    name: string;
+    created_at?: string | null;
+    updated_at?: string | null;
+}
+
 export interface BusinessHours extends Omit<BusinessHoursInferred, 'closedDays'> {
     closedDays: number[];
 }
@@ -173,3 +184,5 @@ export interface RotationSettings {
     saturdayPreferFridayLate: boolean;
     saturdayPatternId?: string;
 }
+
+export type AuditLog = AuditLogInferred;

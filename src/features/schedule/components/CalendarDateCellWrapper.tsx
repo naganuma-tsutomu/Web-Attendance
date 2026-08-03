@@ -3,13 +3,14 @@ import type { DateCellWrapperProps } from 'react-big-calendar';
 import { useCalendarDisplay } from '../context/CalendarDisplayContext';
 
 const CalendarDateCellWrapper = (props: DateCellWrapperProps) => {
-    const { isHolidayDate } = useCalendarDisplay();
+    const { isHolidayDate, isNationalHolidayDate } = useCalendarDisplay();
     const date = props.value;
     const isHoliday = isHolidayDate(date);
+    const isNationalHoliday = isNationalHolidayDate(date);
     const dayOfWeek = getDay(date);
 
     let bgColorClass = '';
-    if (dayOfWeek === 0 || isHoliday) {
+    if (dayOfWeek === 0 || isHoliday || isNationalHoliday) {
         bgColorClass = 'bg-red-50 dark:bg-red-900/10';
     } else if (dayOfWeek === 6) {
         bgColorClass = 'bg-blue-50 dark:bg-blue-900/10';

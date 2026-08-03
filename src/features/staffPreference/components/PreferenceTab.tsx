@@ -5,7 +5,8 @@ import { X, Loader2 } from 'lucide-react';
 import { savePreference } from '../../../lib/api';
 import { CLOSED_DAY_HOLIDAY } from '../../../constants';
 import { isFixedHoliday as checkFixedHoliday } from '../../../lib/holidayUtils';
-import type { ShiftPreferenceDetail, Shift, Holiday } from '../../../types';
+import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
+import type { ShiftPreferenceDetail, Shift, Holiday, BusinessDayOverride } from '../../../types';
 
 interface PreferenceTabProps {
     staff: { id: string; name: string };
@@ -18,6 +19,7 @@ interface PreferenceTabProps {
     setMessage: (msg: { type: 'success' | 'error', text: string } | null) => void;
     myShifts: Shift[];
     holidays: Holiday[];
+    businessDayOverrides: BusinessDayOverride[];
     myAvailableDays: any;
     closedDays: number[];
 }
@@ -33,6 +35,7 @@ export default function PreferenceTab({
     setMessage,
     myShifts,
     holidays,
+    businessDayOverrides,
     myAvailableDays,
     closedDays
 }: PreferenceTabProps) {
@@ -48,8 +51,18 @@ export default function PreferenceTab({
         [...savedPreferences].sort((a, b) => a.date.localeCompare(b.date))
     ), [preferences, savedPreferences]);
 
-    const isFixedHoliday = (date: Date): boolean =>
-        checkFixedHoliday(date, holidays, closedDays, CLOSED_DAY_HOLIDAY, myAvailableDays);
+    const overrideMap = useMemo(() => createBusinessDayOverrideMap(businessDayOverrides), [businessDayOverrides]);
+    const isFixedHoliday = (date: Date): boolean => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const override = overrideMap.get(dateStr);
+        const holiday = holidays.find(item => item.date === dateStr);
+        const facility = resolveBusinessDay({ date, dateStr, closedDays, holiday, override });
+        if (!facility.isOpen) return true;
+        const effectiveClosedDays = override?.status === 'open'
+            ? closedDays.filter(day => day !== getDay(date) && day !== CLOSED_DAY_HOLIDAY)
+            : closedDays;
+        return checkFixedHoliday(date, holidays, effectiveClosedDays, CLOSED_DAY_HOLIDAY, myAvailableDays);
+    };
 
     const handleDateClick = (dateStr: string) => {
         const existing = preferences.find(p => p.date === dateStr);
@@ -128,9 +141,21 @@ export default function PreferenceTab({
                             const isPartial = pref && pref.startTime && pref.endTime && !isTraining;
                             const hasShift = myShifts.some(s => s.date === dateStr);
                             const isSunday = getDay(day) === 0;
-                            const fixedHoliday = isSunday || isFixedHoliday(day);
+                            const override = overrideMap.get(dateStr);
+                            const fixedHoliday = isFixedHoliday(day);
                             const holidayData = holidays.find(h => h.date === dateStr);
                             const isNationalHoliday = !!holidayData && !holidayData.isWorkday;
+                            const isIndividuallyOpen = override?.status === 'open';
+                            const facility = resolveBusinessDay({ date: day, dateStr, closedDays, holiday: holidayData, override });
+                            const closedLabel = override?.status === 'closed'
+                                ? (override.name || '休業')
+                                : facility.reason === 'holiday'
+                                    ? (holidayData?.name || '祝日')
+                                    : facility.reason === 'weekly_closed'
+                                        ? '固定休'
+                                        : isSunday
+                                            ? '休日'
+                                            : '固定休';
 
                             return (
                                 <button
@@ -155,10 +180,13 @@ export default function PreferenceTab({
                                 >
                                     <span className="text-sm font-black">{format(day, 'd')}</span>
                                     {fixedHoliday && (
-                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{isNationalHoliday ? (holidayData?.name || '祝日') : isSunday ? '休日' : '固定休'}</span>
+                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{closedLabel}</span>
                                     )}
                                     {!fixedHoliday && isNationalHoliday && !isSelected && (
-                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{holidayData?.name || '祝日'}</span>
+                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{isIndividuallyOpen ? (override.name || '営業') : (holidayData?.name || '祝日')}</span>
+                                    )}
+                                    {!fixedHoliday && isIndividuallyOpen && !isNationalHoliday && !isSelected && (
+                                        <span className="text-[8px] font-bold mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-1">{override.name || '営業'}</span>
                                     )}
                                     {!fixedHoliday && hasShift && !isSelected && (
                                         <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mt-0.5" />

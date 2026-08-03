@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env } from '../../types';
+import { writeAuditLog } from '../../utils/auditLog';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
@@ -38,6 +39,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         await context.env.DB.batch(statements);
+
+        await writeAuditLog(context.env, context.request, { action: 'delete', entityType: 'shift_month', yearMonth, summary: `${yearMonth}のシフトを消去`, metadata: { exceptDates: exceptDates ?? [], clearFixedDates } });
 
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Loader2, Users, Settings as SettingsIcon, Clock } from 'lucide-react';
-import { getShiftsByMonth, getPreferencesByMonth, getStaffList, getClasses, getTimePatterns, getRoles, getHolidays, getBusinessHours } from '../lib/api';
+import { getShiftsByMonth, getPreferencesByMonth, getStaffList, getClasses, getTimePatterns, getRoles, getHolidays, getBusinessHours, getBusinessDayOverrides } from '../lib/api';
 import { QUERY_KEYS } from '../lib/hooks';
 import type { ShiftPreferenceDetail } from '../types';
 
@@ -29,7 +29,7 @@ const StaffPreferencePage = () => {
     const currentYear = currentMonth.getFullYear();
 
     // ── 静的データ ──
-    const { data: staffList = [] } = useQuery({
+    const { data: staffList = [], isLoading: staffListLoading, isError: staffListHasError, refetch: refetchStaffList } = useQuery({
         queryKey: QUERY_KEYS.staffs,
         queryFn: getStaffList,
         enabled: !!staff,
@@ -49,7 +49,7 @@ const StaffPreferencePage = () => {
         queryFn: getRoles,
         enabled: !!staff,
     });
-    const { data: businessHours } = useQuery({
+    const { data: businessHours, isLoading: businessHoursLoading, isError: businessHoursHasError, refetch: refetchBusinessHours } = useQuery({
         queryKey: QUERY_KEYS.businessHours,
         queryFn: getBusinessHours,
         enabled: !!staff,
@@ -63,19 +63,33 @@ const StaffPreferencePage = () => {
         queryFn: () => getShiftsByMonth(monthStr),
         enabled: !!staff,
     });
-    const { data: holidays = [] } = useQuery({
+    const { data: holidays = [], isLoading: holidaysLoading, isError: holidaysHasError, refetch: refetchHolidays } = useQuery({
         queryKey: QUERY_KEYS.holidays(currentYear),
         queryFn: () => getHolidays(currentYear),
         enabled: !!staff,
         staleTime: 24 * 60 * 60 * 1000,
     });
-    const { data: prefsData, isLoading: prefsLoading } = useQuery({
+    const { data: businessDayOverrides = [], isLoading: overridesLoading, isError: overridesHasError, refetch: refetchOverrides } = useQuery({
+        queryKey: QUERY_KEYS.businessDayOverrides(monthStr),
+        queryFn: () => getBusinessDayOverrides(monthStr),
+        enabled: !!staff,
+    });
+    const { data: prefsData, isLoading: prefsLoading, isError: prefsHasError, refetch: refetchPreferences } = useQuery({
         queryKey: QUERY_KEYS.preferences(monthStr),
         queryFn: () => getPreferencesByMonth(monthStr),
         enabled: !!staff,
     });
 
-    const loading = shiftsLoading || prefsLoading;
+    const loading = shiftsLoading || prefsLoading || staffListLoading || businessHoursLoading || holidaysLoading || overridesLoading;
+    const preferenceDataError = prefsHasError || staffListHasError || businessHoursHasError || holidaysHasError || overridesHasError;
+
+    const retryPreferenceData = () => {
+        refetchPreferences();
+        refetchStaffList();
+        refetchBusinessHours();
+        refetchHolidays();
+        refetchOverrides();
+    };
 
     // ── 自分の希望休を同期 ──
     useEffect(() => {
@@ -167,7 +181,26 @@ const StaffPreferencePage = () => {
                     </div>
                 )}
 
-                {activeTab === 'preference' && (
+                {activeTab === 'preference' && preferenceDataError && (
+                    <div className="p-4 rounded-2xl border bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 flex items-center justify-between gap-3" role="alert">
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                            <AlertCircle className="w-5 h-5 shrink-0" />
+                            希望休または営業日データの読み込みに失敗しました。編集は停止されています。
+                        </div>
+                        <button type="button" onClick={retryPreferenceData} disabled={loading} className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-bold whitespace-nowrap">
+                            再試行
+                        </button>
+                    </div>
+                )}
+
+                {activeTab === 'preference' && loading && !preferenceDataError && (
+                    <div className="p-8 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                        営業日データを読み込んでいます
+                    </div>
+                )}
+
+                {activeTab === 'preference' && !loading && !preferenceDataError && (
                     <PreferenceTab
                         staff={staff}
                         currentMonth={currentMonth}
@@ -179,6 +212,7 @@ const StaffPreferencePage = () => {
                         setMessage={setMessage}
                         myShifts={myShifts}
                         holidays={holidays}
+                        businessDayOverrides={businessDayOverrides}
                         myAvailableDays={myAvailableDays}
                         closedDays={closedDays}
                     />

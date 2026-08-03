@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { TimelineFixedToggle, TimelineHeaderRows } from '../TimelineHeaderRows';
+import WeeklyTimelineView from '../../WeeklyTimelineView';
+import { format } from 'date-fns';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 describe('timeline component smoke tests', () => {
     it('renders editable timeline headers with duty number column', () => {
@@ -43,5 +46,26 @@ describe('timeline component smoke tests', () => {
 
         fireEvent.click(screen.getByText('シフトをロックする'));
         expect(onToggleFixed).toHaveBeenCalled();
+    });
+
+    it('週表示で休業日を隠さず理由を表示する', () => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { enabled: false } } });
+        render(
+            <QueryClientProvider client={queryClient}>
+                <WeeklyTimelineView
+                    startDate={new Date(2026, 7, 3)}
+                    shifts={[]}
+                    staffList={[]}
+                    classes={[]}
+                    timePatterns={[]}
+                    roles={[]}
+                    isHolidayDate={date => format(date, 'yyyy-MM-dd') === '2026-08-03'}
+                    getHolidayNameForDate={date => format(date, 'yyyy-MM-dd') === '2026-08-03' ? '夏季休業' : ''}
+                    onDateClick={vi.fn()}
+                />
+            </QueryClientProvider>
+        );
+
+        expect(screen.getAllByText('夏季休業')).toHaveLength(2);
     });
 });

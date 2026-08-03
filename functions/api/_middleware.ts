@@ -107,6 +107,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
             '/api/settings/roles',
             '/api/settings/holidays',
             '/api/settings/business-hours',
+            '/api/settings/business-day-overrides',
             '/api/fixed-dates',
         ];
 

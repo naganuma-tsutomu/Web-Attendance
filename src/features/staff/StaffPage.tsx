@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { handleApiError } from '../../lib/errorHandler';
-import { Plus, Search, AlertCircle, Loader2, ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react';
-import { format, addMonths, subMonths } from 'date-fns';
-import { ja } from 'date-fns/locale';
+import { Plus, Search, AlertCircle, Loader2, Users } from 'lucide-react';
+import { format } from 'date-fns';
 import { calculateTotalHours } from '../../utils/timeUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
 import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder, useBusinessHours, useBreakSettings } from '../../lib/hooks';
@@ -31,6 +30,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import StaffRow from './components/StaffRow';
 import StaffFormModal from './components/StaffFormModal';
 import StaffMobileCard from './components/StaffMobileCard';
+import MonthNavigation from '../../components/ui/MonthNavigation';
 
 const StaffPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -222,8 +222,8 @@ const StaffPage = () => {
             <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
                 <Users className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500" />
                 <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white tracking-tight">スタッフ管理</h2>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white sm:text-2xl">スタッフ管理</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
                 </div>
             </div>
 
@@ -233,8 +233,8 @@ const StaffPage = () => {
                     className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold text-sm"
                 >
                     <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden xs:inline">スタッフ追加</span>
-                    <span className="xs:hidden">追加</span>
+                    <span className="hidden sm:inline">スタッフ追加</span>
+                    <span className="sm:hidden">追加</span>
                 </button>
             </div>
 
@@ -266,31 +266,11 @@ const StaffPage = () => {
                     />
                 </div>
 
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
-                    <button
-                        onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
-                        className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-500"
-                        title="前月"
-                        aria-label="前月"
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <div className="px-3 py-1 flex items-center gap-2 min-w-[120px] justify-center">
-                        <Calendar className="w-4 h-4 text-indigo-500" />
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                            {format(currentMonth, 'yyyy年M月', { locale: ja })}
-                        </span>
-                        {(loadingShifts || isShiftsFetching) && <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />}
-                    </div>
-                    <button
-                        onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
-                        className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors text-slate-500"
-                        title="次月"
-                        aria-label="次月"
-                    >
-                        <ChevronRight className="w-5 h-5" />
-                    </button>
-                </div>
+                <MonthNavigation
+                    date={currentMonth}
+                    onChange={setCurrentMonth}
+                    isLoading={loadingShifts || isShiftsFetching}
+                />
             </div>
 
             <div className="sm:hidden">

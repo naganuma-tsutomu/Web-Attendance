@@ -376,3 +376,38 @@ describe('middleware 経由の認可: POST /api/shifts/replace', () => {
         expect(isNextCalled()).toBe(false);
     });
 });
+
+describe('middleware 経由の認可: 個別営業日API', () => {
+    const buildContext = async (method: 'GET' | 'POST') => {
+        const staffToken = await signStaffCookie('s1', SECRET);
+        let nextCalled = false;
+        const context = {
+            request: {
+                url: 'https://example.com/api/settings/business-day-overrides?yearMonth=2026-08',
+                method,
+                headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : name.toLowerCase() === 'content-type' ? 'application/json' : null },
+                clone: () => ({ json: async () => ({ date: '2026-08-13', status: 'closed', name: '夏季休業' }) }),
+            },
+            env: { ADMIN_PASSWORD: SECRET },
+            next: async () => {
+                nextCalled = true;
+                return new Response(null, { status: 204 });
+            },
+        };
+        return { context, wasNextCalled: () => nextCalled };
+    };
+
+    it('スタッフのGETを許可する', async () => {
+        const { context, wasNextCalled } = await buildContext('GET');
+        const response = await middleware(context as never);
+        expect(response.status).toBe(204);
+        expect(wasNextCalled()).toBe(true);
+    });
+
+    it('スタッフのPOSTを拒否する', async () => {
+        const { context, wasNextCalled } = await buildContext('POST');
+        const response = await middleware(context as never);
+        expect(response.status).toBe(401);
+        expect(wasNextCalled()).toBe(false);
+    });
+});

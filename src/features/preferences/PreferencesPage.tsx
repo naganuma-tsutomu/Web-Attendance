@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, AlertCircle, ChevronLeft, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
+import { Calendar, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { syncHolidays } from '../../lib/api';
-import { useStaffList, usePreferencesByMonth, useSavePreference, useUpdatePreferenceSubmitted, useHolidays, useBusinessHours } from '../../lib/hooks';
-import { format, addMonths, subMonths } from 'date-fns';
-import { ja } from 'date-fns/locale';
+import { useStaffList, usePreferencesByMonth, useSavePreference, useUpdatePreferenceSubmitted, useHolidays, useBusinessHours, useBusinessDayOverrides } from '../../lib/hooks';
+import { format } from 'date-fns';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
 import { isStaffFixedHoliday } from '../../lib/availabilityUtils';
 import { toast } from 'sonner';
@@ -17,6 +16,7 @@ import CalendarFooter from './components/CalendarFooter';
 import DateEditModal from './components/DateEditModal';
 import SubmitConfirmDialog from './components/SubmitConfirmDialog';
 import Modal from '../../components/ui/Modal';
+import MonthNavigation from '../../components/ui/MonthNavigation';
 
 const PreferencesPage = () => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -33,8 +33,9 @@ const PreferencesPage = () => {
 
     const { data: staffList = [], isLoading: staffLoading } = useStaffList();
     const { data: rawPrefs = [], isLoading: prefLoading, isError: prefHasError, refetch: refetchPrefs } = usePreferencesByMonth(yearMonth);
-    const { data: holidays = [] } = useHolidays(targetDate.getFullYear());
-    const { data: businessHours } = useBusinessHours();
+    const { data: holidays = [], isLoading: holidayLoading, isError: holidayHasError, refetch: refetchHolidays } = useHolidays(targetDate.getFullYear());
+    const { data: businessDayOverrides = [], isLoading: overrideLoading, isError: overrideHasError, refetch: refetchOverrides } = useBusinessDayOverrides(yearMonth);
+    const { data: businessHours, isLoading: businessHoursLoading, isError: businessHoursHasError, refetch: refetchBusinessHours } = useBusinessHours();
     const closedDays = useMemo(() => businessHours?.closedDays || [], [businessHours]);
 
     const savePreferenceMutation = useSavePreference();
@@ -43,7 +44,9 @@ const PreferencesPage = () => {
     const updateSubmittedMutation = useUpdatePreferenceSubmitted();
     const updatingSubmitted = updateSubmittedMutation.isPending;
 
-    const prefError = prefHasError ? '希望休データの読み込みに失敗しました。' : null;
+    const calendarLoading = prefLoading || holidayLoading || overrideLoading || businessHoursLoading;
+    const calendarHasError = prefHasError || holidayHasError || overrideHasError || businessHoursHasError;
+    const calendarError = calendarHasError ? '希望休または営業日データの読み込みに失敗しました。' : null;
 
     const allPrefsForMonth = useMemo(() => {
         const map: AllPrefsForMonth = {};
@@ -68,13 +71,18 @@ const PreferencesPage = () => {
     }, [selectedStaffId, yearMonth]);
 
     const basePreferences = useMemo(() => {
-        const baseDays = generateMonthDays(targetDate, holidays);
+        const baseDays = generateMonthDays(targetDate, holidays, closedDays, businessDayOverrides);
         if (!selectedStaffId) return baseDays;
         const staff = staffList.find(s => s.id === selectedStaffId);
         const unavailable = allPrefsForMonth[selectedStaffId]?.details || [];
         return baseDays.map(day => {
+            const override = businessDayOverrides.find(item => item.date === day.dateStr);
+            const date = new Date(`${day.dateStr}T00:00:00`);
+            const effectiveClosedDays = override?.status === 'open'
+                ? closedDays.filter(value => value !== date.getDay() && value !== 7)
+                : closedDays;
             const isFixedHoliday = staff
-                ? isStaffFixedHoliday(staff, new Date(day.dateStr), closedDays, !!day.isNationalHoliday)
+                ? isStaffFixedHoliday(staff, date, effectiveClosedDays, override?.status === 'open' ? false : !!day.isNationalHoliday)
                 : false;
             if (isFixedHoliday) return { ...day, status: 'fixed' as const };
             const pref = unavailable.find(u => u.date === day.dateStr);
@@ -86,7 +94,7 @@ const PreferencesPage = () => {
                 type: pref?.type,
             };
         });
-    }, [selectedStaffId, targetDate, allPrefsForMonth, staffList, holidays, closedDays]);
+    }, [selectedStaffId, targetDate, allPrefsForMonth, staffList, holidays, closedDays, businessDayOverrides]);
 
     const preferences = useMemo(() => {
         if (Object.keys(draftEdits).length === 0) return basePreferences;
@@ -97,6 +105,7 @@ const PreferencesPage = () => {
     }, [basePreferences, draftEdits]);
 
     const handleDateClick = (index: number) => {
+        if (calendarLoading || calendarHasError) return;
         const item = preferences[index];
         if (item.status === 'fixed' || item.isHoliday) return;
         setIsEditingModalMode(false);
@@ -126,7 +135,7 @@ const PreferencesPage = () => {
     };
 
     const handleSave = async () => {
-        if (!selectedStaffId) return;
+        if (!selectedStaffId || calendarLoading || calendarHasError) return;
         try {
             const details = preferences
                 .filter(p => p.status === 'unavailable')
@@ -182,35 +191,20 @@ const PreferencesPage = () => {
             <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
                 {/* ヘッダー */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">休日管理</h2>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフごとの休日・出勤不可日を入力・管理します</p>
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                        <Calendar className="h-6 w-6 shrink-0 text-indigo-500 sm:h-8 sm:w-8" />
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white sm:text-2xl">休日管理</h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">スタッフごとの休日・出勤不可日を入力・管理します</p>
+                        </div>
                     </div>
                     {/* 月ナビゲーション */}
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-sm">
-                        <button
-                            onClick={() => setTargetDate(d => subMonths(d, 1))}
-                            aria-label="前月へ"
-                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 w-28 text-center">
-                            {format(targetDate, 'yyyy年M月', { locale: ja })}
-                        </span>
-                        <button
-                            onClick={() => setTargetDate(d => addMonths(d, 1))}
-                            aria-label="翌月へ"
-                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                            <ChevronRight className="w-5 h-5" />
-                        </button>
-                    </div>
+                    <MonthNavigation date={targetDate} onChange={setTargetDate} />
                     {/* 祝日同期ボタン */}
                     <button
                         onClick={handleSyncHolidays}
                         disabled={syncingHolidays}
-                        className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:w-auto"
                         title="今年と来年の祝日データを最新に更新します"
                     >
                         <RefreshCw className={`w-4 h-4 text-indigo-500 ${syncingHolidays ? 'animate-spin' : ''}`} />
@@ -244,19 +238,24 @@ const PreferencesPage = () => {
 
 
                                 {/* エラー */}
-                                {prefError && (
+                                {calendarError && (
                                     <div className="mx-5 mt-4 p-3 rounded-xl flex items-center justify-between gap-2 text-sm font-medium border bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300" role="alert">
                                         <div className="flex items-center gap-2">
                                             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                            {prefError}
+                                            {calendarError}
                                         </div>
                                         <button
-                                            onClick={() => refetchPrefs()}
-                                            disabled={prefLoading}
+                                            onClick={() => {
+                                                refetchPrefs();
+                                                refetchHolidays();
+                                                refetchOverrides();
+                                                refetchBusinessHours();
+                                            }}
+                                            disabled={calendarLoading}
                                             className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
                                             aria-label="再試行"
                                         >
-                                            {prefLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                            {calendarLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                             再試行
                                         </button>
                                     </div>
@@ -264,7 +263,8 @@ const PreferencesPage = () => {
 
                                 <CalendarGrid
                                     preferences={preferences}
-                                    prefLoading={prefLoading}
+                                    prefLoading={calendarLoading}
+                                    disabled={calendarHasError}
                                     handleDateClick={handleDateClick}
                                 />
 
@@ -292,7 +292,7 @@ const PreferencesPage = () => {
                                     allPrefsForMonth={allPrefsForMonth}
                                     handleSave={handleSave}
                                     saving={saving}
-                                    prefLoading={prefLoading}
+                                    prefLoading={calendarLoading || calendarHasError}
                                     handleToggleSubmitted={handleToggleSubmitted}
                                     updatingSubmitted={updatingSubmitted}
                                 />

@@ -124,6 +124,15 @@ export const HolidaySchema = z.object({
   updated_at: z.string().optional().nullable(),
 });
 
+export const BusinessDayOverrideSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  status: z.enum(['open', 'closed']),
+  name: z.string(),
+  created_at: z.string().optional().nullable(),
+  updated_at: z.string().optional().nullable(),
+});
+
 export const BusinessHoursSchema = z.object({
   startHour: z.number().multipleOf(0.5),
   endHour: z.number().multipleOf(0.5),
@@ -169,6 +178,28 @@ export const RotationSettingsSchema = z.object({
   saturdayPatternId: z.string().optional(),
 });
 
+export const AuditLogSchema = z.object({
+  id: z.string(),
+  occurredAt: z.string(),
+  actorType: z.enum(['admin', 'staff', 'system']),
+  actorId: z.string().nullable(),
+  action: z.string(),
+  entityType: z.string(),
+  entityId: z.string().nullable(),
+  yearMonth: z.string().nullable(),
+  targetDate: z.string().nullable(),
+  summary: z.string(),
+  before: z.unknown().nullable(),
+  after: z.unknown().nullable(),
+  metadata: z.unknown().nullable(),
+  requestId: z.string().nullable(),
+});
+
+export const AuditLogPageSchema = z.object({
+  items: z.array(AuditLogSchema),
+  nextCursor: z.string().nullable(),
+});
+
 // ==========================================
 // z.infer<> で TypeScript 型を生成
 // ==========================================
@@ -187,3 +218,4 @@ export type BusinessHoursInferred = z.infer<typeof BusinessHoursSchema>;
 export type BreakSettingsInferred = z.infer<typeof BreakSettingsSchema>;
 export type SchedulePreferencesInferred = z.infer<typeof SchedulePreferencesSchema>;
 export type RotationSettingsInferred = z.infer<typeof RotationSettingsSchema>;
+export type AuditLogInferred = z.infer<typeof AuditLogSchema>;

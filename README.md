@@ -56,7 +56,7 @@ npm test
 wrangler login
 
 # 本番用 D1 データベースを初期化
-wrangler d1 execute web-attendance-db --file=schema.sql
+wrangler d1 execute web-attendance-db --file=db/schema.sql
 
 # 管理者パスワードを本番環境に設定
 wrangler pages secret put ADMIN_PASSWORD
@@ -71,7 +71,7 @@ wrangler pages deploy dist
 
 ### スキーマ変更時のマイグレーション
 
-**既存 D1 データベース**に対してスキーマ変更を反映する場合は、`schema.sql` を直接流すのではなく `migrations/` 内のスクリプトを使う。
+**既存 D1 データベース**に対してスキーマ変更を反映する場合は、`db/schema.sql` を直接流すのではなく `db/migrations/` 内のスクリプトを使う。
 
 #### 手順
 
@@ -92,16 +92,22 @@ wrangler pages deploy dist
 2. **マイグレーション実行**
 
    ```bash
-   wrangler d1 execute web-attendance-db --file=migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute web-attendance-db --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
    ローカルで事前検証する場合:
 
    ```bash
-   wrangler d1 execute web-attendance-db --local --file=migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute web-attendance-db --local --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
-> **注意**: 新規環境（初回セットアップ）は `schema.sql` のみで OK。マイグレーションは不要。
+> **注意**: 新規環境（初回セットアップ）は `db/schema.sql` のみで OK。マイグレーションは不要。
+
+機能追加後のマイグレーションは番号順に適用する。操作履歴機能を利用する環境では、次も実行する。
+
+```bash
+wrangler d1 execute web-attendance-db --file=db/migrations/0004_audit_logs.sql
+```
 
 ### 環境
 
@@ -129,6 +135,9 @@ wrangler pages deploy dist --env preview
 | CSV インポート | 外部で作成したシフトデータを CSV 形式でインポート |
 | ローテーション設定 | 早番・遅番のローテーションルール（平日・土曜別）を設定画面から管理 |
 | 生成レポート表示設定 | 自動生成後に生成レポートを自動表示するかを表示設定から切り替え可能 |
+| シフト常時チェック | 希望休競合、休業日勤務、営業時間外、必要人数不足、目標時間超過などを月単位で検出 |
+| 集計ダッシュボード | スタッフ別予定時間、クラス別充足率、未割当、希望休提出状況を表示 |
+| 操作履歴 | シフト、希望休、ロック、バックアップ復元、個別営業日・休業日の主要変更を記録 |
 
 ## 運用上のセキュリティ設定
 
@@ -146,16 +155,20 @@ wrangler pages deploy dist --env preview
 ```
 ├── functions/          # Cloudflare Pages Functions（APIエンドポイント）
 │   └── api/
+├── db/                 # D1 データベース関連
+│   ├── schema.sql      # 新規環境用スキーマ
+│   ├── seed.sql        # ローカル開発用の初期データ
+│   └── migrations/     # 既存環境用マイグレーション
+├── docs/               # ユーザー向け文書・更新履歴
 ├── src/
 │   ├── features/       # 機能単位のコンポーネント・フック
 │   ├── lib/            # APIクライアント・アルゴリズム・共通ロジック
 │   ├── pages/          # ルーティング対応ページ
 │   ├── types/          # 型定義・Zodスキーマ
 │   └── utils/          # ユーティリティ関数
-├── schema.sql          # D1 データベーススキーマ
 └── wrangler.toml       # Cloudflare 設定
 ```
 
 ---
 
-ユーザー向けの操作マニュアルは [USER_MANUAL.md](USER_MANUAL.md) を参照してください。
+ユーザー向けの操作マニュアルは [USER_MANUAL.md](docs/USER_MANUAL.md) を参照してください。

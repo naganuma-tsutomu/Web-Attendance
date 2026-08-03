@@ -25,4 +25,4 @@ database_id = "88278bbb-2295-4e89-a172-2c82f2c2aa2c"
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "web-attendance-preview-db"
-database_id = "4e4a209f-2892-45a3-b501-8213214bb207"
+database_id = "061355ea-3530-4fbb-95d7-c8c15c6995ff"

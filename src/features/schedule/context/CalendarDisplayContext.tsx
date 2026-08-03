@@ -4,7 +4,9 @@ interface CalendarDisplayContextValue {
     fixedDates: Set<string>;
     toggleFixedDate: (dateStr: string) => void;
     getHolidayNameForDate: (date: Date) => string | undefined;
+    getBusinessDayStatusForDate: (date: Date) => 'open' | 'closed' | null;
     isHolidayDate: (date: Date) => boolean;
+    isNationalHolidayDate: (date: Date) => boolean;
     handleOpenTimeline: (date: Date) => void;
     lastTouchOpenRef: React.RefObject<number>;
 }

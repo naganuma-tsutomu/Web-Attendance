@@ -3,7 +3,7 @@
 -- ============================================================
 --
 -- 対象環境: v2.4.4 以前から運用している既存 D1 データベース
--- 新規環境 (schema.sql で初期化済み) にはこのファイルは不要。
+-- 新規環境 (db/schema.sql で初期化済み) にはこのファイルは不要。
 --
 -- 【実行前に必ず行うこと】
 -- 下記の重複チェッククエリを本番 D1 に対して実行し、
@@ -20,10 +20,10 @@
 -- 重複が見つかった場合は手動で修正してから実行すること。
 --
 -- 【実行コマンド】
---   wrangler d1 execute web-attendance-db --file=migrations/0001_initial_schema_updates.sql
+--   wrangler d1 execute web-attendance-db --file=db/migrations/0001_initial_schema_updates.sql
 --
 -- ローカルで事前検証する場合:
---   wrangler d1 execute web-attendance-db --local --file=migrations/0001_initial_schema_updates.sql
+--   wrangler d1 execute web-attendance-db --local --file=db/migrations/0001_initial_schema_updates.sql
 -- ============================================================
 
 -- 外部キー制約を一時無効化（テーブルコピー中の参照エラーを防ぐ）

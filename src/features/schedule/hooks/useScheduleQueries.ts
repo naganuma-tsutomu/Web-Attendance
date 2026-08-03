@@ -106,7 +106,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
     const isError = isErrorShifts || isErrorPrefs;
 
     return {
-        rawShifts, preferences, fixedDates, isFetching, isError,
+        rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError,
         refetch: () => { refetchShifts(); refetchPrefs(); refetchFixed(); },
     };
 };

@@ -3,7 +3,7 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal, Lock, LockOpen } from 'lucide-react';
-import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole } from '../../../types';
+import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole, BusinessDayOverride } from '../../../types';
 import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
 import DatePicker from '../../../components/ui/DatePicker';
@@ -24,6 +24,7 @@ interface ScheduleHeaderProps {
     timePatterns: ShiftTimePattern[];
     preferences: ShiftPreference[];
     holidays: Holiday[];
+    businessDayOverrides?: BusinessDayOverride[];
     onDateChange: (date: Date) => void;
     onViewChange: (view: View) => void;
     onGenerate: () => void;
@@ -42,6 +43,9 @@ interface ScheduleHeaderProps {
     roles?: DynamicRole[];
     hasGenerationReport?: boolean;
     isBulkLockPending?: boolean;
+    analysisErrorCount?: number;
+    analysisWarningCount?: number;
+    onOpenIssues?: () => void;
 }
 
 const ScheduleHeader = ({
@@ -60,6 +64,7 @@ const ScheduleHeader = ({
     timePatterns,
     preferences,
     holidays,
+    businessDayOverrides = [],
     onDateChange,
     onViewChange,
     onGenerate,
@@ -78,6 +83,9 @@ const ScheduleHeader = ({
     roles = [],
     hasGenerationReport = false,
     isBulkLockPending = false,
+    analysisErrorCount = 0,
+    analysisWarningCount = 0,
+    onOpenIssues = () => {},
 }: ScheduleHeaderProps) => {
     const [showDesktopMoreMenu, setShowDesktopMoreMenu] = useState(false);
     const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
@@ -175,7 +183,7 @@ const ScheduleHeader = ({
                         <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                     </button>
                     <button
-                        onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles)}
+                        onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides)}
                         className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
                     >
                         <Download className="w-5 h-5 text-green-600" />
@@ -264,7 +272,7 @@ const ScheduleHeader = ({
                                         レポート
                                     </button>
                                     <button
-                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles); setShowMobileMoreMenu(false); }}
+                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides); setShowMobileMoreMenu(false); }}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                                     >
                                         <Download className="w-4 h-4 text-green-600 flex-shrink-0" />
@@ -301,6 +309,10 @@ const ScheduleHeader = ({
                     </div>
                 </div>
             </div>
+            <button onClick={onOpenIssues} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors ${analysisErrorCount > 0 ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300' : analysisWarningCount > 0 ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'}`}>
+                <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4" />シフトチェック</span>
+                <span className="font-bold">エラー {analysisErrorCount}件・警告 {analysisWarningCount}件</span>
+            </button>
 
             {/* Warning Banner */}
             {errorCount > 0 && (

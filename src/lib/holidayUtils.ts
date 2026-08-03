@@ -71,7 +71,7 @@ export const isFixedHoliday = (
     const dow = date.getDay();
     const nthWeek = Math.ceil(date.getDate() / 7);
     const config = availableDays.find(d => (typeof d === 'number' ? d : d.day) === dow);
-    if (!config) return true;
+    if (config === undefined) return true;
     if (typeof config === 'object' && config.weeks && !config.weeks.includes(nthWeek)) return true;
     return false;
 };

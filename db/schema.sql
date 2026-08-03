@@ -212,6 +212,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_staffs_access_key ON staffs(access_key) WH
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_type ON holidays(type);
 
+-- 日付単位の営業・休業上書き
+CREATE TABLE IF NOT EXISTS business_day_overrides (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+    name TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_business_day_overrides_date
+    ON business_day_overrides(date);
+
 -- シフト・希望休検索用インデックス
 CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
 CREATE INDEX IF NOT EXISTS idx_shifts_staff_date ON shifts(staffId, date);
@@ -222,10 +235,32 @@ CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yea
 CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
 
+-- 管理操作・スタッフ操作の追跡ログ
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+    actor_type TEXT NOT NULL CHECK (actor_type IN ('admin', 'staff', 'system')),
+    actor_id TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT,
+    year_month TEXT,
+    target_date TEXT,
+    summary TEXT NOT NULL,
+    before_json TEXT,
+    after_json TEXT,
+    metadata_json TEXT,
+    request_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_occurred_at ON audit_logs(occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_year_month ON audit_logs(year_month, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id, occurred_at DESC);
+
 -- ============================================================
 -- 既存 DB へのスキーマ変更について
 -- ============================================================
 -- このファイルは新規環境の初期化にのみ使用する。
 -- 既存 D1 データベースへのスキーマ変更 (FK 追加・インデックス追加等) は
--- migrations/ ディレクトリ内のマイグレーション SQL を実行すること。
+-- db/migrations/ ディレクトリ内のマイグレーション SQL を実行すること。
 -- 詳細は README.md の「スキーマ変更時のマイグレーション」を参照。

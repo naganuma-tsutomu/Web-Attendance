@@ -1,6 +1,7 @@
 import { handleServerError, createValidationError, validateTimeFormat, validateTimeRange } from '../../utils/validation';
 import type { Env, D1BindParam, D1Row } from '../../types';
 import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { writeAuditLog } from '../../utils/auditLog';
 
 // shifts テーブルで更新を許可するカラム名のホワイトリスト
 const ALLOWED_SHIFT_COLUMNS = new Set([
@@ -100,6 +101,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             `UPDATE shifts SET ${setClauses.join(', ')} WHERE id = ?`
         ).bind(...bindings).run();
 
+        await writeAuditLog(context.env, context.request, { action: 'update', entityType: 'shift', entityId: id, yearMonth: String(current.date).slice(0, 7), targetDate: String(current.date), summary: 'シフトを更新', before: current, after: mergedShift });
+
         return Response.json({ success: true, message: 'Updated' });
     } catch (e) {
         // duty_number の UNIQUE 制約違反は 409 で返す（H2）
@@ -116,9 +119,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
+        const current = await context.env.DB.prepare('SELECT * FROM shifts WHERE id = ?').bind(id).first<D1Row>();
+        if (!current) return new Response(JSON.stringify({ error: 'シフトが見つかりません' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
         await context.env.DB.prepare(
             'DELETE FROM shifts WHERE id = ?'
         ).bind(id).run();
+        await writeAuditLog(context.env, context.request, { action: 'delete', entityType: 'shift', entityId: id, yearMonth: String(current.date).slice(0, 7), targetDate: String(current.date), summary: 'シフトを削除', before: current });
         return Response.json({ success: true, message: 'Deleted' });
     } catch (e) {
         return handleServerError(e, 'Database error deleting shift');

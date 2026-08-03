@@ -21,4 +21,22 @@ describe('ConfirmModal', () => {
 
         expect(onConfirm).toHaveBeenCalledWith(true);
     });
+
+    it('副操作を選択できる', () => {
+        const onSecondary = vi.fn();
+        render(
+            <ConfirmModal
+                isOpen
+                title="既存シフト"
+                message="処理方法を選択してください"
+                secondaryLabel="シフトも削除して保存"
+                onSecondary={onSecondary}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'シフトも削除して保存' }));
+        expect(onSecondary).toHaveBeenCalledOnce();
+    });
 });

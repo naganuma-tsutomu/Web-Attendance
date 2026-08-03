@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getStaffList, updateStaff, createStaff, deleteStaff, updateStaffOrder,
-    getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays,
+    getRoles, getClasses, getShiftsByMonth, getTimePatterns, getHolidays, getBusinessDayOverrides,
     getPreferencesByMonth, getShiftRequirements, saveShiftsBatch, replaceShiftsForMonth,
-    updateShift, deleteShiftsByMonth, saveFixedDates, savePreference, updatePreferenceSubmitted,
+    updateShift, deleteShiftsByMonth, deleteShiftsByDateRange, saveFixedDates, savePreference, updatePreferenceSubmitted,
     getBusinessHours, updateBusinessHours,
     getExcelSettings, updateExcelSettings,
     getSchedulePreferences, updateSchedulePreferences,
@@ -11,9 +11,10 @@ import {
     getRotationSettings, updateRotationSettings,
     getBreakSettings, updateBreakSettings,
     getShiftSnapshots, createShiftSnapshot, restoreShiftSnapshot,
-    getShiftRequirementTemplates, toggleFixedDate
+    getShiftRequirementTemplates, toggleFixedDate, createBusinessDayOverride,
+    updateBusinessDayOverride, deleteBusinessDayOverride, createBusinessDayOverridesBulk, getAuditLogs
 } from './api';
-import type { Staff, Shift, ShiftPreference, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
+import type { Staff, Shift, ShiftPreference, BusinessDayOverride, BusinessHours, ExcelSettings, SchedulePreferences, RotationSettings, BreakSettings } from '../types';
 
 // クエリキーの定数化
 export const QUERY_KEYS = {
@@ -24,6 +25,7 @@ export const QUERY_KEYS = {
     shiftSnapshots: (monthStr: string) => ['shiftSnapshots', monthStr],
     timePatterns: ['timePatterns'],
     holidays: (year: number) => ['holidays', year],
+    businessDayOverrides: (yearMonth: string) => ['businessDayOverrides', yearMonth],
     preferences: (monthStr: string) => ['preferences', monthStr],
     shiftRequirements: ['shiftRequirements'],
     shiftRequirementTemplates: ['shiftRequirementTemplates'],
@@ -34,7 +36,15 @@ export const QUERY_KEYS = {
     schedulePreferences: ['schedulePreferences'],
     rotationSettings: ['rotationSettings'],
     breakSettings: ['breakSettings'],
+    auditLogs: (yearMonth: string, action: string) => ['auditLogs', yearMonth, action],
 };
+
+export const useAuditLogs = (yearMonth: string, action = '') => useQuery({
+    queryKey: QUERY_KEYS.auditLogs(yearMonth, action),
+    queryFn: () => getAuditLogs({ yearMonth, action: action || undefined, limit: 100 }),
+    staleTime: 0,
+    refetchOnMount: 'always',
+});
 
 // ==============================
 // Queries (データ取得)
@@ -86,6 +96,43 @@ export const useHolidays = (year: number) => {
     return useQuery({
         queryKey: QUERY_KEYS.holidays(year),
         queryFn: () => getHolidays(year),
+    });
+};
+
+export const useBusinessDayOverrides = (yearMonth: string) => useQuery({
+    queryKey: QUERY_KEYS.businessDayOverrides(yearMonth),
+    queryFn: () => getBusinessDayOverrides(yearMonth),
+});
+
+export const useCreateBusinessDayOverride = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: Omit<BusinessDayOverride, 'id' | 'created_at' | 'updated_at'>) => createBusinessDayOverride(data),
+        onSuccess: (_, data) => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessDayOverrides(data.date.slice(0, 7)) }),
+    });
+};
+
+export const useCreateBusinessDayOverridesBulk = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createBusinessDayOverridesBulk,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['businessDayOverrides'] }),
+    });
+};
+
+export const useUpdateBusinessDayOverride = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: Pick<BusinessDayOverride, 'status' | 'name'>; yearMonth: string }) => updateBusinessDayOverride(id, data),
+        onSuccess: (_, variables) => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessDayOverrides(variables.yearMonth) }),
+    });
+};
+
+export const useDeleteBusinessDayOverride = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id }: { id: string; yearMonth: string }) => deleteBusinessDayOverride(id),
+        onSuccess: (_, variables) => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessDayOverrides(variables.yearMonth) }),
     });
 };
 
@@ -176,6 +223,14 @@ export const useReplaceShiftsForMonth = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['shifts'] });
         },
+    });
+};
+
+export const useDeleteShiftsByDateRange = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ startDate, endDate }: { startDate: string; endDate: string }) => deleteShiftsByDateRange(startDate, endDate),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shifts'] }),
     });
 };
 

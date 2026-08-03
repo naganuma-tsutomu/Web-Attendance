@@ -1,11 +1,11 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { History } from 'lucide-react';
-import historyContent from '../../UPDATE_HISTORY.md?raw';
+import historyContent from '../../docs/UPDATE_HISTORY.md?raw';
 
 const UpdateHistoryPage = () => (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 md:p-8">
-        <div className="max-w-5xl mx-auto w-full">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-900">
+        <div className="mx-auto w-full max-w-5xl p-4 sm:p-6 md:p-8">
             <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
                 <History className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500" />
                 <div>

@@ -1,6 +1,7 @@
 import { createValidationError, handleServerError, validateDate, validateTimeRange, validateYearMonth } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
 import { validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { writeAuditLog } from '../../utils/auditLog';
 
 type ReplacementShift = {
     date: string;
@@ -149,6 +150,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             }
             throw replaceError;
         }
+        await writeAuditLog(context.env, context.request, { action: 'replace', entityType: 'shift_month', yearMonth, summary: `${yearMonth}のシフトを一括置換`, metadata: { beforeCount: backupRows.length, afterCount: insertableShifts.length, fixedDateCount: fixedDates.length } });
         return Response.json({ success: true, message: `Replaced ${insertableShifts.length} shifts` });
     } catch (e) {
         if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('duty_number')) {

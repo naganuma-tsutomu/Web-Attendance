@@ -36,8 +36,8 @@ test-algo.mjs
 # Test coverage
 coverage/
 
-# Local DB scripts (backups, resets — not for version control)
-db/
+# Local DB artifacts (backups, resets — not for version control)
+db/local/
 
 # Review markdown files
 review-markdown/

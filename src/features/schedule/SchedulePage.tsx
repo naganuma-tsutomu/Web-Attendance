@@ -99,16 +99,17 @@ const SchedulePage = () => {
         handleOpenTimeline
     );
 
-    const { fixedDates, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, toggleFixedDate } = schedule;
+    const { fixedDates, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, isNationalHolidayDate, toggleFixedDate } = schedule;
     const calendarDisplayValue = useMemo(() => ({
         fixedDates,
         toggleFixedDate,
         getHolidayNameForDate,
         getBusinessDayStatusForDate,
         isHolidayDate,
+        isNationalHolidayDate,
         handleOpenTimeline,
         lastTouchOpenRef,
-    }), [fixedDates, toggleFixedDate, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, handleOpenTimeline, lastTouchOpenRef]);
+    }), [fixedDates, toggleFixedDate, getHolidayNameForDate, getBusinessDayStatusForDate, isHolidayDate, isNationalHolidayDate, handleOpenTimeline, lastTouchOpenRef]);
 
     const calendarComponents = useMemo(() => ({
         toolbar: () => null,

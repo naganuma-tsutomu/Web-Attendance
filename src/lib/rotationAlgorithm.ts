@@ -484,7 +484,8 @@ export const applyRotation = (
         }
 
         const effectiveClosedDays = individuallyOpen ? closedDays.filter(day => day !== dayOfWeek && day !== 7) : closedDays;
-        const available = rotationStaff.filter(s => isStaffAvailable(s, date, dateStr, preferences, effectiveClosedDays, holidays.includes(dateStr)));
+        const effectiveHoliday = individuallyOpen ? false : holidays.includes(dateStr);
+        const available = rotationStaff.filter(s => isStaffAvailable(s, date, dateStr, preferences, effectiveClosedDays, effectiveHoliday));
         if (available.length === 0) continue;
 
         if (dayOfWeek === 6) {

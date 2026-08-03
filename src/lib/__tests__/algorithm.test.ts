@@ -145,6 +145,29 @@ describe('generateShiftsForMonth', () => {
         expect(shifts.some(s => s.date === '2025-06-01')).toBe(true);
     });
 
+    it('個別営業は祝日の時間パターン判定も通常曜日として扱う', () => {
+        const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
+        const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];
+        const roles: DynamicRole[] = [{
+            id: 'role1',
+            name: '正社員',
+            targetHours: 160,
+            display_order: 1,
+            patterns: [{
+                id: 'p1', name: '平日', startTime: '09:00', endTime: '18:00',
+                sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 0, holiday: 0,
+                display_order: 1
+            }]
+        }];
+        const shifts = generateShiftsForMonth(
+            '2025-06', staff, emptyPrefs, roles, dummyClasses, ['2025-06-02'], reqs,
+            [], [], [7], undefined, undefined, undefined, null,
+            [{ id: 'o1', date: '2025-06-02', status: 'open', name: '祝日営業' }]
+        );
+
+        expect(shifts.some(s => s.date === '2025-06-02' && s.staffId === 's1')).toBe(true);
+    });
+
     it('個別休業は通常営業日を上書きする', () => {
         const staff = [makeStaff({ id: 's1', name: 'スタッフA', role: '正社員' })];
         const reqs = [makeReq({ id: 'r1', classId: 'class_niji' })];

@@ -106,6 +106,11 @@ export const useScheduleData = () => {
         return !resolveDate(date).isOpen;
     };
 
+    const isNationalHolidayDate = (date: Date): boolean => {
+        const holiday = holidayMap.get(format(date, 'yyyy-MM-dd'));
+        return !!holiday && !holiday.isWorkday;
+    };
+
     const getBusinessDayStatusForDate = (date: Date): 'open' | 'closed' | null => {
         const override = businessDayOverrideMap.get(format(date, 'yyyy-MM-dd'));
         return override?.status ?? null;
@@ -178,6 +183,7 @@ export const useScheduleData = () => {
         getHolidayNameForDate,
         getBusinessDayStatusForDate,
         isHolidayDate,
+        isNationalHolidayDate,
 
         // 変更ハンドラ群（useScheduleActions から）
         ...actions,

@@ -356,6 +356,7 @@ export const generateShiftsForMonth = (
 
         const effectiveClosedDays = individuallyOpen ? closedDays.filter(day => day !== dayOfWeek && day !== 7) : closedDays;
         const effectiveHoliday = individuallyOpen ? false : holidays.includes(dateStr);
+        const effectiveHolidays = individuallyOpen ? [] : holidays;
 
         const availableStaff = staffList.filter(staff =>
             isStaffAvailable(staff, date, dateStr, preferences, effectiveClosedDays, effectiveHoliday)
@@ -400,7 +401,7 @@ export const generateShiftsForMonth = (
                         currentHours,
                         currentWeeklyHours,
                         roles,
-                        holidays,
+                        effectiveHolidays,
                         breakSettings,
                         effectiveClosedDays,
                         slot.req.classId

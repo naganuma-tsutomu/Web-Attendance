@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Users, LogOut, Moon, Clock, Menu, X, GraduationCap, Palette, FileSpreadsheet, BookOpen, History, RefreshCw, RotateCcw, BarChart3 } from 'lucide-react';
+import { Calendar, Users, LogOut, Moon, Clock, Menu, GraduationCap, Palette, FileSpreadsheet, BookOpen, History, RefreshCw, RotateCcw, BarChart3 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { useFacilityName } from '../lib/hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -59,12 +59,19 @@ const Layout = () => {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col md:flex-row transition-colors duration-300">
             {/* Mobile Header */}
-            <header className="md:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
-                <div className="flex items-center">
+            <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800 md:hidden">
+                <div className="flex min-w-0 items-center">
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="mr-4 rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                        aria-label="メニューを開く"
+                    >
+                        <Menu className="h-6 w-6" />
+                    </button>
                     <Moon className="w-6 h-6 text-indigo-500 mr-2" />
-                    <h1 className="text-lg font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
+                    <h1 className="truncate text-lg font-bold tracking-wider text-slate-800 dark:text-white">{facilityName}</h1>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center">
                     <button
                         onClick={handleRefresh}
                         disabled={isRefreshing}
@@ -72,13 +79,6 @@ const Layout = () => {
                         aria-label="データを更新"
                     >
                         <RotateCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    </button>
-                    <button
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                        aria-label="メニューを開く"
-                    >
-                        {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </button>
                 </div>
             </header>

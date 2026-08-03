@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { addMonths, format, setMonth, setYear, startOfMonth, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 interface MonthNavigationProps {
     date: Date;
     onChange: (date: Date) => void;
+    isLoading?: boolean;
 }
 
-export default function MonthNavigation({ date, onChange }: MonthNavigationProps) {
+export default function MonthNavigation({ date, onChange, isLoading = false }: MonthNavigationProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [pickerYear, setPickerYear] = useState(date.getFullYear());
     const pickerRef = useRef<HTMLDivElement>(null);
@@ -32,12 +33,12 @@ export default function MonthNavigation({ date, onChange }: MonthNavigationProps
     };
 
     return (
-        <div ref={pickerRef} className="relative flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div ref={pickerRef} className="relative flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:w-auto">
             <button
                 type="button"
                 onClick={() => onChange(subMonths(date, 1))}
                 aria-label="前月へ"
-                className="rounded-lg p-1.5 text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="min-h-11 min-w-11 rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700 sm:min-h-0 sm:min-w-0 sm:p-1.5"
             >
                 <ChevronLeft className="h-5 w-5" />
             </button>
@@ -46,15 +47,17 @@ export default function MonthNavigation({ date, onChange }: MonthNavigationProps
                 onClick={openPicker}
                 aria-haspopup="dialog"
                 aria-expanded={isOpen}
-                className="min-w-[120px] select-none rounded-lg px-3 py-1.5 text-center text-sm font-bold text-slate-800 transition-colors hover:bg-slate-50 dark:text-white dark:hover:bg-slate-700/50"
+                className="flex min-h-11 min-w-[150px] select-none items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-center text-sm font-bold text-slate-800 transition-colors hover:bg-slate-50 dark:text-white dark:hover:bg-slate-700/50 sm:min-h-0"
             >
+                <Calendar className="h-4 w-4 shrink-0 text-indigo-500" />
                 {format(date, 'yyyy年M月', { locale: ja })}
+                {isLoading && <Loader2 className="h-3 w-3 shrink-0 animate-spin text-indigo-400" />}
             </button>
             <button
                 type="button"
                 onClick={() => onChange(addMonths(date, 1))}
                 aria-label="翌月へ"
-                className="rounded-lg p-1.5 text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="min-h-11 min-w-11 rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700 sm:min-h-0 sm:min-w-0 sm:p-1.5"
             >
                 <ChevronRight className="h-5 w-5" />
             </button>

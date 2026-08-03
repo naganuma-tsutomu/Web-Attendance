@@ -191,9 +191,12 @@ const PreferencesPage = () => {
             <div className="space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
                 {/* ヘッダー */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">休日管理</h2>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1">スタッフごとの休日・出勤不可日を入力・管理します</p>
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                        <Calendar className="h-6 w-6 shrink-0 text-indigo-500 sm:h-8 sm:w-8" />
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white sm:text-2xl">休日管理</h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">スタッフごとの休日・出勤不可日を入力・管理します</p>
+                        </div>
                     </div>
                     {/* 月ナビゲーション */}
                     <MonthNavigation date={targetDate} onChange={setTargetDate} />
@@ -201,7 +204,7 @@ const PreferencesPage = () => {
                     <button
                         onClick={handleSyncHolidays}
                         disabled={syncingHolidays}
-                        className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm disabled:opacity-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 sm:w-auto"
                         title="今年と来年の祝日データを最新に更新します"
                     >
                         <RefreshCw className={`w-4 h-4 text-indigo-500 ${syncingHolidays ? 'animate-spin' : ''}`} />

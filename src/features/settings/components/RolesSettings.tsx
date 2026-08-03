@@ -181,10 +181,11 @@ const RolesSettings = ({ roles, setRoles, timePatterns, loading, onUpdate }: Rol
             <div className="flex justify-end">
                 <button
                     onClick={handleOpenAddModal}
-                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold"
+                    className="flex items-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 dark:shadow-none sm:px-5 sm:py-2.5"
                 >
-                    <Plus className="w-5 h-5" />
-                    <span>スタッフ区分追加</span>
+                    <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="hidden sm:inline">スタッフ区分追加</span>
+                    <span className="sm:hidden">追加</span>
                 </button>
             </div>
 

@@ -1,20 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, History } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { useAuditLogs } from '../../lib/hooks';
+import { loadActiveMonth, saveActiveMonth } from '../../utils/dateUtils';
+import MonthNavigation from '../../components/ui/MonthNavigation';
 
 const actionLabels: Record<string, string> = { create: '追加', update: '更新', delete: '削除', replace: '一括置換', import: '取込', restore: '復元', lock: 'ロック', unlock: '解除' };
-const currentMonth = () => `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-
 export default function AuditLogPage() {
-    const [yearMonth, setYearMonth] = useState(currentMonth);
+    const [yearMonth, setYearMonth] = useState(() => format(loadActiveMonth(), 'yyyy-MM'));
     const [action, setAction] = useState('');
     const [expanded, setExpanded] = useState<string | null>(null);
     const { data, isLoading, isError } = useAuditLogs(yearMonth, action);
+
+    useEffect(() => {
+        saveActiveMonth(parseISO(`${yearMonth}-01`));
+    }, [yearMonth]);
+
     return (
         <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 md:p-8">
             <header><h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white"><History className="h-6 w-6 text-indigo-500" />操作履歴</h2><p className="mt-1 text-sm text-slate-500">シフトやロックなどの主要な変更を確認できます。</p></header>
             <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-800 sm:flex-row">
-                <input type="month" value={yearMonth} onChange={event => setYearMonth(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-4 py-2 dark:border-slate-600 dark:bg-slate-900" aria-label="対象月" />
+                <MonthNavigation date={parseISO(`${yearMonth}-01`)} onChange={date => setYearMonth(format(date, 'yyyy-MM'))} />
                 <select value={action} onChange={event => setAction(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-4 py-2 dark:border-slate-600 dark:bg-slate-900" aria-label="操作種別"><option value="">すべての操作</option>{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
             </div>
             {isLoading && <p className="rounded-2xl bg-white p-8 text-center text-slate-500 dark:bg-slate-800">読み込み中...</p>}

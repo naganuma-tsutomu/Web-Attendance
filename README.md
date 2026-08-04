@@ -47,6 +47,8 @@ Cloudflare Workers のランタイムをエミュレートしながら起動し�
 npm test
 ```
 
+Pull Requestとpushでは、GitHub Actionsがlint、型検査、全テスト、production build、空D1へのschema・seed適用を自動実行します。
+
 ## デプロイ（Cloudflare Pages）
 
 ### 初回セットアップ
@@ -149,6 +151,14 @@ wrangler pages deploy dist --env preview
 - 条件: 同一IPからの短時間の連続失敗を制限
 - アクション: 一時ブロックまたは Managed Challenge
 - 管理者ログイン `/api/auth/login` も同様に制限
+
+本番・プレビューへデプロイした後は、両方の環境で設定漏れを検査します。
+
+```bash
+RATE_LIMIT_TARGET_URL=https://example.pages.dev npm run check:auth-rate-limit
+```
+
+スタッフ用・管理者用ログインの両方が、20回以内に `429 Too Many Requests` を返せば成功です。制限回数を20回より多く設定している場合は、`RATE_LIMIT_CHECK_ATTEMPTS`（最大100）で検査回数を指定できます。この検査は実際に失敗ログインを連続送信するため、デプロイ直後のスモークテストとしてのみ実行してください。
 
 ## プロジェクト構成
 

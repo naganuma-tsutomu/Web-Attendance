@@ -9,7 +9,7 @@ import {
     validateMaxStaffCount 
 } from '../../../utils/validation';
 
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
 
 // PUT /api/settings/shift-requirements/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
@@ -19,7 +19,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         
         // Build update query dynamically
         const updates: string[] = [];
-        const values: any[] = [];
+        const values: D1BindParam[] = [];
         
         // Validate and add classId
         if (body.classId !== undefined) {

@@ -213,7 +213,7 @@ const StaffPreferencePage = () => {
                         myShifts={myShifts}
                         holidays={holidays}
                         businessDayOverrides={businessDayOverrides}
-                        myAvailableDays={myAvailableDays}
+                        myAvailableDays={myAvailableDays ?? []}
                         closedDays={closedDays}
                     />
                 )}

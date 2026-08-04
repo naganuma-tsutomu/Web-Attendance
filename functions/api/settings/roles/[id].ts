@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
 
 // DELETE /api/settings/roles/:id
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
@@ -43,7 +43,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         // スタッフ区分情報の更新
         if (body.name !== undefined || body.targetHours !== undefined || body.weeklyHoursTarget !== undefined) {
             const updates: string[] = [];
-            const values: any[] = [];
+            const values: D1BindParam[] = [];
             if (body.name !== undefined) {
                 updates.push('name = ?');
                 values.push(body.name.trim());

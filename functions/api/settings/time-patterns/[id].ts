@@ -1,11 +1,19 @@
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
+
+type DayFlag = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday';
+type TimePatternUpdate = {
+    name?: string;
+    startTime?: string;
+    endTime?: string;
+    roleIds?: string[];
+} & Partial<Record<DayFlag, number>>;
 
 // PUT /api/settings/time-patterns/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string; startTime?: string; endTime?: string };
+        const body = await context.request.json() as TimePatternUpdate;
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -39,7 +47,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         // Build update query dynamically
         const updates: string[] = [];
-        const values: any[] = [];
+        const values: D1BindParam[] = [];
 
         if (body.name !== undefined) {
             updates.push('name = ?');
@@ -54,11 +62,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             values.push(body.endTime);
         }
         // 曜日・祝日フラグの追加
-        const dayFlags = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
+        const dayFlags: DayFlag[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
         for (const flag of dayFlags) {
-            if ((body as any)[flag] !== undefined) {
+            if (body[flag] !== undefined) {
                 updates.push(`${flag} = ?`);
-                values.push((body as any)[flag]);
+                values.push(body[flag]!);
             }
         }
 
@@ -70,8 +78,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
 
         // スタッフ区分の紐付け同期
-        if ((body as any).roleIds !== undefined) {
-            const roleIds = (body as any).roleIds as string[];
+        if (body.roleIds !== undefined) {
+            const roleIds = body.roleIds;
             // 一旦削除
             await context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id).run();
             // 再挿入

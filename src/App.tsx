@@ -1,29 +1,38 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
-import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
-import AuthPage from './features/auth/AuthPage';
-import StaffPage from './features/staff/StaffPage';
-import PreferencesPage from './features/preferences/PreferencesPage';
-import SchedulePage from './features/schedule/SchedulePage';
-import TimePatternsPage from './pages/settings/TimePatternsPage';
-import RolesPage from './pages/settings/RolesPage';
-import ClassesPage from './pages/settings/ClassesPage';
-import AppearancePage from './pages/settings/AppearancePage';
-import ExcelSettingsPage from './pages/settings/ExcelSettingsPage';
-import RotationPage from './pages/settings/RotationPage';
-import StaffLoginPage from './pages/StaffLoginPage';
-import StaffPreferencePage from './pages/StaffPreferencePage';
-import LandingPage from './pages/LandingPage';
-import UserManualPage from './pages/UserManualPage';
-import UpdateHistoryPage from './pages/UpdateHistoryPage';
-import DashboardPage from './features/dashboard/DashboardPage';
-import AuditLogPage from './features/audit/AuditLogPage';
 import { UnsavedChangesProvider } from './lib/UnsavedChangesContext';
+
+const Layout = lazy(() => import('./components/Layout'));
+const AuthPage = lazy(() => import('./features/auth/AuthPage'));
+const StaffPage = lazy(() => import('./features/staff/StaffPage'));
+const PreferencesPage = lazy(() => import('./features/preferences/PreferencesPage'));
+const SchedulePage = lazy(() => import('./features/schedule/SchedulePage'));
+const TimePatternsPage = lazy(() => import('./pages/settings/TimePatternsPage'));
+const RolesPage = lazy(() => import('./pages/settings/RolesPage'));
+const ClassesPage = lazy(() => import('./pages/settings/ClassesPage'));
+const AppearancePage = lazy(() => import('./pages/settings/AppearancePage'));
+const ExcelSettingsPage = lazy(() => import('./pages/settings/ExcelSettingsPage'));
+const RotationPage = lazy(() => import('./pages/settings/RotationPage'));
+const StaffLoginPage = lazy(() => import('./pages/StaffLoginPage'));
+const StaffPreferencePage = lazy(() => import('./pages/StaffPreferencePage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const UserManualPage = lazy(() => import('./pages/UserManualPage'));
+const UpdateHistoryPage = lazy(() => import('./pages/UpdateHistoryPage'));
+const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage'));
+const AuditLogPage = lazy(() => import('./features/audit/AuditLogPage'));
+
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+    <div className="text-indigo-600 dark:text-indigo-400 font-medium tracking-widest text-lg animate-pulse">
+      読み込み中...
+    </div>
+  </div>
+);
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
@@ -34,20 +43,15 @@ const AppRoutes = () => {
   const { loading, currentUser } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-indigo-600 dark:text-indigo-400 font-medium tracking-widest text-lg animate-pulse">
-          読み込み中...
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <Router>
       <UnsavedChangesProvider>
         <ScrollToTop />
-        <Routes>
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route
           path="/login"
@@ -79,7 +83,8 @@ const AppRoutes = () => {
         </Route>
         <Route path="/staff/login" element={<StaffLoginPage />} />
         <Route path="/staff/preference" element={<StaffPreferencePage />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </UnsavedChangesProvider>
     </Router>
   );

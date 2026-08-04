@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
 
 // GET /api/holidays — 祝日一覧取得
 // Query: ?year=2025 (年指定、省略時は全件)
@@ -9,7 +9,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const year = url.searchParams.get('year');
         
         let query = 'SELECT * FROM holidays';
-        const params: any[] = [];
+        const params: D1BindParam[] = [];
         
         if (year) {
             query += ' WHERE date >= ? AND date < ?';

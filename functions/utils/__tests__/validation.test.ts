@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createValidationError, createServerError, handleServerError, validateDate, validateName, validateTimeFormat, validateTimeRange } from '../validation';
+import { createValidationError, createServerError, handleServerError, validateAccessKey, validateDate, validateName, validateTimeFormat, validateTimeRange } from '../validation';
 
 describe('validation utilities', () => {
+    describe('validateAccessKey', () => {
+        it('6桁の数字だけを受け入れる', () => {
+            expect(validateAccessKey('123456')).toBeNull();
+            expect(validateAccessKey(null)).toBeNull();
+            expect(validateAccessKey('1234')).toContain('6桁');
+            expect(validateAccessKey('12345a')).toContain('6桁');
+        });
+    });
+
     describe('createValidationError', () => {
         it('ステータス400とエラーメッセージを持つResponseを返す', async () => {
             const msg = 'Invalid Input';

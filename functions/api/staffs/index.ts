@@ -1,6 +1,5 @@
-// NOTE(ARCH-3): 型は src/types から共有。将来的に shared/types.ts へ移行予定
-import type { Staff } from '../../../src/types';
-import { handleServerError, createValidationError, validateName, validateRole, safeJsonParse } from '../../utils/validation';
+import { formatStaffInputError, StaffCreateInputSchema } from '../../../shared/staffSchemas';
+import { handleServerError, createValidationError, safeJsonParse } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
 import { getRequestAuthState } from '../../utils';
 
@@ -80,15 +79,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const staffData: Partial<Staff> = await context.request.json();
-        
-        // Validate name
-        const nameError = validateName(staffData.name || '', '名前', 100);
-        if (nameError) return createValidationError(nameError);
-        
-        // Validate role
-        const roleError = validateRole(staffData.role || '');
-        if (roleError) return createValidationError(roleError);
+        const parsed = StaffCreateInputSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError(formatStaffInputError(parsed.error));
+        const staffData = parsed.data;
 
         const id = staffData.id || crypto.randomUUID();
 
@@ -109,8 +102,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
                      VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM staffs), ?)`
                 ).bind(
                     id,
-                    staffData.name!.trim(),
-                    staffData.role!,
+                    staffData.name,
+                    staffData.role,
                     staffData.hoursTarget ?? null,
                     staffData.weeklyHoursTarget ?? null,
                     staffData.defaultWorkingHoursStart || null,

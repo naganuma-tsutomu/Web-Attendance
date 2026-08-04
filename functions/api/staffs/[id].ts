@@ -1,4 +1,5 @@
-import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
+import { formatStaffInputError, StaffUpdateInputSchema } from '../../../shared/staffSchemas';
+import { handleServerError, createValidationError } from '../../utils/validation';
 import type { Env, D1BindParam } from '../../types';
 
 // staffs テーブルで更新を許可するカラム名のホワイトリスト
@@ -25,26 +26,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
-        const staffData = await context.request.json() as Partial<{
-            name: string; role: string; hoursTarget: number | null;
-            weeklyHoursTarget: number | null;
-            defaultWorkingHoursStart: string | null; defaultWorkingHoursEnd: string | null;
-            accessKey: string | null;
-            availableDays: (number | { day: number; weeks?: number[] | null })[];
-            classIds: string[];
-        }>;
-        
-        // Validate name if provided
-        if (staffData.name !== undefined) {
-            const nameError = validateName(staffData.name, '名前', 100);
-            if (nameError) return createValidationError(nameError);
-        }
-        
-        // Validate role if provided
-        if (staffData.role !== undefined) {
-            const roleError = validateRole(staffData.role);
-            if (roleError) return createValidationError(roleError);
-        }
+        const parsed = StaffUpdateInputSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError(formatStaffInputError(parsed.error));
+        const staffData = parsed.data;
 
         // 更新するカラムを動的に構築（undefined = 更新しない、null = NULL を書き込む）
         // addSetClause() でホワイトリスト検証済みのカラム名のみ追加
@@ -126,9 +110,12 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
-        // ON DELETE CASCADE により staff_available_days, staff_classes,
-        // shifts, shift_preferences, shift_preference_dates も連動して削除される
-        await context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id).run();
+        // shifts.staffId は既存DBとの互換性のため外部キーを持たない。
+        // 同じbatchで明示的に削除し、孤児シフトを残さない。
+        await context.env.DB.batch([
+            context.env.DB.prepare("DELETE FROM shifts WHERE staffId = ?").bind(id),
+            context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id),
+        ]);
 
         return Response.json({ success: true });
     } catch (e) {

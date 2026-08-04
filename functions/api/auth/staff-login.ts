@@ -1,4 +1,4 @@
-import { handleServerError, createValidationError } from '../../utils/validation';
+import { handleServerError, createValidationError, validateAccessKey } from '../../utils/validation';
 import { signStaffCookie, TOKEN_MAX_AGE_SECONDS, STAFF_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
 
@@ -9,6 +9,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (!name || !accessKey) {
             return createValidationError('名前とアクセスキーを入力してください');
         }
+        const accessKeyError = validateAccessKey(accessKey.trim());
+        if (accessKeyError) return createValidationError(accessKeyError);
 
         const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
         if (!ADMIN_PASSWORD) {

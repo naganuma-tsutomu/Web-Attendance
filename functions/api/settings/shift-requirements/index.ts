@@ -8,7 +8,7 @@ import {
     validateMaxStaffCount
 } from '../../../utils/validation';
 
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
 
 // GET /api/settings/shift-requirements
 // Query params: classId, dayOfWeek (optional)
@@ -20,7 +20,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         let query = 'SELECT * FROM shift_requirements';
         const conditions: string[] = [];
-        const values: any[] = [];
+        const values: D1BindParam[] = [];
 
         if (classId) {
             conditions.push('classId = ?');

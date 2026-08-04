@@ -1,5 +1,5 @@
 import { createValidationError, handleServerError, validateDate, validateTimeRange, validateYearMonth } from '../../utils/validation';
-import type { Env, D1Row } from '../../types';
+import type { Env } from '../../types';
 import { validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
 
@@ -71,16 +71,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const startStr = `${yearMonth}-01`;
         const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
-        const backupQuery = fixedDates.length > 0
+        const countQuery = fixedDates.length > 0
             ? context.env.DB.prepare(
-                `SELECT id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number
+                `SELECT COUNT(*) AS count
                  FROM shifts WHERE date >= ? AND date < ? AND date NOT IN (${fixedDates.map(() => '?').join(',')})`
             ).bind(startStr, nextMonth, ...fixedDates)
             : context.env.DB.prepare(
-                `SELECT id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number
+                `SELECT COUNT(*) AS count
                  FROM shifts WHERE date >= ? AND date < ?`
             ).bind(startStr, nextMonth);
-        const { results: backupRows } = await backupQuery.all();
+        const countRow = await countQuery.first<{ count: number }>();
+        const beforeCount = Number(countRow?.count ?? 0);
 
         const statements = [];
         if (fixedDates.length > 0) {
@@ -113,44 +114,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             shift.duty_number ?? null
         )));
 
-        const chunkSize = 100;
-        try {
-            for (let i = 0; i < statements.length; i += chunkSize) {
-                await context.env.DB.batch(statements.slice(i, i + chunkSize));
-            }
-        } catch (replaceError) {
-            try {
-                const restoreStatements = [fixedDates.length > 0
-                    ? context.env.DB.prepare(
-                        `DELETE FROM shifts WHERE date >= ? AND date < ? AND date NOT IN (${fixedDates.map(() => '?').join(',')})`
-                    ).bind(startStr, nextMonth, ...fixedDates)
-                    : context.env.DB.prepare(
-                        'DELETE FROM shifts WHERE date >= ? AND date < ?'
-                    ).bind(startStr, nextMonth)];
-                const restoreInsert = context.env.DB.prepare(
-                    `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-                );
-                restoreStatements.push(...(backupRows as D1Row[]).map(row => restoreInsert.bind(
-                    String(row.id),
-                    String(row.date),
-                    String(row.staffId),
-                    String(row.startTime),
-                    String(row.endTime),
-                    String(row.classType),
-                    row.isEarlyShift === 1 || row.isEarlyShift === true ? 1 : 0,
-                    row.isError === 1 || row.isError === true ? 1 : 0,
-                    typeof row.duty_number === 'number' ? row.duty_number : null
-                )));
-                for (let i = 0; i < restoreStatements.length; i += chunkSize) {
-                    await context.env.DB.batch(restoreStatements.slice(i, i + chunkSize));
-                }
-            } catch (restoreError) {
-                console.error('Failed to restore shifts after monthly replacement error:', restoreError);
-            }
-            throw replaceError;
-        }
-        await writeAuditLog(context.env, context.request, { action: 'replace', entityType: 'shift_month', yearMonth, summary: `${yearMonth}のシフトを一括置換`, metadata: { beforeCount: backupRows.length, afterCount: insertableShifts.length, fixedDateCount: fixedDates.length } });
+        // D1 batch is transactional. Keeping DELETE and every INSERT in one batch
+        // prevents a partially replaced month if any statement fails.
+        await context.env.DB.batch(statements);
+        await writeAuditLog(context.env, context.request, { action: 'replace', entityType: 'shift_month', yearMonth, summary: `${yearMonth}のシフトを一括置換`, metadata: { beforeCount, afterCount: insertableShifts.length, fixedDateCount: fixedDates.length } });
         return Response.json({ success: true, message: `Replaced ${insertableShifts.length} shifts` });
     } catch (e) {
         if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('duty_number')) {

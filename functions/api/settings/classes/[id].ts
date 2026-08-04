@@ -1,5 +1,5 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
 
 // PUT /api/settings/classes/[id] — クラス更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
@@ -15,7 +15,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         let query = 'UPDATE classes SET ';
         const sets: string[] = [];
-        const params: any[] = [];
+        const params: D1BindParam[] = [];
 
         if (body.name !== undefined) {
             sets.push('name = ?');

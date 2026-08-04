@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { onRequestGet as getStaffs } from '../../../functions/api/staffs/index';
+import { onRequestDelete as deleteStaff } from '../../../functions/api/staffs/[id]';
 import { onRequestGet as getPreferences } from '../../../functions/api/preferences/index';
 import { onRequestPost as replaceShifts } from '../../../functions/api/shifts/replace';
 import { onRequest as middleware } from '../../../functions/api/_middleware';
@@ -57,6 +58,25 @@ const createContext = async (
 });
 
 describe('server API security boundaries', () => {
+    it('スタッフ削除はシフトとスタッフ本体を同一batchで削除する', async () => {
+        const batch = vi.fn().mockResolvedValue([]);
+        const db = { prepare: (sql: string) => createStatement(sql), batch };
+
+        const response = await deleteStaff({
+            request: { url: 'https://example.com/api/staffs/s1' },
+            env: { DB: db },
+        } as never);
+
+        expect(response.status).toBe(200);
+        expect(batch).toHaveBeenCalledTimes(1);
+        const statements = batch.mock.calls[0][0] as MockStatement[];
+        expect(statements.map(statement => statement.sql)).toEqual([
+            'DELETE FROM shifts WHERE staffId = ?',
+            'DELETE FROM staffs WHERE id = ?',
+        ]);
+        expect(statements.every(statement => statement.binds[0] === 's1')).toBe(true);
+    });
+
     it('スタッフ権限のスタッフ一覧からアクセスキーを除外する', async () => {
         const staffToken = await signStaffCookie('s1', SECRET);
         const db = {
@@ -261,26 +281,11 @@ describe('server API security boundaries', () => {
         });
     });
 
-    it('月次シフト置換の途中失敗時は置換前データを復元する', async () => {
+    it('月次シフト置換は100件超でもDELETEと全INSERTを1回のbatchへ渡す', async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        const batch = vi.fn()
-            .mockResolvedValueOnce([])
-            .mockRejectedValueOnce(new Error('second chunk failed'))
-            .mockResolvedValue([]);
+        const batch = vi.fn().mockRejectedValueOnce(new Error('atomic batch failed'));
         const db = {
-            prepare: (sql: string) => createStatement(sql, query => query.startsWith('SELECT id, date')
-                ? [{
-                    id: 'old1',
-                    date: '2025-06-02',
-                    staffId: 's1',
-                    startTime: '09:00',
-                    endTime: '18:00',
-                    classType: 'class_a',
-                    isEarlyShift: 0,
-                    isError: 0,
-                    duty_number: null,
-                }]
-                : []),
+            prepare: (sql: string) => createStatement(sql),
             batch,
         };
         const shifts = Array.from({ length: 100 }, (_, index) => ({
@@ -301,10 +306,11 @@ describe('server API security boundaries', () => {
         const response = await replaceShifts(context as never);
 
         expect(response.status).toBe(500);
-        expect(batch).toHaveBeenCalledTimes(3);
-        const restoreBatch = batch.mock.calls[2][0] as MockStatement[];
-        expect(restoreBatch[0].sql).toContain('DELETE FROM shifts');
-        expect(restoreBatch[1].binds[0]).toBe('old1');
+        expect(batch).toHaveBeenCalledTimes(1);
+        const atomicBatch = batch.mock.calls[0][0] as MockStatement[];
+        expect(atomicBatch).toHaveLength(101);
+        expect(atomicBatch[0].sql).toContain('DELETE FROM shifts');
+        expect(atomicBatch.slice(1).every(statement => statement.sql.includes('INSERT INTO shifts'))).toBe(true);
         consoleSpy.mockRestore();
     });
 });

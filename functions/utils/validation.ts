@@ -102,6 +102,15 @@ export function validateRole(role: string): string | null {
     return null;
 }
 
+// Staff access keys are always exactly six decimal digits.
+export function validateAccessKey(accessKey: string | null | undefined): string | null {
+    if (accessKey === null || accessKey === undefined) return null;
+    if (!/^\d{6}$/.test(accessKey)) {
+        return 'アクセスキーは6桁の数字で入力してください';
+    }
+    return null;
+}
+
 // Validate yearMonth format (YYYY-MM)
 export function validateYearMonth(yearMonth: string | null | undefined): string | null {
     if (!yearMonth) return 'yearMonthは必須です';

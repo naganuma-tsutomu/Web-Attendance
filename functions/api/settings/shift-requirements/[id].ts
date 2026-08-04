@@ -1,4 +1,4 @@
-import type { ShiftRequirement } from '../../../../src/types';
+import type { ShiftRequirement } from '../../../../shared/shiftRequirementSchema';
 import { 
     handleServerError, 
     createValidationError, 

@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import { ShiftRequirementSchema } from '../../shared/shiftRequirementSchema';
+import { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared/shiftPreferenceSchema';
+
+export { ShiftRequirementSchema } from '../../shared/shiftRequirementSchema';
+export { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared/shiftPreferenceSchema';
 
 // ==========================================
 // Zod スキーマ定義 (Single Source of Truth)
@@ -30,21 +35,6 @@ export const ShiftClassSchema = z.object({
   display_order: z.number().optional().nullable(),
   auto_allocate: z.union([z.boolean(), z.number()]).optional().nullable(),
   color: z.string().optional().nullable(),
-});
-
-export const ShiftPreferenceDetailSchema = z.object({
-  date: z.string(),
-  startTime: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
-  type: z.string().optional().nullable(),
-});
-
-export const ShiftPreferenceSchema = z.object({
-  id: z.string(),
-  staffId: z.string(),
-  yearMonth: z.string(),
-  submitted: z.boolean().optional(),
-  details: z.array(ShiftPreferenceDetailSchema).optional(),
 });
 
 export const ShiftSchema = z.object({
@@ -92,17 +82,6 @@ export const DynamicRoleSchema = z.object({
   weeklyHoursTarget: z.number().optional().nullable(),
   display_order: z.number().optional().nullable(),
   patterns: z.array(ShiftTimePatternSchema).optional().default([]),
-});
-
-export const ShiftRequirementSchema = z.object({
-  id: z.string(),
-  classId: z.string(),
-  dayOfWeek: z.number().int(),
-  startTime: z.string(),
-  endTime: z.string(),
-  minStaffCount: z.number().int(),
-  maxStaffCount: z.number().int().optional().nullable(),
-  priority: z.number().optional().nullable(),
 });
 
 export const ShiftRequirementTemplateSchema = z.object({

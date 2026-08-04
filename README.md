@@ -58,7 +58,7 @@ Pull Requestとpushでは、GitHub Actionsがlint、型検査、全テスト、p
 wrangler login
 
 # 本番用 D1 データベースを初期化
-wrangler d1 execute web-attendance-db --file=db/schema.sql
+wrangler d1 execute web-attendance-restored-db --file=db/schema.sql
 
 # 管理者パスワードを本番環境に設定
 wrangler pages secret put ADMIN_PASSWORD
@@ -81,11 +81,11 @@ wrangler pages deploy dist
 
    ```bash
    # access_key 重複確認
-   wrangler d1 execute web-attendance-db \
+   wrangler d1 execute web-attendance-restored-db \
      --command "SELECT access_key, COUNT(*) AS c FROM staffs WHERE access_key IS NOT NULL GROUP BY access_key HAVING c > 1;"
 
    # (date, classType, duty_number) 重複確認
-   wrangler d1 execute web-attendance-db \
+   wrangler d1 execute web-attendance-restored-db \
      --command "SELECT date, classType, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, classType, duty_number HAVING c > 1;"
    ```
 
@@ -94,13 +94,13 @@ wrangler pages deploy dist
 2. **マイグレーション実行**
 
    ```bash
-   wrangler d1 execute web-attendance-db --file=db/migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute web-attendance-restored-db --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
    ローカルで事前検証する場合:
 
    ```bash
-   wrangler d1 execute web-attendance-db --local --file=db/migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
 > **注意**: 新規環境（初回セットアップ）は `db/schema.sql` のみで OK。マイグレーションは不要。
@@ -108,7 +108,7 @@ wrangler pages deploy dist
 機能追加後のマイグレーションは番号順に適用する。操作履歴機能を利用する環境では、次も実行する。
 
 ```bash
-wrangler d1 execute web-attendance-db --file=db/migrations/0004_audit_logs.sql
+wrangler d1 execute web-attendance-restored-db --file=db/migrations/0004_audit_logs.sql
 ```
 
 ### 環境
@@ -117,7 +117,7 @@ wrangler d1 execute web-attendance-db --file=db/migrations/0004_audit_logs.sql
 
 | 環境 | D1 データベース |
 |------|----------------|
-| 本番 | `web-attendance-db` |
+| 本番 | `web-attendance-restored-db` |
 | プレビュー | `web-attendance-preview-db` |
 
 プレビュー環境へのデプロイ:
@@ -182,3 +182,7 @@ RATE_LIMIT_TARGET_URL=https://example.pages.dev npm run check:auth-rate-limit
 ---
 
 ユーザー向けの操作マニュアルは [USER_MANUAL.md](docs/USER_MANUAL.md) を参照してください。
+
+監視、障害対応、D1復旧については [OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md) を参照してください。
+
+依存関係の監査方針と既知の例外は [DEPENDENCY_SECURITY.md](docs/DEPENDENCY_SECURITY.md) を参照してください。

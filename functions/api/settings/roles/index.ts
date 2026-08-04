@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
 import type { Env, D1Row } from '../../../types';
+import { RoleCreateSchema } from '../../../../shared/settingsEntitySchemas';
 
 // GET /api/settings/roles — スタッフ区分+紐付けパターン一覧
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -42,7 +43,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/roles — スタッフ区分追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
+        const parsed = RoleCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('スタッフ区分の入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name
         const nameError = validateName(body.name, 'スタッフ区分名', 50);

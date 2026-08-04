@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
+import { RoleUpdateSchema } from '../../../../shared/settingsEntitySchemas';
 
 // DELETE /api/settings/roles/:id
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
@@ -26,7 +27,9 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
+        const parsed = RoleUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('スタッフ区分の入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name if provided
         if (body.name !== undefined) {

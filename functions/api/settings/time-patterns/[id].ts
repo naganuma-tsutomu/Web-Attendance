@@ -1,19 +1,15 @@
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
+import { TimePatternUpdateSchema } from '../../../../shared/settingsEntitySchemas';
 
 type DayFlag = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday';
-type TimePatternUpdate = {
-    name?: string;
-    startTime?: string;
-    endTime?: string;
-    roleIds?: string[];
-} & Partial<Record<DayFlag, number>>;
-
 // PUT /api/settings/time-patterns/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as TimePatternUpdate;
+        const parsed = TimePatternUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('勤務時間パターンの入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name if provided
         if (body.name !== undefined) {

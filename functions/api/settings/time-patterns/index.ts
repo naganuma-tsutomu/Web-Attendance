@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
 import type { Env, D1Row } from '../../../types';
+import { TimePatternCreateSchema } from '../../../../shared/settingsEntitySchemas';
 
 // GET /api/settings/time-patterns
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -27,20 +28,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/time-patterns
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as {
-            name: string;
-            startTime: string;
-            endTime: string;
-            roleIds?: string[];
-            sun?: number;
-            mon?: number;
-            tue?: number;
-            wed?: number;
-            thu?: number;
-            fri?: number;
-            sat?: number;
-            holiday?: number;
-        };
+        const parsed = TimePatternCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('勤務時間パターンの入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name
         const nameError = validateName(body.name, '名前', 50);

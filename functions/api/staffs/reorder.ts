@@ -1,13 +1,14 @@
 import { createValidationError, handleServerError } from '../../utils/validation';
 import type { Env } from '../../types';
+import { ReorderRequestSchema } from '../../../shared/reorderSchema';
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
-        const { orders }: { orders: { id: string, order: number }[] } = await context.request.json();
-
-        if (!orders || !Array.isArray(orders)) {
+        const parsed = ReorderRequestSchema.safeParse(await context.request.json());
+        if (!parsed.success) {
             return createValidationError('不正な並び替えデータです');
         }
+        const { orders } = parsed.data;
 
         // Use a transaction if possible, but D1 batch is more likely what we need
         const statements = orders.map(item =>

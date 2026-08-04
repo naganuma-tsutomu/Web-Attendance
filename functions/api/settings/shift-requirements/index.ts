@@ -1,4 +1,4 @@
-import type { ShiftRequirement } from '../../../../shared/shiftRequirementSchema';
+import { ShiftRequirementsRequestSchema } from '../../../../shared/shiftRequirementSchema';
 import {
     handleServerError,
     createValidationError,
@@ -49,7 +49,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/shift-requirements
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as ShiftRequirement | ShiftRequirement[];
+        const parsed = ShiftRequirementsRequestSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('必要人数設定の入力内容が不正です');
+        const body = parsed.data;
 
         // 配列に変換（単一オブジェクトの場合も配列に）
         const requirements = Array.isArray(body) ? body : [body];

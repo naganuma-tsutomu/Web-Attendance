@@ -1,5 +1,6 @@
 import { signCookie, TOKEN_MAX_AGE_SECONDS, ADMIN_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
+import { AdminLoginSchema } from '../../../shared/basicRequestSchemas';
 
 /**
  * HMAC-SHA256 を使った定数時間パスワード比較
@@ -32,7 +33,9 @@ async function timingSafePasswordCheck(input: string, expected: string): Promise
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const { password } = await context.request.json() as { password?: string };
+        const parsed = AdminLoginSchema.safeParse(await context.request.json());
+        if (!parsed.success) return Response.json({ error: '認証に失敗しました' }, { status: 401 });
+        const { password } = parsed.data;
         const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
 
         if (!ADMIN_PASSWORD) {
@@ -43,7 +46,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         // 定数時間比較（タイミング攻撃対策）
-        const isValid = typeof password === 'string' && await timingSafePasswordCheck(password, ADMIN_PASSWORD);
+        const isValid = await timingSafePasswordCheck(password, ADMIN_PASSWORD);
         if (!isValid) {
             return new Response(
                 JSON.stringify({ error: '認証に失敗しました' }),

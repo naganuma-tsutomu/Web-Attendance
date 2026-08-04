@@ -2,6 +2,7 @@ import { createValidationError, handleServerError, validateDate, validateTimeRan
 import type { Env } from '../../types';
 import { validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
+import { ShiftReplaceSchema } from '../../../shared/shiftRequestSchemas';
 
 type ReplacementShift = {
     date: string;
@@ -31,11 +32,9 @@ const validateShiftPayload = (shift: ReplacementShift, index: number, yearMonth:
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as {
-            yearMonth?: string;
-            fixedDates?: string[];
-            shifts?: ReplacementShift[];
-        };
+        const parsed = ShiftReplaceSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('シフト置換の入力内容が不正です');
+        const body = parsed.data;
 
         const ymError = validateYearMonth(body.yearMonth);
         if (ymError) return createValidationError(ymError);

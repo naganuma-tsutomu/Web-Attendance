@@ -281,14 +281,14 @@ describe('server API security boundaries', () => {
         });
     });
 
-    it('月次シフト置換は100件超でもDELETEと全INSERTを1回のbatchへ渡す', async () => {
+    it('月次シフト置換は上限1000件でもDELETEと全INSERTを1回のbatchへ渡す', async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         const batch = vi.fn().mockRejectedValueOnce(new Error('atomic batch failed'));
         const db = {
             prepare: (sql: string) => createStatement(sql),
             batch,
         };
-        const shifts = Array.from({ length: 100 }, (_, index) => ({
+        const shifts = Array.from({ length: 1000 }, (_, index) => ({
             date: '2025-06-03',
             staffId: `s${index}`,
             startTime: '09:00',
@@ -308,7 +308,7 @@ describe('server API security boundaries', () => {
         expect(response.status).toBe(500);
         expect(batch).toHaveBeenCalledTimes(1);
         const atomicBatch = batch.mock.calls[0][0] as MockStatement[];
-        expect(atomicBatch).toHaveLength(101);
+        expect(atomicBatch).toHaveLength(1001);
         expect(atomicBatch[0].sql).toContain('DELETE FROM shifts');
         expect(atomicBatch.slice(1).every(statement => statement.sql.includes('INSERT INTO shifts'))).toBe(true);
         consoleSpy.mockRestore();

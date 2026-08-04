@@ -2,6 +2,7 @@ import { createValidationError, handleServerError, validateYearMonth, validateDa
 import type { Env, D1Row } from '../../types';
 import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
+import { ShiftBatchCreateSchema } from '../../../shared/shiftRequestSchemas';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -32,11 +33,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const shiftsData = await context.request.json() as Array<{
-            date: string; staffId: string; classType: string;
-            startTime: string; endTime: string; isEarlyShift?: boolean; isError?: boolean;
-            duty_number?: number | null;
-        }>;
+        const parsed = ShiftBatchCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('シフトの入力内容が不正です');
+        const shiftsData = parsed.data;
         if (!shiftsData || shiftsData.length === 0) {
             return Response.json({ success: true, message: 'No data to insert' });
         }

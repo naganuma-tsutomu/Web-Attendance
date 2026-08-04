@@ -1,14 +1,13 @@
 import { handleServerError, createValidationError, validateAccessKey } from '../../utils/validation';
 import { signStaffCookie, TOKEN_MAX_AGE_SECONDS, STAFF_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
+import { StaffLoginSchema } from '../../../shared/basicRequestSchemas';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const { name, accessKey } = await context.request.json() as { name: string, accessKey: string };
-
-        if (!name || !accessKey) {
-            return createValidationError('名前とアクセスキーを入力してください');
-        }
+        const parsed = StaffLoginSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('名前とアクセスキーを正しく入力してください');
+        const { name, accessKey } = parsed.data;
         const accessKeyError = validateAccessKey(accessKey.trim());
         if (accessKeyError) return createValidationError(accessKeyError);
 

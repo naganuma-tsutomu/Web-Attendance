@@ -1,4 +1,4 @@
-import type { ShiftPreference } from '../../../shared/shiftPreferenceSchema';
+import { ShiftPreferenceRequestSchema, ShiftPreferenceSubmissionSchema } from '../../../shared/shiftPreferenceSchema';
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
 import { getRequestAuthState, type RequestAuthState } from '../../utils';
@@ -65,7 +65,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const pref: Omit<ShiftPreference, 'id'> = await context.request.json();
+        const parsed = ShiftPreferenceRequestSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('希望休の入力内容が不正です');
+        const pref = parsed.data;
         const ymError = validateYearMonth(pref?.yearMonth);
         if (ymError) return createValidationError(ymError);
         const authState = await getRequestAuthState(context.request, context.env.ADMIN_PASSWORD!);
@@ -130,7 +132,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 // PATCH: submitted フラグのみ更新（管理者が提出済み状態を手動で変更する用途）
 export const onRequestPatch: PagesFunction<Env> = async (context) => {
     try {
-        const body: { staffId: string; yearMonth: string; submitted: boolean } = await context.request.json();
+        const parsed = ShiftPreferenceSubmissionSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('提出状態の入力内容が不正です');
+        const body = parsed.data;
         const ymError = validateYearMonth(body?.yearMonth);
         if (ymError) return createValidationError(ymError);
 

@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
+import { HolidayCreateSchema } from '../../../../shared/calendarRequestSchemas';
 
 // GET /api/holidays — 祝日一覧取得
 // Query: ?year=2025 (年指定、省略時は全件)
@@ -31,17 +32,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/holidays — 祝日登録（手動追加用）
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { 
-            date: string;      // YYYY-MM-DD
-            name: string;      // 祝日名
-            type?: string;     // 'national', 'observance', 'company' (default: 'national')
-            isWorkday?: boolean; // 振替休日等 (default: false)
-        };
-        
-        // Validate date
-        if (!body.date || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
-            return createValidationError('日付はYYYY-MM-DD形式で指定してください');
-        }
+        const parsed = HolidayCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('祝日の入力内容が不正です');
+        const body = parsed.data;
         
         // Validate name
         const nameError = validateName(body.name, '祝日名', 100);

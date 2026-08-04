@@ -1,19 +1,7 @@
-import { createValidationError, handleServerError, validateDate, validateYearMonth } from '../../../utils/validation';
+import { createValidationError, handleServerError, validateYearMonth } from '../../../utils/validation';
 import type { Env } from '../../../types';
 import { writeAuditLog } from '../../../utils/auditLog';
-
-type OverrideInput = { date?: string; status?: string; name?: string };
-
-const validateInput = (body: OverrideInput): string | null => {
-    const dateError = validateDate(body.date, '日付');
-    if (dateError) return dateError;
-    if (body.status !== 'open' && body.status !== 'closed') {
-        return '営業状態はopenまたはclosedで指定してください';
-    }
-    if (body.name !== undefined && typeof body.name !== 'string') return '理由は文字列で入力してください';
-    if ((body.name ?? '').trim().length > 100) return '理由は100文字以内で入力してください';
-    return null;
-};
+import { BusinessDayOverrideCreateSchema } from '../../../../shared/calendarRequestSchemas';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -48,9 +36,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as OverrideInput;
-        const error = validateInput(body);
-        if (error) return createValidationError(error);
+        const rawBody = await context.request.json();
+        const parsed = BusinessDayOverrideCreateSchema.safeParse(rawBody);
+        if (!parsed.success) {
+            const field = parsed.error.issues[0]?.path[0];
+            if (field === 'date') return createValidationError('日付はYYYY-MM-DD形式の有効な日付で指定してください');
+            if (field === 'status') return createValidationError('営業状態はopenまたはclosedで指定してください');
+            if (field === 'name') {
+                const name = (rawBody as { name?: unknown } | null)?.name;
+                return createValidationError(typeof name === 'string' ? '理由は100文字以内で入力してください' : '理由は文字列で入力してください');
+            }
+            return createValidationError('個別営業日の入力内容が不正です');
+        }
+        const body = parsed.data;
 
         const id = `bdo_${crypto.randomUUID()}`;
         await context.env.DB.prepare(

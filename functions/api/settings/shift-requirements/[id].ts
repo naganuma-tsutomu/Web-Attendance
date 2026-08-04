@@ -1,4 +1,4 @@
-import type { ShiftRequirement } from '../../../../shared/shiftRequirementSchema';
+import { ShiftRequirementUpdateSchema } from '../../../../shared/shiftRequirementSchema';
 import { 
     handleServerError, 
     createValidationError, 
@@ -15,7 +15,9 @@ import type { D1BindParam, Env } from '../../../types';
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as Partial<ShiftRequirement>;
+        const parsed = ShiftRequirementUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('必要人数設定の入力内容が不正です');
+        const body = parsed.data;
         
         // Build update query dynamically
         const updates: string[] = [];

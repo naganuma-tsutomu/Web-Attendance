@@ -1,15 +1,14 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
+import { HolidayUpdateSchema } from '../../../../shared/calendarRequestSchemas';
 
 // PUT /api/holidays/:id — 祝日更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { 
-            name?: string;
-            type?: string;
-            isWorkday?: boolean;
-        };
+        const parsed = HolidayUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('祝日の入力内容が不正です');
+        const body = parsed.data;
         
         // Validate name if provided
         if (body.name !== undefined) {

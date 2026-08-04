@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, safeJsonParse, validateYearMonth } from '../../../utils/validation';
 import type { Env, D1Row } from '../../../types';
+import { ShiftSnapshotCreateSchema } from '../../../../shared/shiftRequestSchemas';
 
 type SnapshotShift = {
     date: string;
@@ -54,11 +55,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as {
-            yearMonth?: string;
-            label?: string | null;
-            reason?: string;
-        };
+        const parsed = ShiftSnapshotCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('スナップショットの入力内容が不正です');
+        const body = parsed.data;
         const ymError = validateYearMonth(body.yearMonth);
         if (ymError) return createValidationError(ymError);
         const yearMonth = body.yearMonth!;

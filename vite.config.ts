@@ -104,6 +104,12 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
+      thresholds: {
+        statements: 26,
+        branches: 24,
+        functions: 18,
+        lines: 27,
+      },
       include: ['src/**'],
       exclude: [
         'src/**/*.test.{ts,tsx}',

@@ -41,10 +41,19 @@ jobs:
         run: npx tsc -b --pretty false
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end test
+        run: npm run test:e2e
 
       - name: Build
         run: npm run build
+
+      - name: Check bundle size budget
+        run: npm run check:bundle-size
 
   database:
     name: Validate D1 schema and seed

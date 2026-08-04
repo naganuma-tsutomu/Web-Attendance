@@ -1,53 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
-import { handleApiError } from '../../lib/errorHandler';
-import { Plus, Search, AlertCircle, Loader2, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { calculateTotalHours } from '../../utils/timeUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../utils/dateUtils';
-import { useStaffList, useRoles, useClasses, useShiftsByMonth, useCreateStaff, useUpdateStaff, useDeleteStaff, useUpdateStaffOrder, useBusinessHours, useBreakSettings } from '../../lib/hooks';
-import type { Staff } from '../../types';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragOverlay,
-    defaultDropAnimationSideEffects,
-    type DragEndEvent,
-    type DragStartEvent
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy
-} from '@dnd-kit/sortable';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import ConfirmModal from '../../components/ui/ConfirmModal';
-import StaffRow from './components/StaffRow';
+import { useStaffList, useRoles, useClasses, useShiftsByMonth, useBusinessHours, useBreakSettings } from '../../lib/hooks';
 import StaffFormModal from './components/StaffFormModal';
-import StaffMobileCard from './components/StaffMobileCard';
-import MonthNavigation from '../../components/ui/MonthNavigation';
+import StaffPageHeader from './components/StaffPageHeader';
+import StaffListToolbar from './components/StaffListToolbar';
+import StaffDeleteConfirmModal from './components/StaffDeleteConfirmModal';
+import StaffMobileList from './components/StaffMobileList';
+import StaffDesktopTable from './components/StaffDesktopTable';
+import { useStaffForm } from './hooks/useStaffForm';
+import { useStaffListActions } from './hooks/useStaffListActions';
 
 const StaffPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
-    const [activeId, setActiveId] = useState<string | null>(null);
     const [currentMonth, setCurrentMonth] = useState(() => loadActiveMonth());
-
-    const [formData, setFormData] = useState<Omit<Staff, 'id'>>({
-        name: '',
-        role: '',
-        hoursTarget: null,
-        weeklyHoursTarget: null,
-        classIds: []
-    });
 
     // --- React Query Hooks ---
     const { data: staffList = [], isLoading: isStaffLoading, isError: isStaffError, refetch: refetchStaff } = useStaffList();
@@ -58,10 +25,6 @@ const StaffPage = () => {
     const monthStr = format(currentMonth, 'yyyy-MM');
     const { data: shifts = [], isLoading: loadingShifts, isFetching: isShiftsFetching, refetch: refetchShifts } = useShiftsByMonth(monthStr);
 
-    const createStaffMut = useCreateStaff();
-    const updateStaffMut = useUpdateStaff();
-    const deleteStaffMut = useDeleteStaff();
-    const updateOrderMut = useUpdateStaffOrder();
     const { data: breakSettings } = useBreakSettings();
 
     const shiftTotals = useMemo(() => calculateTotalHours(shifts, breakSettings), [shifts, breakSettings]);
@@ -70,7 +33,8 @@ const StaffPage = () => {
                     (isRolesLoading && roles.length === 0) || 
                     (isClassesLoading && classes.length === 0);
     const error = (isStaffError || isRolesError || isClassesError) ? 'データの読み込みに失敗しました。' : '';
-    const isSubmitting = createStaffMut.isPending || updateStaffMut.isPending;
+    const staffForm = useStaffForm(roles, businessHours);
+    const staffActions = useStaffListActions(staffList);
 
     const handleRetry = () => {
         refetchStaff();
@@ -82,422 +46,67 @@ const StaffPage = () => {
     // Update active month when currentMonth changes
     useEffect(() => { saveActiveMonth(currentMonth); }, [currentMonth]);
 
-    const handleDeleteClick = (id: string, name: string) => {
-        setDeleteConfirm({ id, name });
-    };
-
-    const handleConfirmDelete = async () => {
-        if (!deleteConfirm) return;
-        setIsDeleting(true);
-        try {
-            await deleteStaffMut.mutateAsync(deleteConfirm.id);
-            setDeleteConfirm(null);
-            toast.success("スタッフを削除しました。");
-        } catch (err) {
-            handleApiError(err, '削除に失敗しました');
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    const handleOpenAddModal = () => {
-        const defaultRole = roles[0];
-        // 営業日（closedDays）に含まれていない曜日のみを初期値にする
-        const closedDays = businessHours?.closedDays || [];
-        const defaultAvailableDays = [1, 2, 3, 4, 5, 6].filter(day => !closedDays.includes(day));
-        setEditingStaff(null);
-        setFormData({
-            name: '',
-            role: defaultRole?.name || '',
-            hoursTarget: defaultRole?.targetHours ?? null,
-            weeklyHoursTarget: defaultRole?.weeklyHoursTarget ?? null,
-            defaultWorkingHoursStart: '',
-            defaultWorkingHoursEnd: '',
-            availableDays: defaultAvailableDays,
-            classIds: []
-        });
-        setIsModalOpen(true);
-    };
-
-    const handleRoleChange = (roleName: string) => {
-        const selectedRole = roles.find(r => r.name === roleName);
-        setFormData(prev => ({
-            ...prev,
-            role: roleName,
-            hoursTarget: selectedRole ? (selectedRole.targetHours ?? null) : prev.hoursTarget,
-            weeklyHoursTarget: selectedRole ? (selectedRole.weeklyHoursTarget ?? null) : prev.weeklyHoursTarget
-        }));
-    };
-
-    const handleOpenEditModal = (staff: Staff) => {
-        setEditingStaff(staff);
-        setFormData({
-            name: staff.name,
-            role: staff.role,
-            hoursTarget: staff.hoursTarget ?? null,
-            weeklyHoursTarget: staff.weeklyHoursTarget ?? null,
-            availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
-            defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',
-            defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || '',
-            classIds: staff.classIds || [],
-            accessKey: staff.accessKey || ''
-        });
-        setIsModalOpen(true);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            if (editingStaff) {
-                await updateStaffMut.mutateAsync({ id: editingStaff.id, data: formData });
-            } else {
-                await createStaffMut.mutateAsync(formData);
-            }
-            setIsModalOpen(false);
-            toast.success(editingStaff ? "スタッフ情報を更新しました。" : "スタッフを追加しました。");
-        } catch (err) {
-            handleApiError(err, '保存に失敗しました');
-        }
-    };
-
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
-    };
-
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event;
-        setActiveId(null);
-        if (over && active.id !== over.id) {
-            const oldIndex = staffList.findIndex((i) => i.id === active.id);
-            const newIndex = staffList.findIndex((i) => i.id === over.id);
-            const newList = arrayMove(staffList, oldIndex, newIndex);
-
-            const orders = newList.map((s, idx) => ({ id: s.id, order: idx + 1 }));
-            
-            // 楽観的更新のためにキャッシュを直接操作することも可能だが、ここでは再フェッチに任せるか直接mutationを実行
-            updateOrderMut.mutate(orders, {
-                onError: (err) => handleApiError(err, '並び替えの保存に失敗しました')
-            });
-        }
-    };
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
-
-    const getHolidayDisplay = (availableDays?: (number | { day: number, weeks?: number[] | null })[]) => {
-        if (!availableDays || availableDays.length === 0) return '設定なし';
-        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-        const allDays = [1, 2, 3, 4, 5, 6];
-
-        const holidayNames = allDays
-            .filter(d => !availableDays.some(ad => ad && (typeof ad === 'number' ? ad : ad.day) === d))
-            .map(d => dayNames[d]);
-
-        const partialHolidays = availableDays
-            .filter(ad => typeof ad === 'object' && ad.weeks && ad.weeks.length < 5)
-            .map(ad => {
-                const day = (ad as { day: number, weeks: number[] }).day;
-                const weeks = (ad as { day: number, weeks: number[] }).weeks;
-                const offWeeks = [1, 2, 3, 4, 5].filter(w => !weeks.includes(w));
-                return `${dayNames[day]} (第${offWeeks.join(',')})`;
-            });
-
-        const result = [...holidayNames, ...partialHolidays].join(', ');
-        return result || '設定なし';
-    };
-
     const filteredStaff = staffList.filter(s => s.name.includes(searchTerm));
-    const activeStaff = activeId ? staffList.find(s => s.id === activeId) : null;
-
     return (
         <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto w-full p-4 sm:p-6 md:p-8">
-            <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-500" />
-                <div>
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white sm:text-2xl">スタッフ管理</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">スタッフの登録情報とスタッフ区分の割り当てを管理します</p>
-                </div>
-            </div>
+            <StaffPageHeader
+                error={error}
+                isLoading={loading}
+                onAdd={staffForm.openAddForm}
+                onRetry={handleRetry}
+            />
 
-            <div className="flex justify-end">
-                <button
-                    onClick={handleOpenAddModal}
-                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all font-bold text-sm"
-                >
-                    <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline">スタッフ追加</span>
-                    <span className="sm:hidden">追加</span>
-                </button>
-            </div>
+            <StaffListToolbar
+                currentMonth={currentMonth}
+                isLoading={loadingShifts || isShiftsFetching}
+                searchTerm={searchTerm}
+                onMonthChange={setCurrentMonth}
+                onSearchChange={setSearchTerm}
+            />
 
-            {error && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start justify-between gap-3 animate-in fade-in" role="alert">
-                    <div className="flex items-start space-x-3">
-                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-amber-800 font-medium dark:text-amber-300">{error}</span>
-                    </div>
-                    <button
-                        onClick={handleRetry}
-                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0"
-                    >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                        再試行
-                    </button>
-                </div>
-            )}
+            <StaffMobileList
+                activeStaff={staffActions.activeStaff}
+                classes={classes}
+                isLoading={loading}
+                shiftTotals={shiftTotals}
+                staffs={filteredStaff}
+                onDelete={staffActions.requestDelete}
+                onDragEnd={staffActions.handleDragEnd}
+                onDragStart={staffActions.handleDragStart}
+                onEdit={staffForm.openEditForm}
+            />
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
-                <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="スタッフを検索..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
-                    />
-                </div>
-
-                <MonthNavigation
-                    date={currentMonth}
-                    onChange={setCurrentMonth}
-                    isLoading={loadingShifts || isShiftsFetching}
-                />
-            </div>
-
-            <div className="sm:hidden">
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    modifiers={[restrictToVerticalAxis]}
-                    accessibility={{ screenReaderInstructions: { draggable: '' } }}
-                >
-                    <SortableContext
-                        items={filteredStaff.map(s => s.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        <div className="space-y-3">
-                            {loading ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <div key={i} aria-hidden="true" className="animate-pulse rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                                        <div className="flex gap-3">
-                                            <div className="h-9 w-9 rounded-lg bg-slate-200 dark:bg-slate-700" />
-                                            <div className="min-w-0 flex-1 space-y-3">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="space-y-2">
-                                                        <div className="h-5 w-28 rounded-md bg-slate-200 dark:bg-slate-700" />
-                                                        <div className="h-5 w-36 rounded-lg bg-slate-200 dark:bg-slate-700" />
-                                                    </div>
-                                                    <div className="h-9 w-9 rounded-xl bg-slate-200 dark:bg-slate-700" />
-                                                </div>
-                                                <div className="flex gap-1.5">
-                                                    <div className="h-5 w-14 rounded bg-slate-200 dark:bg-slate-700" />
-                                                    <div className="h-5 w-14 rounded bg-slate-200 dark:bg-slate-700" />
-                                                </div>
-                                                <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900/60">
-                                                    <div className="mb-2 h-4 w-full rounded-md bg-slate-200 dark:bg-slate-700" />
-                                                    <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : filteredStaff.length === 0 ? (
-                                <div className="rounded-xl border border-slate-100 bg-white px-6 py-12 text-center font-medium text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                                    該当するスタッフが見つかりません
-                                </div>
-                            ) : (
-                                filteredStaff.map((staff) => (
-                                    <StaffMobileCard
-                                        key={staff.id}
-                                        staff={staff}
-                                        classes={classes}
-                                        onEdit={handleOpenEditModal}
-                                        onDelete={handleDeleteClick}
-                                        getHolidayDisplay={getHolidayDisplay}
-                                        currentMonthHours={shiftTotals[staff.id] || 0}
-                                    />
-                                ))
-                            )}
-                        </div>
-                    </SortableContext>
-
-                    <DragOverlay dropAnimation={{
-                        sideEffects: defaultDropAnimationSideEffects({
-                            styles: {
-                                active: {
-                                    opacity: '0.3',
-                                },
-                            },
-                        }),
-                    }}>
-                        {activeStaff ? (
-                            <StaffMobileCard
-                                staff={activeStaff}
-                                classes={classes}
-                                isOverlay
-                                getHolidayDisplay={getHolidayDisplay}
-                                currentMonthHours={shiftTotals[activeStaff.id] || 0}
-                            />
-                        ) : null}
-                    </DragOverlay>
-                </DndContext>
-            </div>
-
-            <div className="hidden flex-1 min-h-0 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden sm:flex flex-col">
-                <div className="overflow-x-auto flex-1 -mx-4 sm:mx-0">
-                    <div className="inline-block min-w-full align-middle px-4 sm:px-0">
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                            modifiers={[restrictToVerticalAxis]}
-                            accessibility={{ screenReaderInstructions: { draggable: '' } }}
-                        >
-                            <SortableContext
-                                items={filteredStaff.map(s => s.id)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                <table className="w-full text-left border-collapse min-w-[700px]">
-                                    <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                                        <tr>
-                                            <th aria-label="並び替え" className="w-8 sm:w-12 px-2 sm:px-4 py-3 sm:py-4"></th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">名前</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">スタッフ区分</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">アクセスキー</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">所属クラス</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">月間労働時間</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">固定休日</th>
-                                            <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right whitespace-nowrap">操作</th>
-                                        </tr>
-                                    </thead>
-                                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                                    {loading ? (
-                                        /* eslint-disable jsx-a11y/control-has-associated-label */
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} aria-hidden="true" className="animate-pulse border-b border-slate-50 dark:border-slate-700">
-                                                <td className="pl-4 pr-2 py-4 w-10">
-                                                    <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded-md" />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="h-5 w-24 sm:w-32 bg-slate-200 dark:bg-slate-700 rounded-md" />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="h-6 w-20 sm:w-24 bg-slate-200 dark:bg-slate-700 rounded-lg" />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="h-5 w-16 sm:w-20 bg-slate-200 dark:bg-slate-700 rounded-md" />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex gap-1">
-                                                        <div className="h-5 w-12 bg-slate-200 dark:bg-slate-700 rounded-sm" />
-                                                        <div className="h-5 w-12 bg-slate-200 dark:bg-slate-700 rounded-sm" />
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="h-4 w-12 sm:w-16 bg-slate-200 dark:bg-slate-700 rounded-md mb-2" />
-                                                    <div className="h-1.5 w-20 sm:w-24 bg-slate-200 dark:bg-slate-700 rounded-full" />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="h-6 w-12 sm:w-16 bg-slate-200 dark:bg-slate-700 rounded-md" />
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                        /* eslint-enable jsx-a11y/control-has-associated-label */
-                                    ) : filteredStaff.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 font-medium">
-                                                該当するスタッフが見つかりません
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        filteredStaff.map((staff) => (
-                                            <StaffRow
-                                                key={staff.id}
-                                                staff={staff}
-                                                classes={classes}
-                                                onEdit={handleOpenEditModal}
-                                                onDelete={handleDeleteClick}
-                                                getHolidayDisplay={getHolidayDisplay}
-                                                currentMonthHours={shiftTotals[staff.id] || 0}
-                                            />
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </SortableContext>
-
-                        <DragOverlay dropAnimation={{
-                            sideEffects: defaultDropAnimationSideEffects({
-                                styles: {
-                                    active: {
-                                        opacity: '0.3',
-                                    },
-                                },
-                            }),
-                        }}>
-                            {activeStaff ? (
-                                <div className="rounded-xl overflow-hidden shadow-2xl ring-2 ring-indigo-500 bg-white dark:bg-slate-800 opacity-90">
-                                    <table className="w-full border-collapse">
-                                        <tbody>
-                                            <StaffRow
-                                                staff={activeStaff}
-                                                classes={classes}
-                                                isOverlay
-                                                getHolidayDisplay={getHolidayDisplay}
-                                                currentMonthHours={shiftTotals[activeStaff.id] || 0}
-                                            />
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
-                    </div>
-                </div>
-            </div>
+            <StaffDesktopTable
+                activeStaff={staffActions.activeStaff}
+                classes={classes}
+                isLoading={loading}
+                shiftTotals={shiftTotals}
+                staffs={filteredStaff}
+                onDelete={staffActions.requestDelete}
+                onDragEnd={staffActions.handleDragEnd}
+                onDragStart={staffActions.handleDragStart}
+                onEdit={staffForm.openEditForm}
+            />
 
             <StaffFormModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSubmit={handleSubmit}
-                editingStaff={editingStaff}
-                formData={formData}
-                setFormData={setFormData}
+                isOpen={staffForm.isOpen}
+                onClose={staffForm.closeForm}
+                onSubmit={staffForm.handleSubmit}
+                editingStaff={staffForm.editingStaff}
+                formData={staffForm.formData}
+                setFormData={staffForm.setFormData}
                 roles={roles}
                 classes={classes}
-                isSubmitting={isSubmitting}
-                handleRoleChange={handleRoleChange}
+                isSubmitting={staffForm.isSubmitting}
+                handleRoleChange={staffForm.handleRoleChange}
                 closedDays={businessHours?.closedDays || []}
             />
 
-            <ConfirmModal
-                isOpen={!!deleteConfirm}
-                title="スタッフの削除"
-                message={`${deleteConfirm?.name} さんを削除してもよろしいですか？この操作は取り消せません。`}
-                confirmLabel="削除する"
-                cancelLabel="キャンセル"
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setDeleteConfirm(null)}
-                isLoading={isDeleting}
-                variant="danger"
+            <StaffDeleteConfirmModal
+                staffName={staffActions.deleteTarget?.name}
+                isLoading={staffActions.isDeleting}
+                onConfirm={staffActions.confirmDelete}
+                onCancel={staffActions.cancelDelete}
             />
         </div>
     );

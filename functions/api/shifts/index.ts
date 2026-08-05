@@ -15,9 +15,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const startStr = `${yearMonth}-01`;
         const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
-        const { results } = await context.env.DB.prepare(
-            "SELECT * FROM shifts WHERE date >= ? AND date < ?"
-        ).bind(startStr, nextMonth).all();
+        const [{ results }, versionRow] = await Promise.all([
+            context.env.DB.prepare(
+                "SELECT * FROM shifts WHERE date >= ? AND date < ?"
+            ).bind(startStr, nextMonth).all(),
+            context.env.DB.prepare(
+                "SELECT version FROM shift_month_versions WHERE year_month = ?"
+            ).bind(yearMonth).first<{ version: number }>(),
+        ]);
 
         const shifts = (results as D1Row[]).map((row) => ({
             ...row,
@@ -25,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             isError: row.isError === 1
         }));
 
-        return Response.json(shifts);
+        return Response.json({ shifts, version: Number(versionRow?.version ?? 0) });
     } catch (e) {
         return handleServerError(e, 'GET /shifts');
     }

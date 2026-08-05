@@ -17,6 +17,7 @@
     "build:pages": "npm run build && wrangler pages dev dist",
     "db:init:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/schema.sql",
     "db:seed:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/seed.sql",
+    "db:validate:latest-migration": "wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0005_shift_month_versions.sql",
     "check:auth-rate-limit": "node scripts/check-auth-rate-limit.mjs"
   },
   "dependencies": {

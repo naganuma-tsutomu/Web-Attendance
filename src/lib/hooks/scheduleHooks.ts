@@ -9,6 +9,7 @@ import { QUERY_KEYS } from './queryKeys';
 
 export const useShiftsByMonth = (monthStr: string) => useQuery({
     queryKey: QUERY_KEYS.shifts(monthStr), queryFn: () => getShiftsByMonth(monthStr),
+    select: data => data.shifts,
 });
 
 export const useShiftSnapshots = (monthStr: string) => useQuery({
@@ -26,8 +27,12 @@ export const useSaveShiftsBatch = () => {
 export const useReplaceShiftsForMonth = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ yearMonth, shifts, fixedDates }: { yearMonth: string; shifts: Omit<Shift, 'id'>[]; fixedDates?: string[] }) =>
-            replaceShiftsForMonth(yearMonth, shifts, fixedDates ?? []),
+        mutationFn: ({ yearMonth, shifts, fixedDates, expectedVersion }: { yearMonth: string; shifts: Omit<Shift, 'id'>[]; fixedDates?: string[]; expectedVersion?: number }) => {
+            const monthData = queryClient.getQueryData<{ shifts: Shift[]; version: number }>(QUERY_KEYS.shifts(yearMonth));
+            const version = expectedVersion ?? monthData?.version;
+            if (version === undefined) throw new Error('シフトを再読み込みしてから保存してください');
+            return replaceShiftsForMonth(yearMonth, version, shifts, fixedDates ?? []);
+        },
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shifts'] }); },
     });
 };

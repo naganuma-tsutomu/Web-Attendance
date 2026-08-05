@@ -61,6 +61,7 @@ const StaffPreferencePage = () => {
     const { data: allShifts = [], isLoading: shiftsLoading } = useQuery({
         queryKey: QUERY_KEYS.shifts(monthStr),
         queryFn: () => getShiftsByMonth(monthStr),
+        select: data => data.shifts,
         enabled: !!staff,
     });
     const { data: holidays = [], isLoading: holidaysLoading, isError: holidaysHasError, refetch: refetchHolidays } = useQuery({

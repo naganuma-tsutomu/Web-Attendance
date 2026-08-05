@@ -178,7 +178,7 @@ describe('server API security boundaries', () => {
     });
 
     it('月次シフト置換は固定日を除外した削除と挿入を同じbatchに積む', async () => {
-        const batch = vi.fn().mockResolvedValue([]);
+        const batch = vi.fn().mockResolvedValue([{}, { meta: { changes: 1 } }]);
         const prepared: MockStatement[] = [];
         const db = {
             prepare: (sql: string) => {
@@ -195,6 +195,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: ['2025-06-10'],
                 shifts: [{ date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' }],
             }
@@ -206,7 +207,7 @@ describe('server API security boundaries', () => {
         expect(batch).toHaveBeenCalledTimes(1);
         const deleteStatement = prepared.find(statement => statement.sql.startsWith('DELETE FROM shifts'));
         expect(deleteStatement?.sql).toContain('date NOT IN');
-        expect(deleteStatement?.binds).toEqual(['2025-06-01', '2025-07-01', '2025-06-10']);
+        expect(deleteStatement?.binds).toEqual(['2025-06-01', '2025-07-01', '2025-06-10', '2025-06', expect.any(String)]);
     });
 
     it('月次シフト置換は不正な挿入データなら削除batchを実行しない', async () => {
@@ -219,6 +220,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: [],
                 shifts: [{ date: '2025-07-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' }],
             }
@@ -240,6 +242,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: [],
                 shifts: [
                     { date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a', duty_number: 1 },
@@ -264,6 +267,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: [],
                 shifts: [
                     { date: '2025-06-02', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' },
@@ -300,7 +304,7 @@ describe('server API security boundaries', () => {
             '',
             db,
             'https://example.com/api/shifts/replace',
-            { yearMonth: '2025-06', fixedDates: [], shifts }
+            { yearMonth: '2025-06', expectedVersion: 0, fixedDates: [], shifts }
         );
 
         const response = await replaceShifts(context as never);
@@ -308,9 +312,10 @@ describe('server API security boundaries', () => {
         expect(response.status).toBe(500);
         expect(batch).toHaveBeenCalledTimes(1);
         const atomicBatch = batch.mock.calls[0][0] as MockStatement[];
-        expect(atomicBatch).toHaveLength(1001);
-        expect(atomicBatch[0].sql).toContain('DELETE FROM shifts');
-        expect(atomicBatch.slice(1).every(statement => statement.sql.includes('INSERT INTO shifts'))).toBe(true);
+        expect(atomicBatch).toHaveLength(5);
+        expect(atomicBatch[2].sql).toContain('DELETE FROM shifts');
+        expect(atomicBatch[3].sql).toContain('FROM json_each(?)');
+        expect(JSON.parse(String(atomicBatch[3].binds[0]))).toHaveLength(1000);
         consoleSpy.mockRestore();
     });
 });
@@ -318,6 +323,7 @@ describe('server API security boundaries', () => {
 describe('middleware 経由の認可: POST /api/shifts/replace', () => {
     const replaceBody = {
         yearMonth: '2025-06',
+        expectedVersion: 0,
         fixedDates: [],
         shifts: [],
     };

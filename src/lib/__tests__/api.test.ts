@@ -194,11 +194,11 @@ describe('API - Shift functions', () => {
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                json: () => Promise.resolve(mockShifts)
+                json: () => Promise.resolve({ shifts: mockShifts, version: 7 })
             });
 
             const result = await getShiftsByMonth(yearMonth);
-            expect(result).toEqual(mockShifts);
+            expect(result).toEqual({ shifts: mockShifts, version: 7 });
             expect(mockFetch).toHaveBeenCalledWith(
                 '/api/shifts?yearMonth=2025-06',
                 expect.any(Object)
@@ -240,12 +240,12 @@ describe('API - Shift functions', () => {
                 status: 204, json: () => Promise.resolve({})
             });
 
-            await expect(replaceShiftsForMonth('2025-06', shifts, fixedDates)).resolves.not.toThrow();
+            await expect(replaceShiftsForMonth('2025-06', 3, shifts, fixedDates)).resolves.not.toThrow();
             expect(mockFetch).toHaveBeenCalledWith(
                 '/api/shifts/replace',
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify({ yearMonth: '2025-06', shifts, fixedDates })
+                    body: JSON.stringify({ yearMonth: '2025-06', expectedVersion: 3, shifts, fixedDates })
                 })
             );
         });

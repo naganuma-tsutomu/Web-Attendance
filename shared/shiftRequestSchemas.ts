@@ -25,6 +25,7 @@ export const ShiftUpdateSchema = z.object({
 
 export const ShiftReplaceSchema = z.object({
     yearMonth: YearMonthSchema,
+    expectedVersion: z.number().int().nonnegative(),
     fixedDates: z.array(DateSchema).max(366).optional(),
     shifts: z.array(ShiftInputSchema).max(1000).optional(),
 }).strict().superRefine(({ yearMonth, fixedDates = [], shifts = [] }, context) => {

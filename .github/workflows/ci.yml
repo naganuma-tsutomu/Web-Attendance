@@ -78,3 +78,6 @@ jobs:
 
       - name: Apply seed data
         run: npm run db:seed:local
+
+      - name: Validate latest migration on initialized D1
+        run: npm run db:validate:latest-migration

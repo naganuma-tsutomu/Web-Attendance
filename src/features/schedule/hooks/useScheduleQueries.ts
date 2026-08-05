@@ -4,6 +4,7 @@ import { format, startOfWeek, addDays, startOfMonth, endOfMonth } from 'date-fns
 import { ja } from 'date-fns/locale';
 import { useQueries } from '@tanstack/react-query';
 import { getShiftsByMonth, getPreferencesByMonth, getFixedDates } from '../../../lib/api';
+import type { ShiftMonthData } from '../../../lib/api';
 import { QUERY_KEYS } from '../../../lib/hooks';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
 import type { Shift, ShiftPreference } from '../../../types';
@@ -33,6 +34,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.shifts(month),
             queryFn: () => getShiftsByMonth(month),
+            select: (data: ShiftMonthData) => data.shifts,
         })),
         combine: (results) => {
             const seen = new Set<string>();

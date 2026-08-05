@@ -96,8 +96,8 @@ export function useScheduleActions({
             ]);
 
             const fixedDateSet = new Set(latestFixedDates);
-            const fixedContextShifts = targetMonthShifts.filter(s => fixedDateSet.has(s.date));
-            const mergedContext = [...previousMonthShifts, ...nextMonthShifts, ...fixedContextShifts];
+            const fixedContextShifts = targetMonthShifts.shifts.filter(s => fixedDateSet.has(s.date));
+            const mergedContext = [...previousMonthShifts.shifts, ...nextMonthShifts.shifts, ...fixedContextShifts];
 
             const generatedShifts = generateShiftsForMonth(
                 targetYearMonth,
@@ -136,6 +136,7 @@ export function useScheduleActions({
 
             await replaceShiftsMutation.mutateAsync({
                 yearMonth: targetYearMonth,
+                expectedVersion: targetMonthShifts.version,
                 shifts: generatedShifts,
                 fixedDates: latestFixedDates,
             });

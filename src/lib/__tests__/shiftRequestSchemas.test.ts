@@ -20,8 +20,9 @@ describe('shift request schemas', () => {
     });
 
     it('月次置換では対象月外のシフトと固定日を拒否する', () => {
-        expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', shifts: [shift], fixedDates: ['2026-08-01'] }).success).toBe(true);
-        expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', shifts: [{ ...shift, date: '2026-09-01' }] }).success).toBe(false);
+        expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', expectedVersion: 0, shifts: [shift], fixedDates: ['2026-08-01'] }).success).toBe(true);
+        expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', expectedVersion: 0, shifts: [{ ...shift, date: '2026-09-01' }] }).success).toBe(false);
+        expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', shifts: [shift] }).success).toBe(false);
     });
 
     it('消去除外日は対象月内かつ重複なしに限定する', () => {

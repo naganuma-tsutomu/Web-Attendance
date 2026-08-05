@@ -3,8 +3,15 @@ import type { Shift } from '../../types';
 import { ShiftSchema } from '../../types/schemas';
 import { apiFetch } from '../apiClient';
 
-export const getShiftsByMonth = async (yearMonth: string): Promise<Shift[]> => {
-    return apiFetch<Shift[]>(`/shifts?yearMonth=${yearMonth}`, {}, z.array(ShiftSchema));
+export type ShiftMonthData = { shifts: Shift[]; version: number };
+
+const ShiftMonthDataSchema = z.object({
+    shifts: z.array(ShiftSchema),
+    version: z.number().int().nonnegative(),
+});
+
+export const getShiftsByMonth = async (yearMonth: string): Promise<ShiftMonthData> => {
+    return apiFetch<ShiftMonthData>(`/shifts?yearMonth=${yearMonth}`, {}, ShiftMonthDataSchema);
 };
 
 export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void> => {
@@ -14,10 +21,10 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     });
 };
 
-export const replaceShiftsForMonth = async (yearMonth: string, shifts: Omit<Shift, 'id'>[], fixedDates: string[] = []): Promise<void> => {
+export const replaceShiftsForMonth = async (yearMonth: string, expectedVersion: number, shifts: Omit<Shift, 'id'>[], fixedDates: string[] = []): Promise<void> => {
     await apiFetch('/shifts/replace', {
         method: 'POST',
-        body: JSON.stringify({ yearMonth, shifts, fixedDates })
+        body: JSON.stringify({ yearMonth, expectedVersion, shifts, fixedDates })
     });
 };
 

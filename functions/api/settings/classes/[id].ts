@@ -55,7 +55,30 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        await context.env.DB.prepare('DELETE FROM classes WHERE id = ?').bind(id).run();
+        const result = await context.env.DB.prepare(
+            `DELETE FROM classes
+             WHERE id = ?
+               AND NOT EXISTS (SELECT 1 FROM shifts WHERE classType = ?)`
+        ).bind(id, id).run();
+
+        if (Number(result.meta.changes ?? 0) === 0) {
+            const [existingClass, referencedShift] = await Promise.all([
+                context.env.DB.prepare('SELECT id FROM classes WHERE id = ?').bind(id).first(),
+                context.env.DB.prepare('SELECT id FROM shifts WHERE classType = ? LIMIT 1').bind(id).first(),
+            ]);
+            if (!existingClass) {
+                return new Response(JSON.stringify({ error: 'クラスが見つかりません' }), {
+                    status: 404,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+            if (referencedShift) {
+                return new Response(JSON.stringify({ error: 'シフトで使用中のクラスは削除できません' }), {
+                    status: 409,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+        }
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'Database error deleting class');

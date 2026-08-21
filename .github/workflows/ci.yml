@@ -80,4 +80,7 @@ jobs:
         run: npm run db:seed:local
 
       - name: Validate latest migration on initialized D1
-        run: npm run db:validate:latest-migration
+        run: npm run db:migrate:local
+
+      - name: Check seeded data integrity
+        run: npm run db:check-integrity:local

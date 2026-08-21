@@ -2,6 +2,10 @@ import { handleServerError, createValidationError, validateAccessKey } from '../
 import { signStaffCookie, TOKEN_MAX_AGE_SECONDS, STAFF_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
 import { StaffLoginSchema } from '../../../shared/basicRequestSchemas';
+import {
+    buildAuthRateLimitKeys, checkAuthRateLimit, clearAuthFailures,
+    createRateLimitResponse, recordAuthFailure,
+} from '../../utils/authRateLimit';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
@@ -16,13 +20,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             return handleServerError(new Error('Server Configuration Error'), 'Missing ADMIN_PASSWORD');
         }
 
+        const rateLimitKeys = await buildAuthRateLimitKeys(context.request, 'staff', name);
+        const retryAfter = await checkAuthRateLimit(context.env.DB, rateLimitKeys);
+        if (retryAfter > 0) return createRateLimitResponse(retryAfter);
+
         const staff = await context.env.DB.prepare(
             "SELECT id, name FROM staffs WHERE name = ? AND access_key = ?"
         ).bind(name.trim(), accessKey.trim()).first() as { id: string, name: string } | null;
 
         if (!staff) {
+            const retry = await recordAuthFailure(context.env.DB, rateLimitKeys);
+            if (retry > 0) return createRateLimitResponse(retry);
             return Response.json({ error: 'アクセスキーが正しくありません' }, { status: 401 });
         }
+
+        await clearAuthFailures(context.env.DB, rateLimitKeys);
 
         const token = await signStaffCookie(staff.id, ADMIN_PASSWORD);
         const isSecure = context.request.url.startsWith('https');

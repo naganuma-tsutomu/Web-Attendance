@@ -280,6 +280,17 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_occurred_at ON audit_logs(occurred_at 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_year_month ON audit_logs(year_month, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id, occurred_at DESC);
 
+-- Application-level authentication throttling (Cloudflare Rate Limiting remains the outer layer).
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    key_hash TEXT PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    window_started_at INTEGER NOT NULL,
+    blocked_until INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_updated_at ON auth_rate_limits(updated_at);
+
 -- ============================================================
 -- 既存 DB へのスキーマ変更について
 -- ============================================================

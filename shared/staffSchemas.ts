@@ -39,7 +39,8 @@ export const StaffCreateInputSchema = z.object({
     classIds: staffFields.classIds.optional(),
 }).strict();
 
-export const StaffUpdateInputSchema = z.object(staffFields).partial().strict();
+export const StaffUpdateInputSchema = z.object(staffFields).partial().strict()
+    .refine(body => Object.keys(body).length > 0, { message: '更新するデータがありません' });
 
 export type StaffCreateInput = z.infer<typeof StaffCreateInputSchema>;
 export type StaffUpdateInput = z.infer<typeof StaffUpdateInputSchema>;

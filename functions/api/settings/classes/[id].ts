@@ -50,6 +50,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         }
         return Response.json({ success: true });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('classes.name')) {
+            return createValidationError('同じ名前のクラスが既にあります');
+        }
         return handleServerError(e, 'Database error updating class');
     }
 };

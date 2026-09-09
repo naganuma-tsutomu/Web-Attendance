@@ -107,6 +107,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('staffs.access_key')) {
+            return new Response(JSON.stringify({ error: '指定されたアクセスキーは既に使用されています' }), {
+                status: 409,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
         return handleServerError(e, 'Database error updating staff');
     }
 };

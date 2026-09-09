@@ -9,6 +9,8 @@ import {
     onRequestDelete as deleteTimePattern,
     onRequestPut as updateTimePattern,
 } from '../../../functions/api/settings/time-patterns/[id]';
+import { onRequestPost as createClass } from '../../../functions/api/settings/classes/index';
+import { onRequestPut as updateClass } from '../../../functions/api/settings/classes/[id]';
 
 type MockStatement = {
     sql: string;
@@ -58,8 +60,20 @@ describe('settings entity write integrity', () => {
         ]);
     });
 
+    it('重複するスタッフ区分名の作成を400で返す', async () => {
+        const db = createDb(sql => sql.includes('MAX(display_order)') ? { maxOrder: 1 } : null);
+        db.batch.mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: roles.name'));
+        const response = await createRole({
+            request: { json: async () => ({ name: '常勤' }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toEqual({ error: '同じ名前のスタッフ区分が既にあります' });
+    });
+
     it('スタッフ区分本体と関連付けの更新を同じbatchへ積む', async () => {
-        const db = createDb(sql => sql.includes('SELECT id FROM roles') ? { id: 'role-1' } : null);
+        const db = createDb(sql => sql.includes('SELECT id, name FROM roles') ? { id: 'role-1', name: '旧区分' } : null);
         const response = await updateRole({
             params: { id: 'role-1' },
             request: { json: async () => ({ name: ' 常勤 ', patternIds: ['pattern-1'] }) },
@@ -70,10 +84,12 @@ describe('settings entity write integrity', () => {
         const batch = db.batch.mock.calls[0][0] as MockStatement[];
         expect(batch.map(statement => statement.sql)).toEqual([
             expect.stringContaining('UPDATE roles SET'),
+            expect.stringContaining('UPDATE staffs SET role'),
             expect.stringContaining('DELETE FROM role_patterns'),
             expect.stringContaining('INSERT INTO role_patterns'),
         ]);
         expect(batch[0].binds).toEqual(['常勤', 'role-1']);
+        expect(batch[1].binds).toEqual(['常勤', '旧区分']);
     });
 
     it('存在しないスタッフ区分の更新を404で返す', async () => {
@@ -88,8 +104,21 @@ describe('settings entity write integrity', () => {
         expect(db.batch).not.toHaveBeenCalled();
     });
 
+    it('重複するスタッフ区分名への更新を400で返す', async () => {
+        const db = createDb(sql => sql.includes('SELECT id, name FROM roles') ? { id: 'role-1', name: '旧区分' } : null);
+        db.batch.mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: roles.name'));
+        const response = await updateRole({
+            params: { id: 'role-1' },
+            request: { json: async () => ({ name: '常勤' }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+    });
+
     it('ローテーション設定で参照中のスタッフ区分を削除しない', async () => {
         const db = createDb(sql => {
+            if (sql.includes('SELECT id, name FROM roles')) return { id: 'role-1', name: '常勤' };
             if (sql.includes('COUNT(*)')) return { count: 0 };
             if (sql.includes("key = 'rotation_settings'")) {
                 return {
@@ -114,6 +143,47 @@ describe('settings entity write integrity', () => {
         } as never);
 
         expect(response.status).toBe(409);
+        expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM roles'))).toBe(false);
+    });
+
+    it('重複するクラス名の作成を400で返す', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: classes.name'));
+        const prepare = vi.fn(() => ({ bind: vi.fn(() => ({ run })) }));
+        const response = await createClass({
+            request: { json: async () => ({ name: 'A組' }) },
+            env: { DB: { prepare } },
+        } as never);
+
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toEqual({ error: '同じ名前のクラスが既にあります' });
+    });
+
+    it('重複するクラス名への更新を400で返す', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: classes.name'));
+        const prepare = vi.fn(() => ({ bind: vi.fn(() => ({ run })) }));
+        const response = await updateClass({
+            params: { id: 'class-1' },
+            request: { json: async () => ({ name: 'A組' }) },
+            env: { DB: { prepare } },
+        } as never);
+
+        expect(response.status).toBe(400);
+    });
+
+    it('名称またはIDでスタッフが参照中の区分を削除しない', async () => {
+        const db = createDb(sql => {
+            if (sql.includes('SELECT id, name FROM roles')) return { id: 'role-1', name: '常勤' };
+            if (sql.includes('COUNT(*)')) return { count: 2 };
+            return null;
+        });
+        const response = await deleteRole({
+            params: { id: 'role-1' },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+        const countStatement = db.statements.find(statement => statement.sql.includes('COUNT(*)'));
+        expect(countStatement?.binds).toEqual(['role-1', '常勤']);
         expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM roles'))).toBe(false);
     });
 

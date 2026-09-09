@@ -35,4 +35,8 @@ describe('staff API input schemas', () => {
     it('更新入力の未知フィールドを拒否する', () => {
         expect(StaffUpdateInputSchema.safeParse({ admin: true }).success).toBe(false);
     });
+
+    it('空の更新入力を拒否する', () => {
+        expect(StaffUpdateInputSchema.safeParse({}).success).toBe(false);
+    });
 });

@@ -79,4 +79,23 @@ describe('entity API not-found responses', () => {
         expect(response.status).toBe(404);
         expect(db.batch).not.toHaveBeenCalled();
     });
+
+    it('スタッフ更新時のアクセスキー重複を409で返す', async () => {
+        const batch = vi.fn().mockRejectedValue(
+            new Error('D1_ERROR: UNIQUE constraint failed: staffs.access_key'),
+        );
+        const prepare = vi.fn(() => ({
+            bind: vi.fn(() => ({ first: vi.fn().mockResolvedValue({ id: 'staff-1' }) })),
+        }));
+        const response = await updateStaff({
+            request: {
+                url: 'https://example.com/api/staffs/staff-1',
+                json: async () => ({ accessKey: '123456' }),
+            },
+            env: { DB: { prepare, batch } },
+        } as never);
+
+        expect(response.status).toBe(409);
+        await expect(response.json()).resolves.toEqual({ error: '指定されたアクセスキーは既に使用されています' });
+    });
 });

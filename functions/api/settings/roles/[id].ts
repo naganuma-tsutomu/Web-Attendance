@@ -8,9 +8,16 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
 
+        const role = await context.env.DB.prepare(
+            'SELECT id, name FROM roles WHERE id = ?'
+        ).bind(id).first<{ id: string; name: string }>();
+        if (!role) {
+            return Response.json({ error: 'スタッフ区分が見つかりません' }, { status: 404 });
+        }
+
         const { count } = await context.env.DB.prepare(
-            'SELECT COUNT(*) as count FROM staffs WHERE role = ?'
-        ).bind(id).first() as { count: number };
+            'SELECT COUNT(*) as count FROM staffs WHERE role = ? OR role = ?'
+        ).bind(id, role.name).first() as { count: number };
 
         if (count > 0) {
             return createValidationError(`このスタッフ区分は${count}名のスタッフに使用されているため削除できません`);
@@ -43,7 +50,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (!parsed.success) return createValidationError('スタッフ区分の入力内容が不正です');
         const body = parsed.data;
 
-        const existing = await context.env.DB.prepare('SELECT id FROM roles WHERE id = ?').bind(id).first();
+        const existing = await context.env.DB.prepare(
+            'SELECT id, name FROM roles WHERE id = ?'
+        ).bind(id).first<{ id: string; name: string }>();
         if (!existing) {
             return Response.json({ error: 'スタッフ区分が見つかりません' }, { status: 404 });
         }
@@ -85,6 +94,16 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
                     `UPDATE roles SET ${updates.join(', ')} WHERE id = ?`
                 ).bind(...values)
             );
+
+            // staffs.role は既存データとの互換性のため名称を保持している場合がある。
+            // 区分名の変更時は同じbatch内で所属スタッフも追従させる。
+            if (body.name !== undefined && body.name.trim() !== existing.name) {
+                statements.push(
+                    context.env.DB.prepare(
+                        'UPDATE staffs SET role = ? WHERE role = ?'
+                    ).bind(body.name.trim(), existing.name)
+                );
+            }
         }
 
         // パターン紐付けの更新 (送られてきた場合のみ)
@@ -107,6 +126,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true });
     } catch (e) { 
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('roles.name')) {
+            return createValidationError('同じ名前のスタッフ区分が既にあります');
+        }
         return handleServerError(e, 'Database error updating role'); 
     }
 };

@@ -35,6 +35,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         return Response.json({ id });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('classes.name')) {
+            return createValidationError('同じ名前のクラスが既にあります');
+        }
         return handleServerError(e, 'Database error creating class');
     }
 };

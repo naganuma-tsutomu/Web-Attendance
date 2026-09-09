@@ -1,14 +1,9 @@
 import { createValidationError, handleServerError } from '../../utils/validation';
 import type { Env } from '../../types';
 import { BreakSettingsSchema, formatAppSettingsInputError } from '../../../shared/appSettingsSchemas';
+import { parseStoredJsonSetting } from '../../utils/appSettings';
 
-const DEFAULT_BREAK_SETTINGS = {
-    exceptionEnabled: false,
-    exceptionThresholdTime: '12:00',
-    exceptionBreakMinutes: 30,
-    displayActualHoursInModal: false,
-    displayActualHoursInExcel: false,
-};
+const DEFAULT_BREAK_SETTINGS = BreakSettingsSchema.parse({});
 
 // GET /api/settings/break-rules — 休憩設定を取得
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -17,11 +12,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             `SELECT value FROM app_settings WHERE key = 'break_rules'`
         ).all<{ value: string }>();
 
-        if (results.length === 0) {
-            return Response.json(DEFAULT_BREAK_SETTINGS);
-        }
-
-        return Response.json(JSON.parse(results[0].value));
+        return Response.json(parseStoredJsonSetting(
+            results[0]?.value,
+            BreakSettingsSchema,
+            DEFAULT_BREAK_SETTINGS,
+        ));
     } catch (e) {
         return handleServerError(e, 'Database error fetching break rules');
     }

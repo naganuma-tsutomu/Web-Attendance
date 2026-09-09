@@ -1,6 +1,9 @@
 import { createValidationError, handleServerError } from '../../utils/validation';
 import type { Env } from '../../types';
 import { ExcelSettingsSchema, formatAppSettingsInputError } from '../../../shared/appSettingsSchemas';
+import { parseStoredJsonSetting } from '../../utils/appSettings';
+
+const DEFAULT_EXCEL_SETTINGS = ExcelSettingsSchema.parse({});
 
 // GET /api/settings/excel-settings — Excel出力設定を取得
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -9,14 +12,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             `SELECT value FROM app_settings WHERE key = 'excel_settings'`
         ).all<{ value: string }>();
 
-        if (results.length === 0) {
-            return Response.json({
-                excludeHolidayStaffOnSaturdays: true,
-                highlightRules: []
-            });
-        }
-
-        return Response.json(JSON.parse(results[0].value));
+        return Response.json(parseStoredJsonSetting(
+            results[0]?.value,
+            ExcelSettingsSchema,
+            DEFAULT_EXCEL_SETTINGS,
+        ));
     } catch (e) {
         return handleServerError(e, 'Database error fetching excel settings');
     }

@@ -1,4 +1,4 @@
-import { handleServerError, createValidationError } from '../../utils/validation';
+import { handleServerError, createValidationError, safeJsonParse } from '../../utils/validation';
 import type { Env } from '../../types';
 import { BusinessHoursSchema, formatAppSettingsInputError } from '../../../shared/appSettingsSchemas';
 
@@ -15,20 +15,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         const settingsMap = Object.fromEntries(results.map((r: { key: string, value: string }) => [r.key, r.value]));
 
-        let closedDays = DEFAULT_CLOSED_DAYS;
-        if (settingsMap['business_hours_closed_days']) {
-            try {
-                closedDays = JSON.parse(settingsMap['business_hours_closed_days']);
-            } catch (e) {
-                console.error("Failed to parse closed_days", e);
-            }
-        }
-
-        return Response.json({
+        const candidate = {
             startHour: settingsMap['business_hours_start'] ? parseFloat(settingsMap['business_hours_start']) : DEFAULT_START_HOUR,
             endHour: settingsMap['business_hours_end'] ? parseFloat(settingsMap['business_hours_end']) : DEFAULT_END_HOUR,
-            closedDays: closedDays,
-        });
+            closedDays: safeJsonParse(settingsMap['business_hours_closed_days'], DEFAULT_CLOSED_DAYS),
+        };
+        const parsed = BusinessHoursSchema.safeParse(candidate);
+        return Response.json(parsed.success ? parsed.data : BusinessHoursSchema.parse({}));
     } catch (e) {
         return handleServerError(e, 'Database error fetching business hours');
     }

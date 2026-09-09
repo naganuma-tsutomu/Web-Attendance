@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { onRequestPut as updateBreakSettings } from '../../../functions/api/settings/break-rules';
-import { onRequestPut as updateBusinessHours } from '../../../functions/api/settings/business-hours';
-import { onRequestPut as updateExcelSettings } from '../../../functions/api/settings/excel-settings';
-import { onRequestPut as updateSchedulePreferences } from '../../../functions/api/settings/schedule-preferences';
+import { onRequestGet as getBreakSettings, onRequestPut as updateBreakSettings } from '../../../functions/api/settings/break-rules';
+import { onRequestGet as getBusinessHours, onRequestPut as updateBusinessHours } from '../../../functions/api/settings/business-hours';
+import { onRequestGet as getExcelSettings, onRequestPut as updateExcelSettings } from '../../../functions/api/settings/excel-settings';
+import { onRequestGet as getSchedulePreferences, onRequestPut as updateSchedulePreferences } from '../../../functions/api/settings/schedule-preferences';
 
 const createSingleStatementContext = (body: unknown) => {
     const run = vi.fn().mockResolvedValue({ success: true });
@@ -20,7 +20,27 @@ const createSingleStatementContext = (body: unknown) => {
 };
 
 describe('app settings APIs', () => {
+    const getContext = (results: Array<{ key?: string; value: string }>) => ({
+        env: {
+            DB: {
+                prepare: vi.fn(() => ({
+                    all: vi.fn().mockResolvedValue({ results }),
+                })),
+            },
+        },
+    });
+
     describe('business hours', () => {
+        it('保存値が不正なら既定の営業時間へ戻す', async () => {
+            const response = await getBusinessHours(getContext([
+                { key: 'business_hours_start', value: 'NaN' },
+                { key: 'business_hours_end', value: '19' },
+                { key: 'business_hours_closed_days', value: '{broken' },
+            ]) as never);
+
+            expect(await response.json()).toEqual({ startHour: 8, endHour: 19, closedDays: [0] });
+        });
+
         it('検証済みの営業時間を同じbatchで保存する', async () => {
             const statements = [{ id: 1 }, { id: 2 }, { id: 3 }];
             const prepare = vi.fn()
@@ -59,6 +79,20 @@ describe('app settings APIs', () => {
     });
 
     describe('break settings', () => {
+        it('部分的な保存値を検証して既定値を補完する', async () => {
+            const response = await getBreakSettings(getContext([
+                { value: JSON.stringify({ exceptionEnabled: true }) },
+            ]) as never);
+
+            expect(await response.json()).toEqual({
+                exceptionEnabled: true,
+                exceptionThresholdTime: '12:00',
+                exceptionBreakMinutes: 30,
+                displayActualHoursInModal: false,
+                displayActualHoursInExcel: false,
+            });
+        });
+
         it('省略項目を既定値で補完して保存する', async () => {
             const { context, bind, run } = createSingleStatementContext({ exceptionEnabled: true });
             const response = await updateBreakSettings(context as never);
@@ -91,6 +125,19 @@ describe('app settings APIs', () => {
     });
 
     describe('Excel settings', () => {
+        it('壊れた保存値なら完全な既定値を返す', async () => {
+            const response = await getExcelSettings(getContext([
+                { value: JSON.stringify({ showDutyNumbers: 'yes' }) },
+            ]) as never);
+
+            expect(await response.json()).toEqual({
+                excludeHolidayStaffOnSaturdays: true,
+                highlightRules: [],
+                showDutyNumbers: false,
+                leaderRoleId: null,
+            });
+        });
+
         it('検証・補完したExcel設定を保存する', async () => {
             const { context, bind, run } = createSingleStatementContext({
                 highlightRules: [{
@@ -133,6 +180,14 @@ describe('app settings APIs', () => {
     });
 
     describe('schedule preferences', () => {
+        it('壊れたJSONなら既定値を返す', async () => {
+            const response = await getSchedulePreferences(getContext([
+                { value: '{broken' },
+            ]) as never);
+
+            expect(await response.json()).toEqual({ autoOpenGenerationReport: true });
+        });
+
         it('真偽値をそのまま保存する', async () => {
             const { context, bind, run } = createSingleStatementContext({ autoOpenGenerationReport: false });
             const response = await updateSchedulePreferences(context as never);

@@ -44,7 +44,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         query += sets.join(', ') + ' WHERE id = ?';
         params.push(id);
 
-        await context.env.DB.prepare(query).bind(...params).run();
+        const result = await context.env.DB.prepare(query).bind(...params).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: 'クラスが見つかりません' }, { status: 404 });
+        }
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'Database error updating class');

@@ -41,7 +41,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         query += sets.join(', ') + ' WHERE id = ?';
         params.push(id);
         
-        await context.env.DB.prepare(query).bind(...params).run();
+        const result = await context.env.DB.prepare(query).bind(...params).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: '祝日が見つかりません' }, { status: 404 });
+        }
         return new Response(null, { status: 204 });
     } catch (e) { 
         return handleServerError(e, 'Database error updating holiday'); 
@@ -52,7 +55,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        await context.env.DB.prepare('DELETE FROM holidays WHERE id = ?').bind(id).run();
+        const result = await context.env.DB.prepare('DELETE FROM holidays WHERE id = ?').bind(id).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: '祝日が見つかりません' }, { status: 404 });
+        }
         return new Response(null, { status: 204 });
     } catch (e) { 
         return handleServerError(e, 'Database error deleting holiday'); 

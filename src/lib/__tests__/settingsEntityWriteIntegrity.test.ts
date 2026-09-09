@@ -1,14 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import { onRequestPost as createRole } from '../../../functions/api/settings/roles/index';
-import { onRequestPut as updateRole } from '../../../functions/api/settings/roles/[id]';
+import {
+    onRequestDelete as deleteRole,
+    onRequestPut as updateRole,
+} from '../../../functions/api/settings/roles/[id]';
 import { onRequestPost as createTimePattern } from '../../../functions/api/settings/time-patterns/index';
-import { onRequestPut as updateTimePattern } from '../../../functions/api/settings/time-patterns/[id]';
+import {
+    onRequestDelete as deleteTimePattern,
+    onRequestPut as updateTimePattern,
+} from '../../../functions/api/settings/time-patterns/[id]';
 
 type MockStatement = {
     sql: string;
     binds: unknown[];
     bind: (...values: unknown[]) => MockStatement;
     first: () => Promise<Record<string, unknown> | null>;
+    run: () => Promise<{ meta: { changes: number } }>;
 };
 
 const createDb = (resolveFirst: (sql: string) => Record<string, unknown> | null) => {
@@ -23,6 +30,7 @@ const createDb = (resolveFirst: (sql: string) => Record<string, unknown> | null)
                 return statement;
             },
             first: async () => resolveFirst(sql),
+            run: async () => ({ meta: { changes: 1 } }),
         };
         statements.push(statement);
         return statement;
@@ -80,6 +88,35 @@ describe('settings entity write integrity', () => {
         expect(db.batch).not.toHaveBeenCalled();
     });
 
+    it('ローテーション設定で参照中のスタッフ区分を削除しない', async () => {
+        const db = createDb(sql => {
+            if (sql.includes('COUNT(*)')) return { count: 0 };
+            if (sql.includes("key = 'rotation_settings'")) {
+                return {
+                    value: JSON.stringify({
+                        enabled: false,
+                        roleId: 'role-1',
+                        earlyPatternId: 'pattern-1',
+                        latePatternId: 'pattern-2',
+                        weekdayEarlyCount: 1,
+                        weekdayLateCount: 2,
+                        saturdayEnabled: false,
+                        saturdayCount: 1,
+                        saturdayPreferFridayLate: true,
+                    }),
+                };
+            }
+            return null;
+        });
+        const response = await deleteRole({
+            params: { id: 'role-1' },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(409);
+        expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM roles'))).toBe(false);
+    });
+
     it('勤務時間パターン本体とスタッフ区分関連付けを同じbatchで作成する', async () => {
         const db = createDb(sql => sql.includes('MAX(display_order)') ? { maxOrder: 3 } : null);
         const response = await createTimePattern({
@@ -126,5 +163,30 @@ describe('settings entity write integrity', () => {
 
         expect(response.status).toBe(400);
         expect(db.batch).not.toHaveBeenCalled();
+    });
+
+    it('ローテーション設定で参照中の勤務時間パターンを削除しない', async () => {
+        const db = createDb(sql => sql.includes("key = 'rotation_settings'")
+            ? {
+                value: JSON.stringify({
+                    enabled: false,
+                    roleId: 'role-1',
+                    earlyPatternId: 'pattern-1',
+                    latePatternId: 'pattern-2',
+                    weekdayEarlyCount: 1,
+                    weekdayLateCount: 2,
+                    saturdayEnabled: false,
+                    saturdayCount: 1,
+                    saturdayPreferFridayLate: true,
+                }),
+            }
+            : null);
+        const response = await deleteTimePattern({
+            params: { id: 'pattern-2' },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(409);
+        expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM shift_time_patterns'))).toBe(false);
     });
 });

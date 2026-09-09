@@ -1,6 +1,7 @@
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
 import { TimePatternUpdateSchema } from '../../../../shared/settingsEntitySchemas';
+import { loadRotationSettings } from '../../../utils/rotationSettings';
 
 type DayFlag = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday';
 // PUT /api/settings/time-patterns/:id
@@ -95,6 +96,18 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
+        const rotationSettings = await loadRotationSettings(context.env.DB);
+        if (
+            rotationSettings.earlyPatternId === id ||
+            rotationSettings.latePatternId === id ||
+            rotationSettings.saturdayPatternId === id
+        ) {
+            return Response.json(
+                { error: 'ローテーション設定で使用中の勤務時間パターンは削除できません' },
+                { status: 409 },
+            );
+        }
+
         const result = await context.env.DB.prepare(
             'DELETE FROM shift_time_patterns WHERE id = ?'
         ).bind(id).run();

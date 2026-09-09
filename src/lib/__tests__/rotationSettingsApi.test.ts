@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { onRequestPut as updateRotationSettings } from '../../../functions/api/settings/rotation-settings';
+import {
+    onRequestGet as getRotationSettings,
+    onRequestPut as updateRotationSettings,
+} from '../../../functions/api/settings/rotation-settings';
 import { RotationSettingsSchema } from '../../../shared/appSettingsSchemas';
 
 const validSettings = {
@@ -30,6 +33,24 @@ const createContext = (body: unknown, run = vi.fn().mockResolvedValue({ success:
 };
 
 describe('rotation settings API', () => {
+    it.each([
+        '{',
+        JSON.stringify({ ...validSettings, enabled: 'yes' }),
+    ])('保存値が壊れている場合は安全な既定値を返す', async value => {
+        const response = await getRotationSettings({
+            env: {
+                DB: {
+                    prepare: vi.fn(() => ({
+                        first: vi.fn().mockResolvedValue({ value }),
+                    })),
+                },
+            },
+        } as never);
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual(RotationSettingsSchema.parse({}));
+    });
+
     it('正常な設定を保存する', async () => {
         const { context, bind, run } = createContext(validSettings);
 

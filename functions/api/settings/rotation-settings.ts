@@ -3,23 +3,13 @@ import type { Env } from '../../types';
 import {
     formatRotationSettingsInputError,
     RotationSettingsRequestSchema,
-    RotationSettingsSchema,
 } from '../../../shared/appSettingsSchemas';
-
-const DEFAULT_SETTINGS = RotationSettingsSchema.parse({});
+import { loadRotationSettings } from '../../utils/rotationSettings';
 
 // GET /api/settings/rotation-settings — ローテーション設定を取得
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
-        const { results } = await context.env.DB.prepare(
-            `SELECT value FROM app_settings WHERE key = 'rotation_settings'`
-        ).all<{ value: string }>();
-
-        if (results.length === 0) {
-            return Response.json(DEFAULT_SETTINGS);
-        }
-
-        return Response.json(JSON.parse(results[0].value));
+        return Response.json(await loadRotationSettings(context.env.DB));
     } catch (e) {
         return handleServerError(e, 'Database error fetching rotation settings');
     }

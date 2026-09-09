@@ -1,6 +1,7 @@
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
 import { RoleUpdateSchema } from '../../../../shared/settingsEntitySchemas';
+import { loadRotationSettings } from '../../../utils/rotationSettings';
 
 // DELETE /api/settings/roles/:id
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
@@ -13,6 +14,14 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
 
         if (count > 0) {
             return createValidationError(`このスタッフ区分は${count}名のスタッフに使用されているため削除できません`);
+        }
+
+        const rotationSettings = await loadRotationSettings(context.env.DB);
+        if (rotationSettings.roleId === id) {
+            return Response.json(
+                { error: 'ローテーション設定で使用中のスタッフ区分は削除できません' },
+                { status: 409 },
+            );
         }
 
         const result = await context.env.DB.prepare('DELETE FROM roles WHERE id = ?').bind(id).run();

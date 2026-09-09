@@ -60,7 +60,13 @@ const createContext = async (
 describe('server API security boundaries', () => {
     it('スタッフ削除はシフトとスタッフ本体を同一batchで削除する', async () => {
         const batch = vi.fn().mockResolvedValue([]);
-        const db = { prepare: (sql: string) => createStatement(sql), batch };
+        const db = {
+            prepare: (sql: string) => createStatement(
+                sql,
+                query => query.startsWith('SELECT id FROM staffs') ? [{ id: 's1' }] : [],
+            ),
+            batch,
+        };
 
         const response = await deleteStaff({
             request: { url: 'https://example.com/api/staffs/s1' },

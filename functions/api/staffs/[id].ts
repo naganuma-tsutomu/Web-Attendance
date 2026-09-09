@@ -30,6 +30,13 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (!parsed.success) return createValidationError(formatStaffInputError(parsed.error));
         const staffData = parsed.data;
 
+        const existing = await context.env.DB.prepare(
+            'SELECT id FROM staffs WHERE id = ?'
+        ).bind(id).first();
+        if (!existing) {
+            return Response.json({ error: 'スタッフが見つかりません' }, { status: 404 });
+        }
+
         // 更新するカラムを動的に構築（undefined = 更新しない、null = NULL を書き込む）
         // addSetClause() でホワイトリスト検証済みのカラム名のみ追加
         const setClauses: string[] = [];
@@ -109,6 +116,13 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const url = new URL(context.request.url);
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
+
+        const existing = await context.env.DB.prepare(
+            'SELECT id FROM staffs WHERE id = ?'
+        ).bind(id).first();
+        if (!existing) {
+            return Response.json({ error: 'スタッフが見つかりません' }, { status: 404 });
+        }
 
         // 既存DBには ON DELETE CASCADE が付いていない外部キーがあるため、
         // 関連データを同じbatchで明示的に削除してからスタッフ本体を削除する。

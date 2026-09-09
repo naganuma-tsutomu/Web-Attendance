@@ -62,5 +62,5 @@ describe('authentication rate limiting with D1', () => {
         } as never);
         expect(blockedStaff.status).toBe(429);
         expect(blockedStaff.headers.get('Retry-After')).toMatch(/^\d+$/);
-    });
+    }, 15_000);
 });

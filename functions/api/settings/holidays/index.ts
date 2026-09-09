@@ -1,4 +1,4 @@
-import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
+import { handleServerError, createValidationError, validateName, validateYear } from '../../../utils/validation';
 import type { D1BindParam, Env } from '../../../types';
 import { HolidayCreateSchema } from '../../../../shared/calendarRequestSchemas';
 
@@ -12,7 +12,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         let query = 'SELECT * FROM holidays';
         const params: D1BindParam[] = [];
         
-        if (year) {
+        if (year !== null) {
+            const yearError = validateYear(year);
+            if (yearError) return createValidationError(yearError);
             query += ' WHERE date >= ? AND date < ?';
             params.push(`${year}-01-01`, `${Number(year) + 1}-01-01`);
         }

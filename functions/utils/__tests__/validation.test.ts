@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createValidationError, createServerError, handleServerError, validateAccessKey, validateDate, validateName, validateTimeFormat, validateTimeRange } from '../validation';
+import { createValidationError, createServerError, handleServerError, validateAccessKey, validateDate, validateName, validateTimeFormat, validateTimeRange, validateYear } from '../validation';
 
 describe('validation utilities', () => {
     describe('validateAccessKey', () => {
@@ -105,6 +105,17 @@ describe('validation utilities', () => {
 
         it('うるう年の2月29日を許可する', () => {
             expect(validateDate('2028-02-29')).toBeNull();
+        });
+    });
+
+    describe('validateYear', () => {
+        it('対応範囲の4桁年だけを受け入れる', () => {
+            expect(validateYear('2000')).toBeNull();
+            expect(validateYear('2100')).toBeNull();
+            expect(validateYear('1999')).toContain('2000〜2100');
+            expect(validateYear('2101')).toContain('2000〜2100');
+            expect(validateYear('2026abc')).toContain('4桁');
+            expect(validateYear(null)).toContain('4桁');
         });
     });
 });

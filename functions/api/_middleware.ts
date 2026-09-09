@@ -98,7 +98,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         }
 
         // スタッフが GET できる読み取り専用エンドポイント
-        const staffReadEndpoints = [
+        const staffReadEndpoints = new Set([
             '/api/preferences',
             '/api/shifts',
             '/api/staffs',
@@ -109,9 +109,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
             '/api/settings/business-hours',
             '/api/settings/business-day-overrides',
             '/api/fixed-dates',
-        ];
+        ]);
 
-        if (method === 'GET' && staffReadEndpoints.some(ep => url.pathname.startsWith(ep))) {
+        if (method === 'GET' && staffReadEndpoints.has(url.pathname)) {
             return context.next();
         }
 

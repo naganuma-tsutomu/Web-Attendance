@@ -22,13 +22,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         const conditions: string[] = [];
         const values: D1BindParam[] = [];
 
-        if (classId) {
+        if (classId !== null) {
+            const normalizedClassId = classId.trim();
+            if (!normalizedClassId || normalizedClassId.length > 128) {
+                return createValidationError('classIdは1〜128文字で指定してください');
+            }
             conditions.push('classId = ?');
-            values.push(classId);
+            values.push(normalizedClassId);
         }
 
         if (dayOfWeekParam !== null) {
-            const dayOfWeek = parseInt(dayOfWeekParam, 10);
+            if (!dayOfWeekParam.trim()) {
+                return createValidationError('曜日は整数値で指定してください');
+            }
+            const dayOfWeek = Number(dayOfWeekParam);
+            const dayError = validateDayOfWeek(dayOfWeek);
+            if (dayError) return createValidationError(dayError);
             conditions.push('dayOfWeek = ?');
             values.push(dayOfWeek);
         }

@@ -1,19 +1,23 @@
-import { handleServerError } from '../../../utils/validation';
+import { createValidationError, handleServerError, validateYear } from '../../../utils/validation';
 import holiday_jp from '@holiday-jp/holiday_jp';
 import type { Env } from '../../../types';
 
 type SyncedHoliday = { id: string; date: string; name: string };
 
-// GET /api/holidays/sync — 外部データと同期（@holiday-jp/holiday_jpパッケージ使用）
+// POST /api/holidays/sync — 外部データと同期（@holiday-jp/holiday_jpパッケージ使用）
 // Query: ?year=2025 (年指定、省略時は今年と来年)
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearParam = url.searchParams.get('year');
+        if (yearParam !== null) {
+            const yearError = validateYear(yearParam);
+            if (yearError) return createValidationError(yearError);
+        }
         
         const currentYear = new Date().getFullYear();
         const years = yearParam 
-            ? [parseInt(yearParam)] 
+            ? [Number(yearParam)]
             : [currentYear, currentYear + 1];
         
         const results = {
@@ -39,7 +43,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                 
                 try {
                     // INSERT OR IGNOREで重複をスキップ
-                    await context.env.DB.prepare(
+                    const result = await context.env.DB.prepare(
                         `INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday) 
                          VALUES (?, ?, ?, ?, ?)`
                     ).bind(
@@ -56,12 +60,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
                         id
                     });
                     
-                    // 変更があったか確認（簡易的に実装）
-                    const { results: existing } = await context.env.DB.prepare(
-                        'SELECT id FROM holidays WHERE date = ?'
-                    ).bind(dateStr).all();
-                    
-                    if (existing && existing.length > 0 && existing[0].id === id) {
+                    if (Number(result.meta.changes ?? 0) > 0) {
                         results.synced++;
                     } else {
                         results.skipped++;

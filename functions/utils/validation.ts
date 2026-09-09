@@ -123,6 +123,18 @@ export function validateYearMonth(yearMonth: string | null | undefined): string 
     return null;
 }
 
+// Validate year format and supported application range.
+export function validateYear(year: string | null | undefined): string | null {
+    if (!year || !/^\d{4}$/.test(year)) {
+        return 'yearは2000〜2100の4桁で指定してください';
+    }
+    const numericYear = Number(year);
+    if (numericYear < 2000 || numericYear > 2100) {
+        return 'yearは2000〜2100の4桁で指定してください';
+    }
+    return null;
+}
+
 // Validate date format (YYYY-MM-DD)
 export function validateDate(date: string | null | undefined, fieldName: string = '日付'): string | null {
     if (!date) return `${fieldName}は必須です`;

@@ -37,7 +37,7 @@ const SyncHolidaysResultSchema = z.object({
 
 export const syncHolidays = async (year?: number): Promise<{ success: boolean; message: string; synced: number; skipped: number }> => {
     const url = year ? `/settings/holidays/sync?year=${year}` : '/settings/holidays/sync';
-    return apiFetch(url, {}, SyncHolidaysResultSchema);
+    return apiFetch(url, { method: 'POST', body: '{}' }, SyncHolidaysResultSchema);
 };
 
 export const syncHolidaysIfNeeded = async (): Promise<void> => {

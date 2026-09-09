@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { lazy, Suspense, useState, useCallback, useMemo, useEffect } from 'react';
 import Modal from '../../components/ui/Modal';
 import { useCalendarInteractions } from './hooks/useCalendarInteractions';
 import { Calendar as BigCalendar, dateFnsLocalizer, Views, type View } from 'react-big-calendar';
@@ -15,9 +15,6 @@ import StaffWorkHoursSummary from './components/StaffWorkHoursSummary';
 import ScheduleHeader from './components/ScheduleHeader';
 import ShiftEditModal from './components/ShiftEditModal';
 import MobileWorkHoursPanel from './components/MobileWorkHoursPanel';
-import ShiftBackupModal from './components/ShiftBackupModal';
-import ShiftImportModal from './components/ShiftImportModal';
-import GenerationReportModal from './components/GenerationReportModal';
 import CalendarDateHeader from './components/CalendarDateHeader';
 import CalendarDateCellWrapper from './components/CalendarDateCellWrapper';
 import { CalendarDisplayContext } from './context/CalendarDisplayContext';
@@ -27,6 +24,10 @@ import { UNASSIGNED_STAFF_ID } from '../../constants';
 import { useUnsavedChanges } from '../../lib/UnsavedChangesContext';
 import { analyzeSchedule } from '../../lib/scheduleAnalysis';
 import ScheduleIssuesPanel from '../schedule-analysis/components/ScheduleIssuesPanel';
+
+const ShiftBackupModal = lazy(() => import('./components/ShiftBackupModal'));
+const ShiftImportModal = lazy(() => import('./components/ShiftImportModal'));
+const GenerationReportModal = lazy(() => import('./components/GenerationReportModal'));
 
 const localizer = dateFnsLocalizer({
     format,
@@ -381,33 +382,41 @@ const SchedulePage = () => {
                 checkboxLabel={schedule.confirmAction?.checkboxLabel}
             />
 
-            <ShiftBackupModal
-                isOpen={isBackupModalOpen}
-                yearMonth={schedule.targetYearMonth}
-                onClose={() => setIsBackupModalOpen(false)}
-                onRestored={schedule.loadShifts}
-            />
+            <Suspense fallback={null}>
+                {isBackupModalOpen && (
+                    <ShiftBackupModal
+                        isOpen
+                        yearMonth={schedule.targetYearMonth}
+                        onClose={() => setIsBackupModalOpen(false)}
+                        onRestored={schedule.loadShifts}
+                    />
+                )}
 
-            <ShiftImportModal
-                isOpen={isImportModalOpen}
-                yearMonth={schedule.targetYearMonth}
-                staffList={schedule.staffList}
-                classes={schedule.classes}
-                existingShifts={schedule.rawShifts}
-                fixedDates={schedule.fixedDates}
-                onClose={() => setIsImportModalOpen(false)}
-                onImported={schedule.loadShifts}
-            />
+                {isImportModalOpen && (
+                    <ShiftImportModal
+                        isOpen
+                        yearMonth={schedule.targetYearMonth}
+                        staffList={schedule.staffList}
+                        classes={schedule.classes}
+                        existingShifts={schedule.rawShifts}
+                        fixedDates={schedule.fixedDates}
+                        onClose={() => setIsImportModalOpen(false)}
+                        onImported={schedule.loadShifts}
+                    />
+                )}
 
-            <GenerationReportModal
-                isOpen={schedule.isGenerationReportOpen}
-                report={schedule.generationReport}
-                onClose={() => schedule.setIsGenerationReportOpen(false)}
-                onOpenDate={(date) => {
-                    schedule.setIsGenerationReportOpen(false);
-                    handleOpenTimeline(date);
-                }}
-            />
+                {schedule.isGenerationReportOpen && (
+                    <GenerationReportModal
+                        isOpen
+                        report={schedule.generationReport}
+                        onClose={() => schedule.setIsGenerationReportOpen(false)}
+                        onOpenDate={(date) => {
+                            schedule.setIsGenerationReportOpen(false);
+                            handleOpenTimeline(date);
+                        }}
+                    />
+                )}
+            </Suspense>
         </div>
     );
 };

@@ -27,18 +27,23 @@ describe('API query validation', () => {
     });
 
     it('祝日同期はINSERTの変更件数から追加・スキップ件数を集計する', async () => {
-        const run = vi.fn().mockResolvedValue({ meta: { changes: 0 } });
-        const prepare = vi.fn((sql: string) => ({ sql, bind: vi.fn(() => ({ run })) }));
+        const prepare = vi.fn((sql: string) => {
+            const statement = { sql, bind: vi.fn() };
+            statement.bind.mockReturnValue(statement);
+            return statement;
+        });
+        const batch = vi.fn(async (statements: unknown[]) => statements.map(() => ({ meta: { changes: 0 } })));
         const response = await syncHolidays({
             request: { url: 'https://example.com/api/settings/holidays/sync?year=2026' },
-            env: { DB: { prepare } },
+            env: { DB: { prepare, batch } },
         } as never);
         const result = await response.json() as { synced: number; skipped: number };
 
         expect(response.status).toBe(200);
         expect(result.synced).toBe(0);
         expect(result.skipped).toBeGreaterThan(0);
-        expect(run).toHaveBeenCalledTimes(result.skipped);
+        expect(batch).toHaveBeenCalledTimes(1);
+        expect(batch.mock.calls[0][0]).toHaveLength(result.skipped);
         expect(prepare.mock.calls.every(([sql]) => String(sql).includes('INSERT OR IGNORE'))).toBe(true);
     });
 

@@ -75,7 +75,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const isSecure = context.request.url.startsWith('https');
         const cookie = `${ADMIN_COOKIE_NAME}=${token}; HttpOnly; Path=/; Max-Age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Strict${isSecure ? '; Secure' : ''}`;
 
-        return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({
+            success: true,
+            user: { uid: 'admin', email: 'admin' },
+        }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',

@@ -34,8 +34,6 @@ const LandingPage = () => {
             .catch(() => {});
     }, [currentUser, loading, navigate]);
 
-    if (loading) return null;
-
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 px-6">
             {/* ロゴ・タイトル */}

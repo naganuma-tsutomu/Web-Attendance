@@ -3,8 +3,8 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal, Lock, LockOpen } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole, BusinessDayOverride } from '../../../types';
-import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
 import DatePicker from '../../../components/ui/DatePicker';
 
@@ -89,6 +89,22 @@ const ScheduleHeader = ({
 }: ScheduleHeaderProps) => {
     const [showDesktopMoreMenu, setShowDesktopMoreMenu] = useState(false);
     const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
+    const [isPreparingExcel, setIsPreparingExcel] = useState(false);
+
+    const handleExcelExport = async () => {
+        if (isPreparingExcel) return;
+        setIsPreparingExcel(true);
+        try {
+            // ExcelJSを含む大きなチャンクは、実際に出力するときだけ取得する。
+            const { exportToExcelAdvanced } = await import('../../../utils/excelExport');
+            await exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides);
+        } catch (error) {
+            console.error('Failed to load Excel export module', error);
+            toast.error('Excel出力機能の読み込みに失敗しました');
+        } finally {
+            setIsPreparingExcel(false);
+        }
+    };
 
     return (
         <div className="flex-shrink-0 p-4 sm:p-6 md:p-8 pb-4 md:pb-4 space-y-6">
@@ -183,10 +199,11 @@ const ScheduleHeader = ({
                         <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                     </button>
                     <button
-                        onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides)}
-                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+                        onClick={handleExcelExport}
+                        disabled={isPreparingExcel}
+                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-60"
                     >
-                        <Download className="w-5 h-5 text-green-600" />
+                        {isPreparingExcel ? <Loader2 className="w-5 h-5 animate-spin text-green-600" /> : <Download className="w-5 h-5 text-green-600" />}
                         <span className="text-xs font-bold whitespace-nowrap">Excel</span>
                     </button>
                     <div className="hidden sm:block relative">
@@ -272,8 +289,9 @@ const ScheduleHeader = ({
                                         レポート
                                     </button>
                                     <button
-                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides); setShowMobileMoreMenu(false); }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                        onClick={() => { void handleExcelExport(); setShowMobileMoreMenu(false); }}
+                                        disabled={isPreparingExcel}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-60"
                                     >
                                         <Download className="w-4 h-4 text-green-600 flex-shrink-0" />
                                         Excel

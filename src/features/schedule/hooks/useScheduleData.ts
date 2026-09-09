@@ -35,6 +35,7 @@ export const useScheduleData = () => {
     const [isDayModified, setIsDayModified] = useState(false);
     const daySaveRef = useRef<(() => Promise<void>) | null>(null);
     const dayDiscardRef = useRef<(() => void) | null>(null);
+    const holidaySyncStartedRef = useRef(false);
 
     // 静的データ
     const { data: staffList = [], isLoading: isLoadingStaff } = useStaffList();
@@ -131,8 +132,14 @@ export const useScheduleData = () => {
     });
 
     useEffect(() => {
-        syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
-    }, []);
+        if (loading || holidaySyncStartedRef.current) return;
+        // 初期表示に必要なGET群が完了してから、日次同期をバックグラウンドで始める。
+        const timer = window.setTimeout(() => {
+            holidaySyncStartedRef.current = true;
+            syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
+        }, 1000);
+        return () => window.clearTimeout(timer);
+    }, [loading]);
 
     useEffect(() => {
         saveActiveMonth(currentDate);

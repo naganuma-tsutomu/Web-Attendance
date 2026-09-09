@@ -20,12 +20,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             ? [Number(yearParam)]
             : [currentYear, currentYear + 1];
         
-        const results = {
-            synced: 0,
-            skipped: 0,
-            errors: [] as string[],
-            holidays: [] as SyncedHoliday[]
-        };
+        const holidaysToSync: SyncedHoliday[] = [];
         
         for (const year of years) {
             // @holiday-jp/holiday_jpから祝日データを取得
@@ -37,44 +32,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             for (const holiday of holidays) {
                 const dateStr = holiday.date.toISOString().split('T')[0]; // YYYY-MM-DD
                 const id = `hol_${year}_${dateStr.replace(/-/g, '')}`;
-                
-                // 振替休日かどうかを判定
-                const isSubstitute = holiday.name.includes('振替');
-                
-                try {
-                    // INSERT OR IGNOREで重複をスキップ
-                    const result = await context.env.DB.prepare(
-                        `INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday) 
-                         VALUES (?, ?, ?, ?, ?)`
-                    ).bind(
-                        id,
-                        dateStr,
-                        holiday.name,
-                        'national',
-                        isSubstitute ? 0 : 0  // 振替休日も休日扱い
-                    ).run();
-                    
-                    results.holidays.push({
-                        date: dateStr,
-                        name: holiday.name,
-                        id
-                    });
-                    
-                    if (Number(result.meta.changes ?? 0) > 0) {
-                        results.synced++;
-                    } else {
-                        results.skipped++;
-                    }
-                } catch (err) {
-                    results.errors.push(`${dateStr}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                }
+                holidaysToSync.push({ id, date: dateStr, name: holiday.name });
             }
         }
+
+        // 祝日ごとの逐次D1アクセスを避け、1回のトランザクションで同期する。
+        const statements = holidaysToSync.map(holiday => context.env.DB.prepare(
+            `INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday)
+             VALUES (?, ?, ?, 'national', 0)`
+        ).bind(holiday.id, holiday.date, holiday.name));
+        const batchResults = statements.length > 0
+            ? await context.env.DB.batch(statements)
+            : [];
+        const synced = batchResults.reduce(
+            (count, result) => count + (Number(result.meta.changes ?? 0) > 0 ? 1 : 0),
+            0,
+        );
+        const skipped = holidaysToSync.length - synced;
         
         return Response.json({
             success: true,
-            message: `同期完了: ${results.synced}件追加, ${results.skipped}件スキップ`,
-            ...results
+            message: `同期完了: ${synced}件追加, ${skipped}件スキップ`,
+            synced,
+            skipped,
+            errors: [],
+            holidays: holidaysToSync,
         });
     } catch (e) { 
         return handleServerError(e, 'Holiday sync failed'); 

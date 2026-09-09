@@ -35,16 +35,13 @@ const LoadingScreen = () => (
 );
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
   return currentUser ? <>{children}</> : <Navigate to="/login" />;
 };
 
 const AppRoutes = () => {
-  const { loading, currentUser } = useAuth();
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  const { currentUser } = useAuth();
 
   return (
     <Router>

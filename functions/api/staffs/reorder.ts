@@ -9,6 +9,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             return createValidationError('不正な並び替えデータです');
         }
         const { orders } = parsed.data;
+        if (orders.length === 0) {
+            return Response.json({ success: true, message: 'Reordered' });
+        }
 
         // Use a transaction if possible, but D1 batch is more likely what we need
         const statements = orders.map(item =>

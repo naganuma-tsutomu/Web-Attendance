@@ -10,6 +10,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             return createValidationError('Invalid orders data');
         }
         const { orders } = parsed.data;
+        if (orders.length === 0) {
+            return Response.json({ success: true, message: 'Reordered' });
+        }
 
         const statements = orders.map(item =>
             context.env.DB.prepare('UPDATE shift_time_patterns SET display_order = ? WHERE id = ?')

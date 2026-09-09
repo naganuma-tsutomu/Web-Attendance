@@ -111,6 +111,13 @@ wrangler pages deploy dist
 wrangler d1 execute web-attendance-restored-db --file=db/migrations/0004_audit_logs.sql
 ```
 
+復元DB・既存DBのスタッフ削除用外部キーを現行スキーマへ揃える場合は、次を実行する。
+
+```bash
+wrangler d1 execute web-attendance-restored-db --remote \
+  --file=db/migrations/0007_staff_preferences_on_delete_cascade.sql
+```
+
 ### 環境
 
 `wrangler.toml` で本番・プレビューの2環境を管理しています。

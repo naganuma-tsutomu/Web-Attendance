@@ -17,7 +17,7 @@
     "build:pages": "npm run build && wrangler pages dev dist",
     "db:init:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/schema.sql",
     "db:seed:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/seed.sql",
-    "db:migrate:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0005_shift_month_versions.sql && wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0006_auth_rate_limits.sql",
+    "db:migrate:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0005_shift_month_versions.sql && wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0006_auth_rate_limits.sql && wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0007_staff_preferences_on_delete_cascade.sql",
     "db:validate:latest-migration": "npm run db:migrate:local",
     "db:check-integrity:local": "wrangler d1 execute web-attendance-restored-db --local --file=db/integrity-check.sql",
     "check:auth-rate-limit": "node scripts/check-auth-rate-limit.mjs"

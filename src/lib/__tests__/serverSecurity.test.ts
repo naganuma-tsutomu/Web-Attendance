@@ -72,6 +72,10 @@ describe('server API security boundaries', () => {
         const statements = batch.mock.calls[0][0] as MockStatement[];
         expect(statements.map(statement => statement.sql)).toEqual([
             'DELETE FROM shifts WHERE staffId = ?',
+            'DELETE FROM staff_classes WHERE staffId = ?',
+            'DELETE FROM staff_available_days WHERE staffId = ?',
+            'DELETE FROM shift_preference_dates WHERE staffId = ?',
+            'DELETE FROM shift_preferences WHERE staffId = ?',
             'DELETE FROM staffs WHERE id = ?',
         ]);
         expect(statements.every(statement => statement.binds[0] === 's1')).toBe(true);

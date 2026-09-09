@@ -110,10 +110,14 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
-        // shifts.staffId は既存DBとの互換性のため外部キーを持たない。
-        // 同じbatchで明示的に削除し、孤児シフトを残さない。
+        // 既存DBには ON DELETE CASCADE が付いていない外部キーがあるため、
+        // 関連データを同じbatchで明示的に削除してからスタッフ本体を削除する。
         await context.env.DB.batch([
             context.env.DB.prepare("DELETE FROM shifts WHERE staffId = ?").bind(id),
+            context.env.DB.prepare("DELETE FROM staff_classes WHERE staffId = ?").bind(id),
+            context.env.DB.prepare("DELETE FROM staff_available_days WHERE staffId = ?").bind(id),
+            context.env.DB.prepare("DELETE FROM shift_preference_dates WHERE staffId = ?").bind(id),
+            context.env.DB.prepare("DELETE FROM shift_preferences WHERE staffId = ?").bind(id),
             context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id),
         ]);
 

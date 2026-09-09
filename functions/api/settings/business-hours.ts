@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError } from '../../utils/validation';
 import type { Env } from '../../types';
+import { BusinessHoursSchema, formatAppSettingsInputError } from '../../../shared/appSettingsSchemas';
 
 const DEFAULT_START_HOUR = 8;
 const DEFAULT_END_HOUR = 19;
@@ -36,28 +37,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // PUT /api/settings/business-hours — 営業時間・休館日設定を更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { startHour?: number; endHour?: number; closedDays?: number[] };
-
-        const startHour = body.startHour ?? DEFAULT_START_HOUR;
-        const endHour = body.endHour ?? DEFAULT_END_HOUR;
-        const closedDays = body.closedDays ?? DEFAULT_CLOSED_DAYS;
-
-        // バリデーション (30分刻みを許容: 0, 0.5, 1, 1.5, ...)
-        if (typeof startHour !== 'number' || startHour % 0.5 !== 0 || startHour < 0 || startHour > 23.5) {
-            return createValidationError('開始時間は0〜23:30の30分刻みで指定してください');
+        const parsed = BusinessHoursSchema.safeParse(await context.request.json());
+        if (!parsed.success) {
+            return createValidationError(formatAppSettingsInputError(parsed.error, '営業時間設定の入力内容が不正です'));
         }
-        if (typeof endHour !== 'number' || endHour % 0.5 !== 0 || endHour < 0.5 || endHour > 24) {
-            return createValidationError('終了時間は0:30〜24:00の30分刻みで指定してください');
-        }
-        if (startHour >= endHour) {
-            return createValidationError('開始時間は終了時間より前に設定してください');
-        }
-        if (endHour - startHour < 2) {
-            return createValidationError('営業時間は最低2時間必要です');
-        }
-        if (!Array.isArray(closedDays) || !closedDays.every(d => Number.isInteger(d) && d >= 0 && d <= 7)) {
-            return createValidationError('休館日は0〜7の数で指定してください');
-        }
+        const { startHour, endHour, closedDays } = parsed.data;
 
         // UPSERT
         await context.env.DB.batch([

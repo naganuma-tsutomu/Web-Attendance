@@ -1,5 +1,6 @@
-import { handleServerError } from '../../utils/validation';
+import { createValidationError, handleServerError } from '../../utils/validation';
 import type { Env } from '../../types';
+import { ExcelSettingsSchema, formatAppSettingsInputError } from '../../../shared/appSettingsSchemas';
 
 // GET /api/settings/excel-settings — Excel出力設定を取得
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -24,12 +25,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // PUT /api/settings/excel-settings — Excel出力設定を更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json();
+        const parsed = ExcelSettingsSchema.safeParse(await context.request.json());
+        if (!parsed.success) {
+            return createValidationError(formatAppSettingsInputError(parsed.error, 'Excel出力設定の入力内容が不正です'));
+        }
         
         await context.env.DB.prepare(
             `INSERT INTO app_settings (key, value) VALUES ('excel_settings', ?)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-        ).bind(JSON.stringify(body)).run();
+        ).bind(JSON.stringify(parsed.data)).run();
 
         return Response.json({ success: true });
     } catch (e) {

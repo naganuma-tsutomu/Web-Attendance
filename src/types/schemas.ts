@@ -1,9 +1,21 @@
 import { z } from 'zod';
 import { ShiftRequirementSchema } from '../../shared/shiftRequirementSchema';
 import { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared/shiftPreferenceSchema';
+import {
+  BreakSettingsSchema,
+  BusinessHoursSchema,
+  SchedulePreferencesSchema,
+} from '../../shared/appSettingsSchemas';
 
 export { ShiftRequirementSchema } from '../../shared/shiftRequirementSchema';
 export { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared/shiftPreferenceSchema';
+export {
+  BreakSettingsSchema,
+  BusinessHoursSchema,
+  ExcelHighlightRuleSchema,
+  ExcelSettingsSchema,
+  SchedulePreferencesSchema,
+} from '../../shared/appSettingsSchemas';
 
 // ==========================================
 // Zod スキーマ定義 (Single Source of Truth)
@@ -110,38 +122,6 @@ export const BusinessDayOverrideSchema = z.object({
   name: z.string(),
   created_at: z.string().optional().nullable(),
   updated_at: z.string().optional().nullable(),
-});
-
-export const BusinessHoursSchema = z.object({
-  startHour: z.number().multipleOf(0.5),
-  endHour: z.number().multipleOf(0.5),
-  closedDays: z.array(z.number().int()).optional(),
-});
-
-export const ExcelHighlightRuleSchema = z.object({
-  staffId: z.string(),
-  regularStartTime: z.string(),
-  regularEndTime: z.string(),
-  highlightColor: z.string().default('FFFFCCE5'), // Pink
-});
-
-export const ExcelSettingsSchema = z.object({
-  excludeHolidayStaffOnSaturdays: z.boolean().default(true),
-  highlightRules: z.array(ExcelHighlightRuleSchema).default([]),
-  showDutyNumbers: z.boolean().default(false),
-  leaderRoleId: z.string().nullable().default(null),
-});
-
-export const BreakSettingsSchema = z.object({
-  exceptionEnabled: z.boolean().default(false),
-  exceptionThresholdTime: z.string().default('12:00'),
-  exceptionBreakMinutes: z.number().int().default(30),
-  displayActualHoursInModal: z.boolean().default(false),
-  displayActualHoursInExcel: z.boolean().default(false),
-});
-
-export const SchedulePreferencesSchema = z.object({
-  autoOpenGenerationReport: z.boolean().default(true),
 });
 
 export const RotationSettingsSchema = z.object({

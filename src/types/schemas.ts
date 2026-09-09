@@ -4,6 +4,7 @@ import { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared
 import {
   BreakSettingsSchema,
   BusinessHoursSchema,
+  RotationSettingsSchema,
   SchedulePreferencesSchema,
 } from '../../shared/appSettingsSchemas';
 
@@ -14,6 +15,7 @@ export {
   BusinessHoursSchema,
   ExcelHighlightRuleSchema,
   ExcelSettingsSchema,
+  RotationSettingsSchema,
   SchedulePreferencesSchema,
 } from '../../shared/appSettingsSchemas';
 
@@ -122,19 +124,6 @@ export const BusinessDayOverrideSchema = z.object({
   name: z.string(),
   created_at: z.string().optional().nullable(),
   updated_at: z.string().optional().nullable(),
-});
-
-export const RotationSettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  roleId: z.string().default(''),
-  earlyPatternId: z.string().default(''),
-  latePatternId: z.string().default(''),
-  weekdayEarlyCount: z.number().int().min(0).max(100).default(1),
-  weekdayLateCount: z.number().int().min(0).max(100).default(2),
-  saturdayEnabled: z.boolean().default(false),
-  saturdayCount: z.number().int().min(0).max(100).default(1),
-  saturdayPreferFridayLate: z.boolean().default(true),
-  saturdayPatternId: z.string().optional(),
 });
 
 export const AuditLogSchema = z.object({

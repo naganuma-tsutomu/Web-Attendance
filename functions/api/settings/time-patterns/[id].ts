@@ -11,34 +11,25 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (!parsed.success) return createValidationError('勤務時間パターンの入力内容が不正です');
         const body = parsed.data;
 
+        const current = await context.env.DB.prepare(
+            'SELECT id, startTime, endTime FROM shift_time_patterns WHERE id = ?'
+        ).bind(id).first() as { id: string; startTime: string; endTime: string } | null;
+        if (!current) {
+            return Response.json({ error: '勤務時間パターンが見つかりません' }, { status: 404 });
+        }
+
         // Validate name if provided
         if (body.name !== undefined) {
             const nameError = validateName(body.name, '名前', 50);
             if (nameError) return createValidationError(nameError);
         }
 
-        // Validate time range if both provided
-        if (body.startTime !== undefined && body.endTime !== undefined) {
-            const timeError = validateTimeRange(body.startTime, body.endTime);
+        if (body.startTime !== undefined || body.endTime !== undefined) {
+            const timeError = validateTimeRange(
+                body.startTime ?? current.startTime,
+                body.endTime ?? current.endTime,
+            );
             if (timeError) return createValidationError(timeError);
-        } else if (body.startTime !== undefined) {
-            // Only startTime provided, fetch current endTime to validate
-            const current = await context.env.DB.prepare(
-                'SELECT endTime FROM shift_time_patterns WHERE id = ?'
-            ).bind(id).first() as { endTime: string } | null;
-            if (current) {
-                const timeError = validateTimeRange(body.startTime, current.endTime);
-                if (timeError) return createValidationError(timeError);
-            }
-        } else if (body.endTime !== undefined) {
-            // Only endTime provided, fetch current startTime to validate
-            const current = await context.env.DB.prepare(
-                'SELECT startTime FROM shift_time_patterns WHERE id = ?'
-            ).bind(id).first() as { startTime: string } | null;
-            if (current) {
-                const timeError = validateTimeRange(current.startTime, body.endTime);
-                if (timeError) return createValidationError(timeError);
-            }
         }
 
         // Build update query dynamically
@@ -66,27 +57,33 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             }
         }
 
+        const statements = [];
         if (updates.length > 0) {
             values.push(id);
-            await context.env.DB.prepare(
-                `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
-            ).bind(...values).run();
+            statements.push(
+                context.env.DB.prepare(
+                    `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
+                ).bind(...values)
+            );
         }
 
         // スタッフ区分の紐付け同期
         if (body.roleIds !== undefined) {
             const roleIds = body.roleIds;
             // 一旦削除
-            await context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id).run();
+            statements.push(
+                context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id)
+            );
             // 再挿入
             if (roleIds.length > 0) {
-                const statements = roleIds.map(roleId =>
+                statements.push(...roleIds.map(roleId =>
                     context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
                         .bind(roleId, id)
-                );
-                await context.env.DB.batch(statements);
+                ));
             }
         }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ success: true });
     } catch (e) {
@@ -98,7 +95,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        await context.env.DB.prepare('DELETE FROM shift_time_patterns WHERE id = ?').bind(id).run();
+        const result = await context.env.DB.prepare(
+            'DELETE FROM shift_time_patterns WHERE id = ?'
+        ).bind(id).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: '勤務時間パターンが見つかりません' }, { status: 404 });
+        }
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'Database error deleting time pattern');

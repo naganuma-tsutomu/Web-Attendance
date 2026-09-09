@@ -15,7 +15,10 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
             return createValidationError(`このスタッフ区分は${count}名のスタッフに使用されているため削除できません`);
         }
 
-        await context.env.DB.prepare('DELETE FROM roles WHERE id = ?').bind(id).run();
+        const result = await context.env.DB.prepare('DELETE FROM roles WHERE id = ?').bind(id).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: 'スタッフ区分が見つかりません' }, { status: 404 });
+        }
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'Database error deleting role');
@@ -31,6 +34,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (!parsed.success) return createValidationError('スタッフ区分の入力内容が不正です');
         const body = parsed.data;
 
+        const existing = await context.env.DB.prepare('SELECT id FROM roles WHERE id = ?').bind(id).first();
+        if (!existing) {
+            return Response.json({ error: 'スタッフ区分が見つかりません' }, { status: 404 });
+        }
+
         // Validate name if provided
         if (body.name !== undefined) {
             const nameError = validateName(body.name, 'スタッフ区分名', 50);
@@ -42,6 +50,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             const hoursError = validateTargetHours(body.targetHours);
             if (hoursError) return createValidationError(hoursError);
         }
+
+        const statements = [];
 
         // スタッフ区分情報の更新
         if (body.name !== undefined || body.targetHours !== undefined || body.weeklyHoursTarget !== undefined) {
@@ -61,22 +71,30 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             }
 
             values.push(id);
-            await context.env.DB.prepare(
-                `UPDATE roles SET ${updates.join(', ')} WHERE id = ?`
-            ).bind(...values).run();
+            statements.push(
+                context.env.DB.prepare(
+                    `UPDATE roles SET ${updates.join(', ')} WHERE id = ?`
+                ).bind(...values)
+            );
         }
 
         // パターン紐付けの更新 (送られてきた場合のみ)
-        if (body.patternIds) {
+        if (body.patternIds !== undefined) {
             // 既存の紐付けを全削除してから再挿入
-            await context.env.DB.prepare('DELETE FROM role_patterns WHERE roleId = ?').bind(id).run();
+            statements.push(
+                context.env.DB.prepare('DELETE FROM role_patterns WHERE roleId = ?').bind(id)
+            );
 
             for (const patternId of body.patternIds) {
-                await context.env.DB.prepare(
-                    'INSERT OR IGNORE INTO role_patterns (roleId, patternId) VALUES (?, ?)'
-                ).bind(id, patternId).run();
+                statements.push(
+                    context.env.DB.prepare(
+                        'INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)'
+                    ).bind(id, patternId)
+                );
             }
         }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ success: true });
     } catch (e) { 

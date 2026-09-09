@@ -43,27 +43,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const id = `stp_${crypto.randomUUID()}`;
 
         // Get max display_order
-        const { maxOrder } = await context.env.DB.prepare('SELECT MAX(display_order) as maxOrder FROM shift_time_patterns').first<{ maxOrder: number }>();
-        const nextOrder = (maxOrder || 0) + 1;
+        const orderRow = await context.env.DB.prepare(
+            'SELECT MAX(display_order) as maxOrder FROM shift_time_patterns'
+        ).first<{ maxOrder: number }>();
+        const nextOrder = (orderRow?.maxOrder || 0) + 1;
 
-        await context.env.DB.prepare(
-            `INSERT INTO shift_time_patterns (
-                id, name, startTime, endTime, display_order,
-                sun, mon, tue, wed, thu, fri, sat, holiday
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
-            id, body.name.trim(), body.startTime, body.endTime, nextOrder,
-            body.sun ?? 1, body.mon ?? 1, body.tue ?? 1, body.wed ?? 1, body.thu ?? 1, body.fri ?? 1, body.sat ?? 1, body.holiday ?? 1
-        ).run();
+        const statements = [
+            context.env.DB.prepare(
+                `INSERT INTO shift_time_patterns (
+                    id, name, startTime, endTime, display_order,
+                    sun, mon, tue, wed, thu, fri, sat, holiday
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+                id, body.name.trim(), body.startTime, body.endTime, nextOrder,
+                body.sun ?? 1, body.mon ?? 1, body.tue ?? 1, body.wed ?? 1, body.thu ?? 1, body.fri ?? 1, body.sat ?? 1, body.holiday ?? 1
+            ),
+        ];
 
         // スタッフ区分の紐付け
         if (body.roleIds && body.roleIds.length > 0) {
-            const statements = body.roleIds.map(roleId =>
+            statements.push(...body.roleIds.map(roleId =>
                 context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
                     .bind(roleId, id)
-            );
-            await context.env.DB.batch(statements);
+            ));
         }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ id });
     } catch (e) {

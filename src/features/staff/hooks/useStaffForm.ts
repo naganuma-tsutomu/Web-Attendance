@@ -28,8 +28,8 @@ export const useStaffForm = (roles: DynamicRole[], businessHours?: BusinessHours
             role: defaultRole?.name || '',
             hoursTarget: defaultRole?.targetHours ?? null,
             weeklyHoursTarget: defaultRole?.weeklyHoursTarget ?? null,
-            defaultWorkingHoursStart: '',
-            defaultWorkingHoursEnd: '',
+            defaultWorkingHoursStart: null,
+            defaultWorkingHoursEnd: null,
             availableDays: [1, 2, 3, 4, 5, 6].filter(day => !closedDays.includes(day)),
         });
         setIsOpen(true);
@@ -43,10 +43,10 @@ export const useStaffForm = (roles: DynamicRole[], businessHours?: BusinessHours
             hoursTarget: staff.hoursTarget ?? null,
             weeklyHoursTarget: staff.weeklyHoursTarget ?? null,
             availableDays: staff.availableDays || [1, 2, 3, 4, 5, 6],
-            defaultWorkingHoursStart: staff.defaultWorkingHoursStart || '',
-            defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || '',
+            defaultWorkingHoursStart: staff.defaultWorkingHoursStart || null,
+            defaultWorkingHoursEnd: staff.defaultWorkingHoursEnd || null,
             classIds: staff.classIds || [],
-            accessKey: staff.accessKey || '',
+            accessKey: staff.accessKey || null,
         });
         setIsOpen(true);
     };

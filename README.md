@@ -39,7 +39,7 @@ echo 'ADMIN_PASSWORD=your_password' > .dev.vars
 npm run dev
 ```
 
-Cloudflare Workers のランタイムをエミュレートしながら起動します（`http://localhost:5173`）。
+Cloudflare Workers のランタイムをエミュレートしながら起動します。ブラウザではWranglerが表示するURL（通常は `http://localhost:8788`）を開いてください。`http://localhost:5173` はViteのプロキシ元で、Pages FunctionsのAPIを利用できません。
 
 ### テスト
 

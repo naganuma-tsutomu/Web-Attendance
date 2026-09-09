@@ -44,6 +44,7 @@ describe('useStaffForm', () => {
         expect(result.current.editingStaff).toBeNull();
         expect(result.current.formData).toMatchObject({
             role: '常勤', hoursTarget: 160, weeklyHoursTarget: 40,
+            defaultWorkingHoursStart: null, defaultWorkingHoursEnd: null,
             availableDays: [1, 2, 4, 5, 6],
         });
     });

@@ -121,7 +121,15 @@ describe('API - Staff functions', () => {
 
     describe('createStaff', () => {
         it('新規スタッフを作成できる', async () => {
-            const newStaff = { name: '新規スタッフ', role: 'パート', hoursTarget: 100, weeklyHoursTarget: null };
+            const newStaff = {
+                name: '新規スタッフ', role: 'パート', hoursTarget: 100, weeklyHoursTarget: null,
+                defaultWorkingHoursStart: '', defaultWorkingHoursEnd: '', accessKey: '123456',
+            };
+            const requestStaff = {
+                ...newStaff,
+                defaultWorkingHoursStart: null,
+                defaultWorkingHoursEnd: null,
+            };
             const mockResponse = { id: 'new-id-123' };
             
             mockFetch.mockResolvedValueOnce({
@@ -135,7 +143,7 @@ describe('API - Staff functions', () => {
                 '/api/staffs',
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify(newStaff)
+                    body: JSON.stringify(requestStaff)
                 })
             );
         });
@@ -144,7 +152,14 @@ describe('API - Staff functions', () => {
     describe('updateStaff', () => {
         it('スタッフ情報を更新できる', async () => {
             const staffId = 's1';
-            const updates = { name: '更新后的名前', hoursTarget: 120 };
+            const updates = {
+                id: 'bodyには含めない', name: '更新后的名前', hoursTarget: 120,
+                defaultWorkingHoursStart: '', accessKey: '', display_order: 5,
+            };
+            const requestUpdates = {
+                name: '更新后的名前', hoursTarget: 120,
+                defaultWorkingHoursStart: null, accessKey: null,
+            };
             
             mockFetch.mockResolvedValueOnce({
                 ok: true,
@@ -156,7 +171,7 @@ describe('API - Staff functions', () => {
                 `/api/staffs/${staffId}`,
                 expect.objectContaining({
                     method: 'PUT',
-                    body: JSON.stringify(updates)
+                    body: JSON.stringify(requestUpdates)
                 })
             );
         });
@@ -231,6 +246,9 @@ describe('API - Shift functions', () => {
     describe('replaceShiftsForMonth', () => {
         it('月別シフトを安全な置換APIで保存できる', async () => {
             const shifts = [
+                { id: 'generated-shift-1', date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isError: false }
+            ];
+            const shiftsForRequest = [
                 { date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_niji', isError: false }
             ];
             const fixedDates = ['2025-06-10'];
@@ -245,7 +263,7 @@ describe('API - Shift functions', () => {
                 '/api/shifts/replace',
                 expect.objectContaining({
                     method: 'POST',
-                    body: JSON.stringify({ yearMonth: '2025-06', expectedVersion: 3, shifts, fixedDates })
+                    body: JSON.stringify({ yearMonth: '2025-06', expectedVersion: 3, shifts: shiftsForRequest, fixedDates })
                 })
             );
         });

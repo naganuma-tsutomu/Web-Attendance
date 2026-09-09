@@ -4,6 +4,7 @@ import { ShiftSchema } from '../../types/schemas';
 import { apiFetch } from '../apiClient';
 
 export type ShiftMonthData = { shifts: Shift[]; version: number };
+type ReplaceShiftInput = Omit<Shift, 'id'> & { id?: string };
 
 const ShiftMonthDataSchema = z.object({
     shifts: z.array(ShiftSchema),
@@ -21,10 +22,20 @@ export const saveShiftsBatch = async (shifts: Omit<Shift, 'id'>[]): Promise<void
     });
 };
 
-export const replaceShiftsForMonth = async (yearMonth: string, expectedVersion: number, shifts: Omit<Shift, 'id'>[], fixedDates: string[] = []): Promise<void> => {
+export const replaceShiftsForMonth = async (yearMonth: string, expectedVersion: number, shifts: ReplaceShiftInput[], fixedDates: string[] = []): Promise<void> => {
+    const shiftsForRequest = shifts.map(shift => ({
+        date: shift.date,
+        staffId: shift.staffId,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        classType: shift.classType,
+        ...(shift.isEarlyShift !== undefined ? { isEarlyShift: shift.isEarlyShift } : {}),
+        ...(shift.isError !== undefined ? { isError: shift.isError } : {}),
+        ...(shift.duty_number !== undefined ? { duty_number: shift.duty_number } : {}),
+    }));
     await apiFetch('/shifts/replace', {
         method: 'POST',
-        body: JSON.stringify({ yearMonth, expectedVersion, shifts, fixedDates })
+        body: JSON.stringify({ yearMonth, expectedVersion, shifts: shiftsForRequest, fixedDates })
     });
 };
 

@@ -82,7 +82,7 @@ const SchedulePage = () => {
         setIsEditModalOpen(false);
         setIsBackupModalOpen(false);
         setIsImportModalOpen(false);
-        schedule.loadShifts();
+        schedule.retryLoad();
     }, [schedule]);
 
     const analysis = useMemo(() => analyzeSchedule({
@@ -228,6 +228,7 @@ const SchedulePage = () => {
                                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
                                     leaderRoleId={schedule.excelSettings?.leaderRoleId}
                                     readOnly={!schedule.canMutateSchedule}
+                                    expectedVersion={schedule.shiftMonthVersions[schedule.targetYearMonth]}
                                 />
                                 <div className={`mt-4 flex-shrink-0 flex items-center justify-end gap-3 transition-all duration-200 pb-2 ${schedule.isDayModified ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
                                     <div className="hidden sm:flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-2 text-xs">
@@ -381,6 +382,7 @@ const SchedulePage = () => {
                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
                     leaderRoleId={schedule.excelSettings?.leaderRoleId}
                     readOnly={!schedule.canMutateSchedule}
+                    expectedVersion={schedule.shiftMonthVersions[format(selectedDateForTimeline, 'yyyy-MM')]}
                 />
             )}
 

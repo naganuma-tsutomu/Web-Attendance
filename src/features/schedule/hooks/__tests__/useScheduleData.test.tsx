@@ -62,13 +62,19 @@ describe('useScheduleData', () => {
         const businessHoursCalls = apiMocks.getBusinessHours.mock.calls.length;
         const fixedDateCalls = apiMocks.getFixedDates.mock.calls.length;
         apiMocks.getStaffList.mockResolvedValue([]);
-        act(() => result.current.loadShifts());
+        act(() => result.current.retryLoad());
 
         await waitFor(() => expect(result.current.loadError).toBeNull());
         expect(result.current.canMutateSchedule).toBe(true);
         expect(apiMocks.getStaffList).toHaveBeenCalledTimes(2);
         expect(apiMocks.getBusinessHours.mock.calls.length).toBeGreaterThan(businessHoursCalls);
         expect(apiMocks.getFixedDates.mock.calls.length).toBeGreaterThan(fixedDateCalls);
+
+        const businessHoursCallsAfterRetry = apiMocks.getBusinessHours.mock.calls.length;
+        const shiftCallsAfterRetry = apiMocks.getShiftsByMonth.mock.calls.length;
+        act(() => result.current.loadShifts());
+        await waitFor(() => expect(apiMocks.getShiftsByMonth.mock.calls.length).toBeGreaterThan(shiftCallsAfterRetry));
+        expect(apiMocks.getBusinessHours).toHaveBeenCalledTimes(businessHoursCallsAfterRetry);
 
         unmount();
         queryClient.clear();

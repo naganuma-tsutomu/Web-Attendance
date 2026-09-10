@@ -23,6 +23,7 @@ interface DailyTimelineModalProps {
     showDutyNumbers?: boolean;
     leaderRoleId?: string | null;
     readOnly?: boolean;
+    expectedVersion?: number;
 }
 
 const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
@@ -40,6 +41,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     showDutyNumbers,
     leaderRoleId,
     readOnly = false,
+    expectedVersion,
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
@@ -126,6 +128,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         showDutyNumbers={showDutyNumbers}
                         leaderRoleId={leaderRoleId}
                         readOnly={readOnly}
+                        expectedVersion={expectedVersion}
                     />
 
                     {/* Footer Buttons */}

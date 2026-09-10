@@ -49,6 +49,7 @@ describe('useScheduleQueries', () => {
 
         await waitFor(() => expect(result.current.isError).toBe(false));
         expect(result.current.fixedDates.has('2025-05-10')).toBe(true);
+        expect(result.current.shiftMonthVersions['2025-05']).toBe(1);
         expect(apiMocks.getShiftsByMonth).toHaveBeenCalledTimes(2);
         expect(apiMocks.getPreferencesByMonth).toHaveBeenCalledTimes(2);
         expect(apiMocks.getFixedDates).toHaveBeenCalledTimes(2);

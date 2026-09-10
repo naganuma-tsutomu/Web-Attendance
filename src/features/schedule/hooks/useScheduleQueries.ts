@@ -4,7 +4,6 @@ import { format, startOfWeek, addDays, startOfMonth, endOfMonth } from 'date-fns
 import { ja } from 'date-fns/locale';
 import { useQueries } from '@tanstack/react-query';
 import { getShiftsByMonth, getPreferencesByMonth, getFixedDates } from '../../../lib/api';
-import type { ShiftMonthData } from '../../../lib/api';
 import { QUERY_KEYS } from '../../../lib/hooks';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
 import type { Shift, ShiftPreference } from '../../../types';
@@ -30,18 +29,20 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
         return Array.from(months);
     }, [currentDate, view]);
 
-    const { rawShifts, isFetchingShifts, isErrorShifts, refetchShifts } = useQueries({
+    const { rawShifts, shiftMonthVersions, isFetchingShifts, isErrorShifts, refetchShifts } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.shifts(month),
             queryFn: () => getShiftsByMonth(month),
-            select: (data: ShiftMonthData) => data.shifts,
         })),
         combine: (results) => {
             const seen = new Set<string>();
             const rawShifts: Shift[] = [];
-            for (const q of results) {
+            const shiftMonthVersions: Record<string, number> = {};
+            for (let index = 0; index < results.length; index++) {
+                const q = results[index];
                 if (!q.data) continue;
-                for (const item of q.data) {
+                shiftMonthVersions[monthsToFetch[index]] = q.data.version;
+                for (const item of q.data.shifts) {
                     if (!seen.has(item.id)) {
                         seen.add(item.id);
                         rawShifts.push(item);
@@ -50,6 +51,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
             }
             return {
                 rawShifts,
+                shiftMonthVersions,
                 isFetchingShifts: results.some(q => q.isFetching),
                 isErrorShifts: results.some(q => q.isError),
                 refetchShifts: () => Promise.all(results.map(q => q.refetch())),
@@ -109,7 +111,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
     const isError = isErrorShifts || isErrorPrefs || isErrorFixed;
 
     return {
-        rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError,
+        rawShifts, shiftMonthVersions, preferences, fixedDates, monthsToFetch, isFetching, isError,
         refetch: () => Promise.all([refetchShifts(), refetchPrefs(), refetchFixed()]),
     };
 };

@@ -39,6 +39,24 @@ export const replaceShiftsForMonth = async (yearMonth: string, expectedVersion: 
     });
 };
 
+export const replaceShiftsForDay = async (date: string, expectedVersion: number, shifts: ReplaceShiftInput[]): Promise<void> => {
+    const shiftsForRequest = shifts.map(shift => ({
+        ...(shift.id ? { id: shift.id } : {}),
+        date: shift.date,
+        staffId: shift.staffId,
+        startTime: shift.startTime,
+        endTime: shift.endTime,
+        classType: shift.classType,
+        ...(shift.isEarlyShift !== undefined ? { isEarlyShift: shift.isEarlyShift } : {}),
+        ...(shift.isError !== undefined ? { isError: shift.isError } : {}),
+        ...(shift.duty_number !== undefined ? { duty_number: shift.duty_number } : {}),
+    }));
+    await apiFetch('/shifts/day', {
+        method: 'POST',
+        body: JSON.stringify({ date, expectedVersion, shifts: shiftsForRequest }),
+    });
+};
+
 export const deleteShiftsByMonth = async (
     yearMonth: string,
     exceptDates: string[] = [],

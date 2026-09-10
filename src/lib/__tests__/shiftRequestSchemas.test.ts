@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ShiftBatchCreateSchema, ShiftClearSchema, ShiftReplaceSchema, ShiftUpdateSchema } from '../../../shared/shiftRequestSchemas';
+import { ShiftBatchCreateSchema, ShiftClearSchema, ShiftDayReplaceSchema, ShiftReplaceSchema, ShiftUpdateSchema } from '../../../shared/shiftRequestSchemas';
 
 const shift = { date: '2026-08-01', staffId: 's1', classType: 'c1', startTime: '09:00', endTime: '18:00' };
 
@@ -23,6 +23,12 @@ describe('shift request schemas', () => {
         expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', expectedVersion: 0, shifts: [shift], fixedDates: ['2026-08-01'] }).success).toBe(true);
         expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', expectedVersion: 0, shifts: [{ ...shift, date: '2026-09-01' }] }).success).toBe(false);
         expect(ShiftReplaceSchema.safeParse({ yearMonth: '2026-08', shifts: [shift] }).success).toBe(false);
+    });
+
+    it('日別置換では対象日外のシフトと重複IDを拒否する', () => {
+        expect(ShiftDayReplaceSchema.safeParse({ date: '2026-08-01', expectedVersion: 1, shifts: [{ id: 'shift-1', ...shift }] }).success).toBe(true);
+        expect(ShiftDayReplaceSchema.safeParse({ date: '2026-08-02', expectedVersion: 1, shifts: [shift] }).success).toBe(false);
+        expect(ShiftDayReplaceSchema.safeParse({ date: '2026-08-01', expectedVersion: 1, shifts: [{ id: 'shift-1', ...shift }, { id: 'shift-1', ...shift }] }).success).toBe(false);
     });
 
     it('消去除外日は対象月内かつ重複なしに限定する', () => {

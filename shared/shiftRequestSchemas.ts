@@ -38,6 +38,28 @@ export const ShiftReplaceSchema = z.object({
     });
 });
 
+const ShiftDayInputSchema = z.object({
+    id: id.optional(),
+    ...shiftFields,
+}).strict().refine(shift => shift.startTime !== shift.endTime, { path: ['endTime'] });
+
+export const ShiftDayReplaceSchema = z.object({
+    date: DateSchema,
+    expectedVersion: z.number().int().nonnegative(),
+    shifts: z.array(ShiftDayInputSchema).max(1000),
+}).strict().superRefine(({ date, shifts }, context) => {
+    const ids = new Set<string>();
+    shifts.forEach((shift, index) => {
+        if (shift.date !== date) {
+            context.addIssue({ code: 'custom', path: ['shifts', index, 'date'], message: '対象日と一致しません' });
+        }
+        if (shift.id && ids.has(shift.id)) {
+            context.addIssue({ code: 'custom', path: ['shifts', index, 'id'], message: 'シフトIDが重複しています' });
+        }
+        if (shift.id) ids.add(shift.id);
+    });
+});
+
 export const ShiftClearSchema = z.object({
     yearMonth: YearMonthSchema,
     exceptDates: z.array(DateSchema).max(366).optional(),

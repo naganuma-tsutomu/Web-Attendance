@@ -59,7 +59,7 @@ export const useScheduleData = () => {
 
     // 動的な複数月データフェッチ
     const {
-        rawShifts, preferences, fixedDates, monthsToFetch,
+        rawShifts, shiftMonthVersions, preferences, fixedDates, monthsToFetch,
         isFetching: isFetchingMonthlyData, isError, refetch,
     } = useScheduleQueries(currentDate, view);
     const yearsToFetch = useMemo(() => Array.from(new Set(monthsToFetch.map(month => Number(month.slice(0, 4))))), [monthsToFetch]);
@@ -180,6 +180,10 @@ export const useScheduleData = () => {
     }, [currentDate]);
 
     const loadShifts = () => {
+        void refetch();
+    };
+
+    const retryLoad = () => {
         void Promise.all([
             refetch(),
             ...referenceQueries.map(query => query.refetch()),
@@ -192,6 +196,7 @@ export const useScheduleData = () => {
         // データ
         events,
         rawShifts,
+        shiftMonthVersions,
         staffList,
         classes,
         timePatterns,
@@ -228,6 +233,7 @@ export const useScheduleData = () => {
         setView,
         setIsDayModified,
         loadShifts,
+        retryLoad,
         eventStyleGetter,
         getHolidayNameForDate,
         getBusinessDayStatusForDate,

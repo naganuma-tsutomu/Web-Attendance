@@ -29,6 +29,7 @@ interface DailyTimelineViewProps {
     highlightStaffId?: string;
     showDutyNumbers?: boolean;
     leaderRoleId?: string | null;
+    expectedVersion?: number;
 }
 
 const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
@@ -37,13 +38,15 @@ const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     readOnly = false, isFixed = false, onToggleFixed, hideHeaderToggle, highlightStaffId,
     showDutyNumbers = false,
     leaderRoleId = null,
+    expectedVersion,
 }) => {
     const { data: businessHoursData } = useBusinessHours();
     const { data: breakSettings } = useBreakSettings();
     const hours = useMemo(() => resolveBusinessHours(businessHoursData), [businessHoursData]);
 
     const edit = useShiftEdit({
-        shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef, discardRef
+        shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef, discardRef,
+        expectedVersion,
     });
     const { localShifts, addedShifts, deletedIds, targetDateStr } = edit;
 

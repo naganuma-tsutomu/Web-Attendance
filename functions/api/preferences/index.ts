@@ -81,28 +81,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const details = pref.details || [];
         const hasSubmittedFlag = typeof pref.submitted === 'boolean';
         const submittedValue = pref.submitted === true ? 1 : 0;
+        const preferenceId = crypto.randomUUID();
 
         // Statements for batch execution
         const statements = [];
 
         // 1. Legacy Upsert (without unavailableDates)
-        const existing = await context.env.DB.prepare(
-            "SELECT id, submitted FROM shift_preferences WHERE staffId = ? AND yearMonth = ?"
-        ).bind(pref.staffId, pref.yearMonth).first();
-
-        if (!existing) {
-            // 新規レコード: submitted は明示的に指定された値か 0
+        // UNIQUE(staffId, yearMonth) と組み合わせ、同時保存でも月次行を1件に保つ。
+        if (hasSubmittedFlag) {
             statements.push(
                 context.env.DB.prepare(
-                    "INSERT INTO shift_preferences (id, staffId, yearMonth, submitted) VALUES (?, ?, ?, ?)"
-                ).bind(crypto.randomUUID(), pref.staffId, pref.yearMonth, hasSubmittedFlag ? submittedValue : 0)
+                    `INSERT INTO shift_preferences (id, staffId, yearMonth, submitted)
+                     VALUES (?, ?, ?, ?)
+                     ON CONFLICT(staffId, yearMonth) DO UPDATE SET submitted = excluded.submitted
+                     RETURNING id`
+                ).bind(preferenceId, pref.staffId, pref.yearMonth, submittedValue)
             );
-        } else if (hasSubmittedFlag) {
-            // 既存レコード: submitted が明示的に指定された場合のみ更新
+        } else {
+            // submitted 省略時は、新規行だけ未提出で作成し、既存の提出状態を維持する。
             statements.push(
                 context.env.DB.prepare(
-                    "UPDATE shift_preferences SET submitted = ? WHERE staffId = ? AND yearMonth = ?"
-                ).bind(submittedValue, pref.staffId, pref.yearMonth)
+                    `INSERT INTO shift_preferences (id, staffId, yearMonth, submitted)
+                     VALUES (?, ?, ?, 0)
+                     ON CONFLICT(staffId, yearMonth) DO NOTHING
+                     RETURNING id`
+                ).bind(preferenceId, pref.staffId, pref.yearMonth)
             );
         }
 
@@ -121,8 +124,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             );
         });
 
-        await context.env.DB.batch(statements);
-        await writeAuditLog(context.env, context.request, { action: existing ? 'update' : 'create', entityType: 'shift_preference', entityId: pref.staffId, yearMonth: pref.yearMonth, summary: '希望休を保存', after: { staffId: pref.staffId, submitted: pref.submitted, details }, metadata: { detailCount: details.length } });
+        const [monthlyResult] = await context.env.DB.batch<D1Row>(statements);
+        const created = monthlyResult.results?.some(row => row.id === preferenceId) ?? false;
+        await writeAuditLog(context.env, context.request, { action: created ? 'create' : 'update', entityType: 'shift_preference', entityId: pref.staffId, yearMonth: pref.yearMonth, summary: '希望休を保存', after: { staffId: pref.staffId, submitted: pref.submitted, details }, metadata: { detailCount: details.length } });
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'POST /preferences');
@@ -143,20 +147,11 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
 
         const submittedValue = body.submitted ? 1 : 0;
 
-        const existing = await context.env.DB.prepare(
-            "SELECT id FROM shift_preferences WHERE staffId = ? AND yearMonth = ?"
-        ).bind(body.staffId, body.yearMonth).first();
-
-        if (!existing) {
-            // レコードがない場合は作成
-            await context.env.DB.prepare(
-                "INSERT INTO shift_preferences (id, staffId, yearMonth, submitted) VALUES (?, ?, ?, ?)"
-            ).bind(`pref_${crypto.randomUUID()}`, body.staffId, body.yearMonth, submittedValue).run();
-        } else {
-            await context.env.DB.prepare(
-                "UPDATE shift_preferences SET submitted = ? WHERE staffId = ? AND yearMonth = ?"
-            ).bind(submittedValue, body.staffId, body.yearMonth).run();
-        }
+        await context.env.DB.prepare(
+            `INSERT INTO shift_preferences (id, staffId, yearMonth, submitted)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(staffId, yearMonth) DO UPDATE SET submitted = excluded.submitted`
+        ).bind(`pref_${crypto.randomUUID()}`, body.staffId, body.yearMonth, submittedValue).run();
 
         await writeAuditLog(context.env, context.request, { action: 'update', entityType: 'preference_submission', entityId: body.staffId, yearMonth: body.yearMonth, summary: body.submitted ? '希望休を提出済みに変更' : '希望休を未提出に変更', after: { submitted: body.submitted } });
 

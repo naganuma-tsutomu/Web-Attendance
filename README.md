@@ -118,6 +118,14 @@ wrangler d1 execute web-attendance-restored-db --remote \
   --file=db/migrations/0007_staff_preferences_on_delete_cascade.sql
 ```
 
+希望休の月次レコードをスタッフごとに1件へ統一する場合は、`0007` の後に次を実行する。
+既存の重複はIDが最小の行へ統合され、いずれかが提出済みなら提出済み状態を維持する。
+
+```bash
+wrangler d1 execute web-attendance-restored-db --remote \
+  --file=db/migrations/0008_shift_preferences_unique_staff_month.sql
+```
+
 ### 環境
 
 `wrangler.toml` で本番・プレビューの2環境を管理しています。

@@ -27,3 +27,11 @@ FROM (
     SELECT access_key FROM staffs WHERE access_key IS NOT NULL
     GROUP BY access_key HAVING COUNT(*) > 1
 );
+
+SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE json_extract('duplicate shift preference month', '$') END
+FROM (
+    SELECT staffId, yearMonth
+    FROM shift_preferences
+    GROUP BY staffId, yearMonth
+    HAVING COUNT(*) > 1
+);

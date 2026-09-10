@@ -256,7 +256,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_class_duty_number ON shifts(da
 CREATE INDEX IF NOT EXISTS idx_shift_snapshots_ym_created ON shift_snapshots(yearMonth, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yearMonth);
 CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
-CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
 
 -- 管理操作・スタッフ操作の追跡ログ
 CREATE TABLE IF NOT EXISTS audit_logs (

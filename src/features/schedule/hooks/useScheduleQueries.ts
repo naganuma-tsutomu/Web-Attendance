@@ -52,7 +52,7 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
                 rawShifts,
                 isFetchingShifts: results.some(q => q.isFetching),
                 isErrorShifts: results.some(q => q.isError),
-                refetchShifts: () => results.forEach(q => q.refetch()),
+                refetchShifts: () => Promise.all(results.map(q => q.refetch())),
             };
         },
     });
@@ -78,12 +78,12 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
                 preferences,
                 isFetchingPrefs: results.some(q => q.isFetching),
                 isErrorPrefs: results.some(q => q.isError),
-                refetchPrefs: () => results.forEach(q => q.refetch()),
+                refetchPrefs: () => Promise.all(results.map(q => q.refetch())),
             };
         },
     });
 
-    const { fixedDates, isFetchingFixed, refetchFixed } = useQueries({
+    const { fixedDates, isFetchingFixed, isErrorFixed, refetchFixed } = useQueries({
         queries: monthsToFetch.map(month => ({
             queryKey: QUERY_KEYS.fixedDates(month),
             queryFn: () => getFixedDates(month),
@@ -99,16 +99,17 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
             return {
                 fixedDates,
                 isFetchingFixed: results.some(q => q.isFetching),
-                refetchFixed: () => results.forEach(q => q.refetch()),
+                isErrorFixed: results.some(q => q.isError),
+                refetchFixed: () => Promise.all(results.map(q => q.refetch())),
             };
         },
     });
 
     const isFetching = isFetchingShifts || isFetchingPrefs || isFetchingFixed;
-    const isError = isErrorShifts || isErrorPrefs;
+    const isError = isErrorShifts || isErrorPrefs || isErrorFixed;
 
     return {
         rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError,
-        refetch: () => { refetchShifts(); refetchPrefs(); refetchFixed(); },
+        refetch: () => Promise.all([refetchShifts(), refetchPrefs(), refetchFixed()]),
     };
 };

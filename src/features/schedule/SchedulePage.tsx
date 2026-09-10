@@ -76,6 +76,15 @@ const SchedulePage = () => {
     const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isIssuesOpen, setIsIssuesOpen] = useState(false);
+
+    const handleRetry = useCallback(() => {
+        // 取得失敗前の編集内容を、再取得後のデータへ誤って保存しないよう破棄する。
+        setIsEditModalOpen(false);
+        setIsBackupModalOpen(false);
+        setIsImportModalOpen(false);
+        schedule.loadShifts();
+    }, [schedule]);
+
     const analysis = useMemo(() => analyzeSchedule({
         yearMonth: schedule.targetYearMonth,
         shifts: schedule.rawShifts,
@@ -119,6 +128,10 @@ const SchedulePage = () => {
     }), []);
 
     const handleEventSelect = (event: CalendarEvent) => {
+        if (!schedule.canMutateSchedule) {
+            handleOpenTimeline(event.start as Date);
+            return;
+        }
         setSelectedEvent(event);
         const shift = schedule.rawShifts.find(s => s.id === event.id);
         if (shift) {
@@ -152,6 +165,7 @@ const SchedulePage = () => {
                 errorCount={schedule.errorCount}
                 errorDates={schedule.errorDates}
                 loadError={schedule.loadError}
+                actionsDisabled={!schedule.canMutateSchedule}
                 isFetching={schedule.isFetching}
                 isSummaryOpen={isSummaryOpen}
                 targetYearMonth={schedule.targetYearMonth}
@@ -172,7 +186,7 @@ const SchedulePage = () => {
                 onOpenImport={() => setIsImportModalOpen(true)}
                 onOpenGenerationReport={() => schedule.setIsGenerationReportOpen(true)}
                 onToggleSummary={() => setIsSummaryOpen(!isSummaryOpen)}
-                onRetry={schedule.loadShifts}
+                onRetry={handleRetry}
                 onErrorDateClick={handleOpenTimeline}
                 businessHours={schedule.businessHours}
                 excelSettings={schedule.excelSettings}
@@ -213,6 +227,7 @@ const SchedulePage = () => {
                                     onToggleFixed={() => schedule.toggleFixedDate(format(schedule.currentDate, 'yyyy-MM-dd'))}
                                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
                                     leaderRoleId={schedule.excelSettings?.leaderRoleId}
+                                    readOnly={!schedule.canMutateSchedule}
                                 />
                                 <div className={`mt-4 flex-shrink-0 flex items-center justify-end gap-3 transition-all duration-200 pb-2 ${schedule.isDayModified ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
                                     <div className="hidden sm:flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mr-2 text-xs">
@@ -242,6 +257,7 @@ const SchedulePage = () => {
                                             }
                                         }}
                                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-md transition-all flex items-center gap-2"
+                                        disabled={!schedule.canMutateSchedule}
                                     >
                                         <Save className="w-4 h-4" />
                                         保存
@@ -275,7 +291,7 @@ const SchedulePage = () => {
                                     startAccessor="start"
                                     endAccessor="end"
                                     culture="ja"
-                                    selectable={!isTouchDevice}
+                                    selectable={!isTouchDevice && schedule.canMutateSchedule}
                                     onSelectSlot={({ start }) => handleOpenTimeline(start as Date)}
                                     eventPropGetter={schedule.eventStyleGetter}
                                     onSelectEvent={(event: CalendarEvent) => {
@@ -336,7 +352,7 @@ const SchedulePage = () => {
             />
 
             {/* Shift Edit Modal */}
-            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} aria-labelledby="shift-edit-dialog-title">
+            <Modal isOpen={isEditModalOpen && schedule.canMutateSchedule} onClose={() => setIsEditModalOpen(false)} aria-labelledby="shift-edit-dialog-title">
                 <ShiftEditModal
                     selectedEvent={selectedEvent}
                     editFormData={editFormData}
@@ -364,6 +380,7 @@ const SchedulePage = () => {
                     onToggleFixed={() => schedule.toggleFixedDate(format(selectedDateForTimeline, 'yyyy-MM-dd'))}
                     showDutyNumbers={schedule.excelSettings?.showDutyNumbers}
                     leaderRoleId={schedule.excelSettings?.leaderRoleId}
+                    readOnly={!schedule.canMutateSchedule}
                 />
             )}
 
@@ -383,7 +400,7 @@ const SchedulePage = () => {
             />
 
             <Suspense fallback={null}>
-                {isBackupModalOpen && (
+                {isBackupModalOpen && schedule.canMutateSchedule && (
                     <ShiftBackupModal
                         isOpen
                         yearMonth={schedule.targetYearMonth}
@@ -392,7 +409,7 @@ const SchedulePage = () => {
                     />
                 )}
 
-                {isImportModalOpen && (
+                {isImportModalOpen && schedule.canMutateSchedule && (
                     <ShiftImportModal
                         isOpen
                         yearMonth={schedule.targetYearMonth}

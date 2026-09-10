@@ -22,6 +22,7 @@ interface DailyTimelineModalProps {
     onToggleFixed?: () => void;
     showDutyNumbers?: boolean;
     leaderRoleId?: string | null;
+    readOnly?: boolean;
 }
 
 const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
@@ -38,6 +39,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
     onToggleFixed,
     showDutyNumbers,
     leaderRoleId,
+    readOnly = false,
 }) => {
     const [savingAll, setSavingAll] = useState(false);
     const [isModified, setIsModified] = useState(false);
@@ -86,7 +88,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         </p>
                     </div>
                     <div className="flex items-center gap-3 ml-6">
-                        {onToggleFixed && (
+                        {onToggleFixed && !readOnly && (
                             <button
                                 onClick={onToggleFixed}
                                 title={isFixed ? '自動生成からロック中' : 'シフトをロックする'}
@@ -123,6 +125,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                         hideHeaderToggle={true}
                         showDutyNumbers={showDutyNumbers}
                         leaderRoleId={leaderRoleId}
+                        readOnly={readOnly}
                     />
 
                     {/* Footer Buttons */}
@@ -143,7 +146,7 @@ const DailyTimelineModal: React.FC<DailyTimelineModalProps> = ({
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={savingAll || !isModified}
+                                disabled={savingAll || !isModified || readOnly}
                                 className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap shrink-0 sm:min-w-[80px]"
                             >
                                 {savingAll ? (

@@ -142,4 +142,41 @@ describe('ScheduleHeader Component', () => {
         expect(generateBtn).toBeDisabled();
     });
 
+    it('disables generation while required data is unavailable', () => {
+        const mockOnGenerate = vi.fn();
+        render(
+            <ScheduleHeader
+                currentDate={new Date('2025-05-15')}
+                view={Views.MONTH}
+                generating={false}
+                errorCount={0}
+                loadError="データの読み込みに失敗しました。"
+                actionsDisabled
+                isFetching={false}
+                isSummaryOpen={false}
+                targetYearMonth="2025-05"
+                staffList={[]}
+                rawShifts={[]}
+                classes={[]}
+                timePatterns={[]}
+                preferences={[]}
+                holidays={[]}
+                onDateChange={vi.fn()}
+                onViewChange={vi.fn()}
+                onGenerate={mockOnGenerate}
+                onClearShifts={vi.fn()}
+                onOpenBackups={vi.fn()}
+                onOpenImport={vi.fn()}
+                onOpenGenerationReport={vi.fn()}
+                onToggleSummary={vi.fn()}
+                onRetry={vi.fn()}
+            />
+        );
+
+        const generateBtn = screen.getByText('自動生成').closest('button');
+        expect(generateBtn).toBeDisabled();
+        fireEvent.click(generateBtn!);
+        expect(mockOnGenerate).not.toHaveBeenCalled();
+    });
+
 });

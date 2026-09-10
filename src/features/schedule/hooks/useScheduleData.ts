@@ -38,18 +38,30 @@ export const useScheduleData = () => {
     const holidaySyncStartedRef = useRef(false);
 
     // 静的データ
-    const { data: staffList = [], isLoading: isLoadingStaff } = useStaffList();
-    const { data: classes = [], isLoading: isLoadingClasses } = useClasses();
-    const { data: timePatterns = [], isLoading: isLoadingPatterns } = useTimePatterns();
-    const { data: roles = [], isLoading: isLoadingRoles } = useRoles();
-    const { data: businessHours } = useBusinessHours();
-    const { data: excelSettings } = useExcelSettings();
-    const { data: breakSettings } = useBreakSettings();
-    const { data: schedulePreferences } = useSchedulePreferences();
-    const { data: requirements = [], isLoading: isLoadingRequirements } = useShiftRequirements();
+    const staffQuery = useStaffList();
+    const classesQuery = useClasses();
+    const timePatternsQuery = useTimePatterns();
+    const rolesQuery = useRoles();
+    const businessHoursQuery = useBusinessHours();
+    const excelSettingsQuery = useExcelSettings();
+    const breakSettingsQuery = useBreakSettings();
+    const schedulePreferencesQuery = useSchedulePreferences();
+    const requirementsQuery = useShiftRequirements();
+    const { data: staffList = [] } = staffQuery;
+    const { data: classes = [] } = classesQuery;
+    const { data: timePatterns = [] } = timePatternsQuery;
+    const { data: roles = [] } = rolesQuery;
+    const { data: businessHours } = businessHoursQuery;
+    const { data: excelSettings } = excelSettingsQuery;
+    const { data: breakSettings } = breakSettingsQuery;
+    const { data: schedulePreferences } = schedulePreferencesQuery;
+    const { data: requirements = [] } = requirementsQuery;
 
     // 動的な複数月データフェッチ
-    const { rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
+    const {
+        rawShifts, preferences, fixedDates, monthsToFetch,
+        isFetching: isFetchingMonthlyData, isError, refetch,
+    } = useScheduleQueries(currentDate, view);
     const yearsToFetch = useMemo(() => Array.from(new Set(monthsToFetch.map(month => Number(month.slice(0, 4))))), [monthsToFetch]);
 
     const holidayQueries = useQueries({
@@ -118,8 +130,29 @@ export const useScheduleData = () => {
     };
 
     // Loading & Error States
-    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingRequirements || isLoadingHolidays || isLoadingBusinessDayOverrides;
-    const loadError = isError || hasBusinessDayQueryError ? 'データの読み込みに失敗しました。' : null;
+    const referenceQueries = [
+        staffQuery,
+        classesQuery,
+        timePatternsQuery,
+        rolesQuery,
+        businessHoursQuery,
+        excelSettingsQuery,
+        breakSettingsQuery,
+        schedulePreferencesQuery,
+        requirementsQuery,
+    ];
+    const isLoadingReferenceData = referenceQueries.some(query => query.isLoading);
+    const isFetchingReferenceData = referenceQueries.some(query => query.isFetching);
+    const hasReferenceQueryError = referenceQueries.some(query => query.isError);
+    const loading = isLoadingReferenceData || isLoadingHolidays || isLoadingBusinessDayOverrides;
+    const isFetching = isFetchingMonthlyData
+        || isFetchingReferenceData
+        || holidayQueries.some(query => query.isFetching)
+        || overrideQueries.some(query => query.isFetching);
+    const loadError = isError || hasReferenceQueryError || hasBusinessDayQueryError
+        ? 'データの読み込みに失敗しました。再読み込みが完了するまで編集・生成・消去はできません。'
+        : null;
+    const canMutateSchedule = !loading && !loadError;
 
     // 変更ハンドラ群（生成・消去・更新・固定日切り替え）
     const actions = useScheduleActions({
@@ -129,23 +162,31 @@ export const useScheduleData = () => {
         rawShifts,
         classes,
         autoOpenGenerationReport: schedulePreferences?.autoOpenGenerationReport ?? true,
+        canMutateSchedule,
     });
 
     useEffect(() => {
-        if (loading || holidaySyncStartedRef.current) return;
+        if (loading || loadError || holidaySyncStartedRef.current) return;
         // 初期表示に必要なGET群が完了してから、日次同期をバックグラウンドで始める。
         const timer = window.setTimeout(() => {
             holidaySyncStartedRef.current = true;
             syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
         }, 1000);
         return () => window.clearTimeout(timer);
-    }, [loading]);
+    }, [loading, loadError]);
 
     useEffect(() => {
         saveActiveMonth(currentDate);
     }, [currentDate]);
 
-    const loadShifts = () => refetch();
+    const loadShifts = () => {
+        void Promise.all([
+            refetch(),
+            ...referenceQueries.map(query => query.refetch()),
+            ...holidayQueries.map(query => query.refetch()),
+            ...overrideQueries.map(query => query.refetch()),
+        ]);
+    };
 
     return {
         // データ
@@ -171,6 +212,7 @@ export const useScheduleData = () => {
         errorCount,
         errorDates,
         loadError,
+        canMutateSchedule,
         currentDate,
         view,
         isDayModified,

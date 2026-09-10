@@ -29,23 +29,40 @@ export const loadStaffShiftsForDates = async (
         });
     }
 
-    const rows = await Promise.all([...keys.values()].map(async ({ date, staffId }) => {
-        const statement = excludedId
-            ? db.prepare(
-                `SELECT id, date, staffId, startTime, endTime, classType, isError
-                 FROM shifts
-                 WHERE date = ? AND staffId = ? AND id <> ? AND isError = 0`
-            ).bind(date, staffId, excludedId)
-            : db.prepare(
-                `SELECT id, date, staffId, startTime, endTime, classType, isError
-                 FROM shifts
-                 WHERE date = ? AND staffId = ? AND isError = 0`
-            ).bind(date, staffId);
-        const result = await statement.all();
-        return result.results as D1Row[];
-    }));
+    if (keys.size === 0) return [];
 
-    return rows.flat().map(row => ({
+    const serializedKeys = JSON.stringify([...keys.values()]);
+    const statement = excludedId
+        ? db.prepare(
+            `WITH requested_keys AS (
+                SELECT DISTINCT
+                    json_extract(value, '$.date') AS date,
+                    json_extract(value, '$.staffId') AS staffId
+                FROM json_each(?)
+             )
+             SELECT s.id, s.date, s.staffId, s.startTime, s.endTime, s.classType, s.isError
+             FROM shifts AS s
+             INNER JOIN requested_keys AS requested
+                ON requested.date = s.date AND requested.staffId = s.staffId
+             WHERE s.id <> ? AND s.isError = 0`
+        ).bind(serializedKeys, excludedId)
+        : db.prepare(
+            `WITH requested_keys AS (
+                SELECT DISTINCT
+                    json_extract(value, '$.date') AS date,
+                    json_extract(value, '$.staffId') AS staffId
+                FROM json_each(?)
+             )
+             SELECT s.id, s.date, s.staffId, s.startTime, s.endTime, s.classType, s.isError
+             FROM shifts AS s
+             INNER JOIN requested_keys AS requested
+                ON requested.date = s.date AND requested.staffId = s.staffId
+             WHERE s.isError = 0`
+        ).bind(serializedKeys);
+    const result = await statement.all();
+    const rows = result.results as D1Row[];
+
+    return rows.map(row => ({
         id: String(row.id),
         date: String(row.date),
         staffId: String(row.staffId),

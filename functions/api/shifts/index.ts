@@ -71,56 +71,41 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const existingConflict = validateNoShiftConflicts([...existingShifts, ...shiftsData]);
         if (existingConflict) return existingConflict;
 
-        const stmt = context.env.DB.prepare(
-            `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-
-        // D1 batch limit is 100 statements. Split data into chunks of 100.
-        const chunkSize = 100;
-        const insertedIds: string[] = [];
+        const rows = shiftsData.map(shift => ({
+            id: `shift_${crypto.randomUUID()}`,
+            date: shift.date,
+            staffId: shift.staffId,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            classType: shift.classType,
+            isEarlyShift: shift.isEarlyShift ? 1 : 0,
+            isError: shift.isError ? 1 : 0,
+            duty_number: shift.duty_number ?? null,
+        }));
 
         try {
-            for (let i = 0; i < shiftsData.length; i += chunkSize) {
-                const chunk = shiftsData.slice(i, i + chunkSize);
-                const ids = chunk.map(() => `shift_${crypto.randomUUID()}`);
-                const batch = chunk.map((shift, idx) => stmt.bind(
-                    ids[idx],
-                    shift.date,
-                    shift.staffId,
-                    shift.startTime,
-                    shift.endTime,
-                    shift.classType,
-                    shift.isEarlyShift ? 1 : 0,
-                    shift.isError ? 1 : 0,
-                    shift.duty_number ?? null
-                ));
-                await context.env.DB.batch(batch);
-                insertedIds.push(...ids);
-            }
-        } catch (batchError) {
-            // 途中のチャンクが失敗した場合、挿入済みのシフトを削除してロールバック
-            if (insertedIds.length > 0) {
-                try {
-                    const rollbackPlaceholders = insertedIds.map(() => '?').join(',');
-                    await context.env.DB.prepare(
-                        `DELETE FROM shifts WHERE id IN (${rollbackPlaceholders})`
-                    ).bind(...insertedIds).run();
-                } catch (rollbackError) {
-                    console.error('Rollback failed:', rollbackError);
-                }
-            }
-            // duty_number の UNIQUE 制約違反は 409 で返す（PUT 側と同様）
-            if (batchError instanceof Error && batchError.message.includes('UNIQUE constraint failed') && batchError.message.includes('duty_number')) {
+            // 1つのINSERT文として実行するため、途中行で失敗しても全行がロールバックされる。
+            await context.env.DB.prepare(
+                `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
+                 SELECT
+                    json_extract(value, '$.id'), json_extract(value, '$.date'),
+                    json_extract(value, '$.staffId'), json_extract(value, '$.startTime'),
+                    json_extract(value, '$.endTime'), json_extract(value, '$.classType'),
+                    json_extract(value, '$.isEarlyShift'), json_extract(value, '$.isError'),
+                    json_extract(value, '$.duty_number')
+                 FROM json_each(?)`
+            ).bind(JSON.stringify(rows)).run();
+        } catch (insertError) {
+            if (insertError instanceof Error && insertError.message.includes('UNIQUE constraint failed') && insertError.message.includes('duty_number')) {
                 return new Response(JSON.stringify({ error: '同じ日付・クラスに同じ当番番号が既に存在します' }), {
                     status: 409,
                     headers: { 'Content-Type': 'application/json' },
                 });
             }
-            throw batchError;
+            throw insertError;
         }
 
-        await writeAuditLog(context.env, context.request, { action: 'create', entityType: 'shift', yearMonth: shiftsData[0]?.date.slice(0, 7), summary: `${shiftsData.length}件のシフトを追加`, metadata: { count: shiftsData.length, ids: insertedIds } });
+        await writeAuditLog(context.env, context.request, { action: 'create', entityType: 'shift', yearMonth: shiftsData[0]?.date.slice(0, 7), summary: `${shiftsData.length}件のシフトを追加`, metadata: { count: shiftsData.length, ids: rows.map(row => row.id) } });
         return Response.json({ success: true, message: `Successfully inserted ${shiftsData.length} shifts` });
     } catch (e) {
         return handleServerError(e, 'POST /shifts');

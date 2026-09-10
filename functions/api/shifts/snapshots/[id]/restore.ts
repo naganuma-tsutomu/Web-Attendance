@@ -40,7 +40,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (ymError) return createValidationError(ymError);
 
         const shifts = parseSnapshotShifts(String(row.shifts_json));
-        const conflictResponse = validateNoShiftConflicts(shifts);
+        const restorableShifts = shifts.filter(shift => shift.date.startsWith(yearMonth));
+        const conflictResponse = validateNoShiftConflicts(restorableShifts);
         if (conflictResponse) return conflictResponse;
         const fixedDates = parseSnapshotFixedDates(row.fixed_dates_json ? String(row.fixed_dates_json) : '[]')
             .filter(date => date.startsWith(yearMonth));
@@ -83,53 +84,64 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             context.env.DB.prepare('DELETE FROM fixed_dates WHERE yearMonth = ?').bind(yearMonth),
         ];
 
-        const insertShiftStmt = context.env.DB.prepare(
-            `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-        statements.push(...shifts
-            .filter(shift => shift.date.startsWith(yearMonth))
-            .map(shift => insertShiftStmt.bind(
-                `shift_${crypto.randomUUID()}`,
-                shift.date,
-                shift.staffId,
-                shift.startTime,
-                shift.endTime,
-                shift.classType,
-                shift.isEarlyShift ? 1 : 0,
-                shift.isError ? 1 : 0,
-                shift.duty_number ?? null
-            )));
+        if (restorableShifts.length > 0) {
+            const rows = restorableShifts.map(shift => ({
+                id: `shift_${crypto.randomUUID()}`,
+                date: shift.date,
+                staffId: shift.staffId,
+                startTime: shift.startTime,
+                endTime: shift.endTime,
+                classType: shift.classType,
+                isEarlyShift: shift.isEarlyShift ? 1 : 0,
+                isError: shift.isError ? 1 : 0,
+                duty_number: shift.duty_number ?? null,
+            }));
+            statements.push(
+                context.env.DB.prepare(
+                    `INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, isEarlyShift, isError, duty_number)
+                     SELECT
+                         json_extract(value, '$.id'), json_extract(value, '$.date'),
+                         json_extract(value, '$.staffId'), json_extract(value, '$.startTime'),
+                         json_extract(value, '$.endTime'), json_extract(value, '$.classType'),
+                         json_extract(value, '$.isEarlyShift'), json_extract(value, '$.isError'),
+                         json_extract(value, '$.duty_number')
+                     FROM json_each(?)`
+                ).bind(JSON.stringify(rows))
+            );
+        }
 
         if (fixedDates.length > 0) {
-            const insertFixedStmt = context.env.DB.prepare(
-                'INSERT OR REPLACE INTO fixed_dates (date, yearMonth) VALUES (?, ?)'
+            statements.push(
+                context.env.DB.prepare(
+                    `INSERT OR REPLACE INTO fixed_dates (date, yearMonth)
+                     SELECT value, ? FROM json_each(?)`
+                ).bind(yearMonth, JSON.stringify(fixedDates))
             );
-            statements.push(...fixedDates.map(date => insertFixedStmt.bind(date, yearMonth)));
         }
 
-        const chunkSize = 100;
-        for (let i = 0; i < statements.length; i += chunkSize) {
-            await context.env.DB.batch(statements.slice(i, i + chunkSize));
-        }
-
-        await context.env.DB.prepare(
-            `DELETE FROM shift_snapshots
-             WHERE yearMonth = ?
-               AND id NOT IN (
-                 SELECT id FROM shift_snapshots
+        statements.push(
+            context.env.DB.prepare(
+                `DELETE FROM shift_snapshots
                  WHERE yearMonth = ?
-                 ORDER BY created_at DESC, id DESC
-                 LIMIT ?
-               )`
-        ).bind(yearMonth, yearMonth, SNAPSHOT_KEEP_LIMIT).run();
+                   AND id NOT IN (
+                     SELECT id FROM shift_snapshots
+                     WHERE yearMonth = ?
+                     ORDER BY created_at DESC, id DESC
+                     LIMIT ?
+                   )`
+            ).bind(yearMonth, yearMonth, SNAPSHOT_KEEP_LIMIT)
+        );
 
-        await writeAuditLog(context.env, context.request, { action: 'restore', entityType: 'shift_snapshot', entityId: id, yearMonth, summary: `${yearMonth}のバックアップを復元`, metadata: { restoredShiftCount: shifts.length, restoredFixedDateCount: fixedDates.length, preRestoreSnapshotId } });
+        // D1 batch is transactional. The pre-restore backup, deletion, complete
+        // replacement and retention cleanup must commit or roll back together.
+        await context.env.DB.batch(statements);
+
+        await writeAuditLog(context.env, context.request, { action: 'restore', entityType: 'shift_snapshot', entityId: id, yearMonth, summary: `${yearMonth}のバックアップを復元`, metadata: { restoredShiftCount: restorableShifts.length, restoredFixedDateCount: fixedDates.length, preRestoreSnapshotId } });
 
         return Response.json({
             success: true,
             yearMonth,
-            restoredShiftCount: shifts.length,
+            restoredShiftCount: restorableShifts.length,
             restoredFixedDateCount: fixedDates.length,
             preRestoreSnapshotId,
         });

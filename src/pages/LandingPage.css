@@ -1,0 +1,70 @@
+.landing-waves {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.landing-wave {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 200%;
+    height: clamp(14rem, 42vh, 28rem);
+    /* transform のみを動かし、毎フレームのレイアウト計算を避ける。 */
+    animation: landing-wave-drift 40s linear infinite;
+}
+
+.landing-wave--back {
+    height: clamp(17rem, 48vh, 31rem);
+    color: #6366f1;
+    opacity: 0.08;
+    animation-duration: 48s;
+    animation-delay: -12s;
+}
+
+.landing-wave--middle {
+    height: clamp(15rem, 45vh, 29rem);
+    color: #38bdf8;
+    opacity: 0.09;
+    animation-direction: reverse;
+    animation-delay: -20s;
+}
+
+.landing-wave--front {
+    color: #34d399;
+    opacity: 0.08;
+    animation-duration: 32s;
+    animation-delay: -8s;
+}
+
+.dark .landing-wave {
+    opacity: 0.07;
+}
+
+@keyframes landing-wave-drift {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+@media (max-width: 767px) {
+    .landing-wave--middle {
+        display: none;
+        animation: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-wave {
+        animation: none;
+    }
+
+    .landing-wave--back {
+        transform: translateX(-25%);
+    }
+}

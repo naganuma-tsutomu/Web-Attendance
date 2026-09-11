@@ -1,7 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useEffect } from 'react';
-import { ShieldCheck, UserCircle2, ArrowRight } from 'lucide-react';
+import { ShieldCheck, UserCircle2, ArrowRight, Github, ExternalLink } from 'lucide-react';
+import './LandingPage.css';
+
+// 同じ波形を2回並べ、半分の幅だけ移動して継ぎ目なくループさせる。
+const wavePath = 'M0 120 C240 20 480 20 720 120 S1200 220 1440 120 C1680 20 1920 20 2160 120 S2640 220 2880 120 V320 H0 Z';
 
 const Logo = () => (
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -35,7 +39,20 @@ const LandingPage = () => {
     }, [currentUser, loading, navigate]);
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 px-6">
+        <div className="relative isolate min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 px-6">
+            <div className="landing-waves" aria-hidden="true">
+                {['back', 'middle', 'front'].map(layer => (
+                    <svg
+                        key={layer}
+                        className={`landing-wave landing-wave--${layer}`}
+                        viewBox="0 0 2880 320"
+                        preserveAspectRatio="none"
+                        focusable="false"
+                    >
+                        <path d={wavePath} fill="currentColor" />
+                    </svg>
+                ))}
+            </div>
             {/* ロゴ・タイトル */}
             <div className="flex flex-col items-center mb-14 animate-in fade-in slide-in-from-top-4 duration-500">
                 <Logo />
@@ -92,6 +109,17 @@ const LandingPage = () => {
                 </button>
 
                 <div className="md:col-span-2 text-center mt-4">
+                    <a
+                        href="https://github.com/naganuma-tsutomu/Web-Attendance"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="GitHubでソースコードを見る（新しいタブで開きます）"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 mb-3 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500"
+                    >
+                        <Github className="w-4 h-4" aria-hidden="true" />
+                        <span>GitHub</span>
+                        <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                    </a>
                     <p className="text-[10px] font-bold text-slate-300 dark:text-slate-700 uppercase tracking-[0.3em]">
                         Web Attendance Management System v{__APP_VERSION__}
                     </p>

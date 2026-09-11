@@ -2,13 +2,40 @@ import { useMemo } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, startOfMonth, endOfMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { useQueries } from '@tanstack/react-query';
-import { getShiftsByMonth, getPreferencesByMonth, getFixedDates } from '../../../lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getScheduleBootstrap, type ScheduleBootstrapData } from '../../../lib/api';
 import { QUERY_KEYS } from '../../../lib/hooks';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
-import type { Shift, ShiftPreference } from '../../../types';
+import type { BusinessDayOverride, Shift, ShiftPreference } from '../../../types';
+
+const hydrateIndividualCaches = (
+    queryClient: ReturnType<typeof useQueryClient>,
+    data: ScheduleBootstrapData,
+) => {
+    const references = data.references;
+    queryClient.setQueryData(QUERY_KEYS.staffs, references.staffs);
+    queryClient.setQueryData(QUERY_KEYS.classes, references.classes);
+    queryClient.setQueryData(QUERY_KEYS.timePatterns, references.timePatterns);
+    queryClient.setQueryData(QUERY_KEYS.roles, references.roles);
+    queryClient.setQueryData(QUERY_KEYS.businessHours, references.businessHours);
+    queryClient.setQueryData(QUERY_KEYS.excelSettings, references.excelSettings);
+    queryClient.setQueryData(QUERY_KEYS.breakSettings, references.breakSettings);
+    queryClient.setQueryData(QUERY_KEYS.schedulePreferences, references.schedulePreferences);
+    queryClient.setQueryData(QUERY_KEYS.shiftRequirements, references.shiftRequirements);
+
+    for (const [month, monthData] of Object.entries(data.months)) {
+        queryClient.setQueryData(QUERY_KEYS.shifts(month), monthData.shifts);
+        queryClient.setQueryData(QUERY_KEYS.preferences(month), monthData.preferences);
+        queryClient.setQueryData(QUERY_KEYS.fixedDates(month), monthData.fixedDates);
+        queryClient.setQueryData(QUERY_KEYS.businessDayOverrides(month), monthData.businessDayOverrides);
+    }
+    for (const [year, holidays] of Object.entries(data.holidays)) {
+        queryClient.setQueryData(QUERY_KEYS.holidays(Number(year)), holidays);
+    }
+};
 
 export const useScheduleQueries = (currentDate: Date, view: View) => {
+    const queryClient = useQueryClient();
     const monthsToFetch = useMemo(() => {
         const months = new Set<string>();
         months.add(format(currentDate, 'yyyy-MM'));
@@ -29,89 +56,57 @@ export const useScheduleQueries = (currentDate: Date, view: View) => {
         return Array.from(months);
     }, [currentDate, view]);
 
-    const { rawShifts, shiftMonthVersions, isFetchingShifts, isErrorShifts, refetchShifts } = useQueries({
-        queries: monthsToFetch.map(month => ({
-            queryKey: QUERY_KEYS.shifts(month),
-            queryFn: () => getShiftsByMonth(month),
-        })),
-        combine: (results) => {
-            const seen = new Set<string>();
-            const rawShifts: Shift[] = [];
-            const shiftMonthVersions: Record<string, number> = {};
-            for (let index = 0; index < results.length; index++) {
-                const q = results[index];
-                if (!q.data) continue;
-                shiftMonthVersions[monthsToFetch[index]] = q.data.version;
-                for (const item of q.data.shifts) {
-                    if (!seen.has(item.id)) {
-                        seen.add(item.id);
-                        rawShifts.push(item);
-                    }
-                }
-            }
-            return {
-                rawShifts,
-                shiftMonthVersions,
-                isFetchingShifts: results.some(q => q.isFetching),
-                isErrorShifts: results.some(q => q.isError),
-                refetchShifts: () => Promise.all(results.map(q => q.refetch())),
-            };
+    const query = useQuery({
+        queryKey: QUERY_KEYS.scheduleBootstrap(monthsToFetch),
+        queryFn: async () => {
+            const data = await getScheduleBootstrap(monthsToFetch);
+            hydrateIndividualCaches(queryClient, data);
+            return data;
         },
+        // 他画面で設定を更新して戻った場合も、集約レスポンスを使い回さない。
+        staleTime: 0,
     });
 
-    const { preferences, isFetchingPrefs, isErrorPrefs, refetchPrefs } = useQueries({
-        queries: monthsToFetch.map(month => ({
-            queryKey: QUERY_KEYS.preferences(month),
-            queryFn: () => getPreferencesByMonth(month),
-        })),
-        combine: (results) => {
-            const seen = new Set<string>();
-            const preferences: ShiftPreference[] = [];
-            for (const q of results) {
-                if (!q.data) continue;
-                for (const item of q.data) {
-                    if (!seen.has(item.id)) {
-                        seen.add(item.id);
-                        preferences.push(item);
-                    }
-                }
-            }
-            return {
-                preferences,
-                isFetchingPrefs: results.some(q => q.isFetching),
-                isErrorPrefs: results.some(q => q.isError),
-                refetchPrefs: () => Promise.all(results.map(q => q.refetch())),
-            };
-        },
-    });
+    const combined = useMemo(() => {
+        const seenShifts = new Set<string>();
+        const seenPreferences = new Set<string>();
+        const rawShifts: Shift[] = [];
+        const preferences: ShiftPreference[] = [];
+        const fixedDates = new Set<string>();
+        const shiftMonthVersions: Record<string, number> = {};
+        const businessDayOverrides: BusinessDayOverride[] = [];
 
-    const { fixedDates, isFetchingFixed, isErrorFixed, refetchFixed } = useQueries({
-        queries: monthsToFetch.map(month => ({
-            queryKey: QUERY_KEYS.fixedDates(month),
-            queryFn: () => getFixedDates(month),
-        })),
-        combine: (results) => {
-            const fixedDates = new Set<string>();
-            for (const q of results) {
-                if (!q.data) continue;
-                for (const item of q.data) {
-                    fixedDates.add(item);
-                }
+        for (const month of monthsToFetch) {
+            const monthData = query.data?.months[month];
+            if (!monthData) continue;
+            shiftMonthVersions[month] = monthData.shifts.version;
+            for (const shift of monthData.shifts.shifts) {
+                if (seenShifts.has(shift.id)) continue;
+                seenShifts.add(shift.id);
+                rawShifts.push(shift);
             }
-            return {
-                fixedDates,
-                isFetchingFixed: results.some(q => q.isFetching),
-                isErrorFixed: results.some(q => q.isError),
-                refetchFixed: () => Promise.all(results.map(q => q.refetch())),
-            };
-        },
-    });
+            for (const preference of monthData.preferences) {
+                if (seenPreferences.has(preference.id)) continue;
+                seenPreferences.add(preference.id);
+                preferences.push(preference);
+            }
+            for (const date of monthData.fixedDates) fixedDates.add(date);
+            businessDayOverrides.push(...monthData.businessDayOverrides);
+        }
 
-    const isFetching = isFetchingShifts || isFetchingPrefs || isFetchingFixed;
-    const isError = isErrorShifts || isErrorPrefs || isErrorFixed;
+        const years = Array.from(new Set(monthsToFetch.map(month => month.slice(0, 4))));
+        const holidays = years.flatMap(year => query.data?.holidays[year] ?? []);
+
+        return { rawShifts, shiftMonthVersions, preferences, fixedDates, holidays, businessDayOverrides };
+    }, [monthsToFetch, query.data]);
 
     return {
-        rawShifts, shiftMonthVersions, preferences, fixedDates, monthsToFetch, isFetching, isError,
-        refetch: () => Promise.all([refetchShifts(), refetchPrefs(), refetchFixed()]),
+        ...combined,
+        monthsToFetch,
+        references: query.data?.references,
+        isLoading: query.isLoading,
+        isFetching: query.isFetching,
+        isError: query.isError,
+        refetch: query.refetch,
     };
 };

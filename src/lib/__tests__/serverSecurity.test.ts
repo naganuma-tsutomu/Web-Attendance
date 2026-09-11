@@ -454,4 +454,26 @@ describe('middleware 経由の認可: 個別営業日API', () => {
         expect(response.status).toBe(401);
         expect(nextCalled).toBe(false);
     });
+
+    it('スケジュール集約APIはスタッフへ許可しない', async () => {
+        const staffToken = await signStaffCookie('s1', SECRET);
+        let nextCalled = false;
+        const context = {
+            request: {
+                url: 'https://example.com/api/schedule-bootstrap?month=2026-08',
+                method: 'GET',
+                headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : null },
+            },
+            env: { ADMIN_PASSWORD: SECRET },
+            next: async () => {
+                nextCalled = true;
+                return new Response(null, { status: 204 });
+            },
+        };
+
+        const response = await middleware(context as never);
+
+        expect(response.status).toBe(401);
+        expect(nextCalled).toBe(false);
+    });
 });

@@ -7,6 +7,10 @@ import {
 import type { Shift } from '../../types';
 import { QUERY_KEYS } from './queryKeys';
 
+const invalidateScheduleBootstrap = (queryClient: ReturnType<typeof useQueryClient>) => {
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.scheduleBootstrap([]) });
+};
+
 export const useShiftsByMonth = (monthStr: string) => useQuery({
     queryKey: QUERY_KEYS.shifts(monthStr), queryFn: () => getShiftsByMonth(monthStr),
     select: data => data.shifts,
@@ -20,7 +24,10 @@ export const useSaveShiftsBatch = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (shifts: Omit<Shift, 'id'>[]) => saveShiftsBatch(shifts),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shifts'] }); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['shifts'] });
+            invalidateScheduleBootstrap(queryClient);
+        },
     });
 };
 
@@ -33,7 +40,10 @@ export const useReplaceShiftsForMonth = () => {
             if (version === undefined) throw new Error('シフトを再読み込みしてから保存してください');
             return replaceShiftsForMonth(yearMonth, version, shifts, fixedDates ?? []);
         },
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shifts'] }); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['shifts'] });
+            invalidateScheduleBootstrap(queryClient);
+        },
     });
 };
 
@@ -41,7 +51,10 @@ export const useDeleteShiftsByDateRange = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ startDate, endDate }: { startDate: string; endDate: string }) => deleteShiftsByDateRange(startDate, endDate),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shifts'] }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['shifts'] });
+            invalidateScheduleBootstrap(queryClient);
+        },
     });
 };
 
@@ -49,7 +62,10 @@ export const useUpdateShift = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: Partial<Shift> }) => updateShift(id, data),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shifts'] }); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['shifts'] });
+            invalidateScheduleBootstrap(queryClient);
+        },
     });
 };
 
@@ -61,6 +77,7 @@ export const useDeleteShiftsByMonth = () => {
         onSuccess: (_, { yearMonth, clearFixedDates }) => {
             queryClient.invalidateQueries({ queryKey: ['shifts'] });
             if (clearFixedDates) queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(yearMonth) });
+            invalidateScheduleBootstrap(queryClient);
         },
     });
 };
@@ -69,7 +86,10 @@ export const useSaveFixedDates = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: ({ yearMonth, dates }: { yearMonth: string; dates: string[] }) => saveFixedDates(yearMonth, dates),
-        onSuccess: (_, { yearMonth }) => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(yearMonth) }),
+        onSuccess: (_, { yearMonth }) => {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(yearMonth) });
+            invalidateScheduleBootstrap(queryClient);
+        },
     });
 };
 
@@ -92,6 +112,7 @@ export const useToggleFixedDate = () => {
         },
         onSettled: (_data, _error, { date }) => {
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(date.slice(0, 7)) });
+            invalidateScheduleBootstrap(queryClient);
         },
     });
 };
@@ -113,6 +134,7 @@ export const useRestoreShiftSnapshot = () => {
             queryClient.invalidateQueries({ queryKey: ['shifts'] });
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.fixedDates(result.yearMonth) });
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.shiftSnapshots(result.yearMonth) });
+            invalidateScheduleBootstrap(queryClient);
         },
     });
 };

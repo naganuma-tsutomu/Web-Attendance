@@ -1,15 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format } from 'date-fns';
-import { useQueries } from '@tanstack/react-query';
-import {
-    getBusinessDayOverrides, getHolidays, syncHolidaysIfNeeded,
-} from '../../../lib/api';
-import {
-    QUERY_KEYS, useStaffList, useClasses, useTimePatterns, useRoles,
-    useBusinessHours, useExcelSettings, useBreakSettings,
-    useSchedulePreferences, useShiftRequirements,
-} from '../../../lib/hooks';
+import { syncHolidaysIfNeeded } from '../../../lib/api';
 import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
 import { useScheduleQueries } from './useScheduleQueries';
@@ -37,50 +29,20 @@ export const useScheduleData = () => {
     const dayDiscardRef = useRef<(() => void) | null>(null);
     const holidaySyncStartedRef = useRef(false);
 
-    // 静的データ
-    const staffQuery = useStaffList();
-    const classesQuery = useClasses();
-    const timePatternsQuery = useTimePatterns();
-    const rolesQuery = useRoles();
-    const businessHoursQuery = useBusinessHours();
-    const excelSettingsQuery = useExcelSettings();
-    const breakSettingsQuery = useBreakSettings();
-    const schedulePreferencesQuery = useSchedulePreferences();
-    const requirementsQuery = useShiftRequirements();
-    const { data: staffList = [] } = staffQuery;
-    const { data: classes = [] } = classesQuery;
-    const { data: timePatterns = [] } = timePatternsQuery;
-    const { data: roles = [] } = rolesQuery;
-    const { data: businessHours } = businessHoursQuery;
-    const { data: excelSettings } = excelSettingsQuery;
-    const { data: breakSettings } = breakSettingsQuery;
-    const { data: schedulePreferences } = schedulePreferencesQuery;
-    const { data: requirements = [] } = requirementsQuery;
-
-    // 動的な複数月データフェッチ
+    // 初期表示に必要な参照データ・複数月データを1リクエストで取得
     const {
-        rawShifts, shiftMonthVersions, preferences, fixedDates, monthsToFetch,
-        isFetching: isFetchingMonthlyData, isError, refetch,
+        rawShifts, shiftMonthVersions, preferences, fixedDates, holidays, businessDayOverrides,
+        references, isLoading: loading, isFetching, isError, refetch,
     } = useScheduleQueries(currentDate, view);
-    const yearsToFetch = useMemo(() => Array.from(new Set(monthsToFetch.map(month => Number(month.slice(0, 4))))), [monthsToFetch]);
-
-    const holidayQueries = useQueries({
-        queries: yearsToFetch.map(year => ({
-            queryKey: QUERY_KEYS.holidays(year),
-            queryFn: () => getHolidays(year),
-        })),
-    });
-    const overrideQueries = useQueries({
-        queries: monthsToFetch.map(month => ({
-            queryKey: QUERY_KEYS.businessDayOverrides(month),
-            queryFn: () => getBusinessDayOverrides(month),
-        })),
-    });
-    const holidays = useMemo(() => holidayQueries.flatMap(query => query.data ?? []), [holidayQueries]);
-    const businessDayOverrides = useMemo(() => overrideQueries.flatMap(query => query.data ?? []), [overrideQueries]);
-    const isLoadingHolidays = holidayQueries.some(query => query.isLoading);
-    const isLoadingBusinessDayOverrides = overrideQueries.some(query => query.isLoading);
-    const hasBusinessDayQueryError = holidayQueries.some(query => query.isError) || overrideQueries.some(query => query.isError);
+    const staffList = references?.staffs ?? [];
+    const classes = references?.classes ?? [];
+    const timePatterns = references?.timePatterns ?? [];
+    const roles = references?.roles ?? [];
+    const businessHours = references?.businessHours;
+    const excelSettings = references?.excelSettings;
+    const breakSettings = references?.breakSettings;
+    const schedulePreferences = references?.schedulePreferences;
+    const requirements = references?.shiftRequirements ?? [];
 
     // カレンダーイベント構築
     const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(
@@ -130,26 +92,7 @@ export const useScheduleData = () => {
     };
 
     // Loading & Error States
-    const referenceQueries = [
-        staffQuery,
-        classesQuery,
-        timePatternsQuery,
-        rolesQuery,
-        businessHoursQuery,
-        excelSettingsQuery,
-        breakSettingsQuery,
-        schedulePreferencesQuery,
-        requirementsQuery,
-    ];
-    const isLoadingReferenceData = referenceQueries.some(query => query.isLoading);
-    const isFetchingReferenceData = referenceQueries.some(query => query.isFetching);
-    const hasReferenceQueryError = referenceQueries.some(query => query.isError);
-    const loading = isLoadingReferenceData || isLoadingHolidays || isLoadingBusinessDayOverrides;
-    const isFetching = isFetchingMonthlyData
-        || isFetchingReferenceData
-        || holidayQueries.some(query => query.isFetching)
-        || overrideQueries.some(query => query.isFetching);
-    const loadError = isError || hasReferenceQueryError || hasBusinessDayQueryError
+    const loadError = isError
         ? 'データの読み込みに失敗しました。再読み込みが完了するまで編集・生成・消去はできません。'
         : null;
     const canMutateSchedule = !loading && !loadError;
@@ -184,12 +127,7 @@ export const useScheduleData = () => {
     };
 
     const retryLoad = () => {
-        void Promise.all([
-            refetch(),
-            ...referenceQueries.map(query => query.refetch()),
-            ...holidayQueries.map(query => query.refetch()),
-            ...overrideQueries.map(query => query.refetch()),
-        ]);
+        void refetch();
     };
 
     return {

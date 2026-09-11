@@ -16,3 +16,4 @@ export * from './api/schedulePreferencesApi';
 export * from './api/facilityApi';
 export * from './api/rotationSettingsApi';
 export * from './api/breakSettingsApi';
+export * from './api/scheduleBootstrapApi';

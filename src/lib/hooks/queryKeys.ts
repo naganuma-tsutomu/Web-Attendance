@@ -18,4 +18,5 @@ export const QUERY_KEYS = {
     rotationSettings: ['rotationSettings'],
     breakSettings: ['breakSettings'],
     auditLogs: (yearMonth: string, action: string) => ['auditLogs', yearMonth, action],
+    scheduleBootstrap: (months: string[]) => ['scheduleBootstrap', ...months],
 };

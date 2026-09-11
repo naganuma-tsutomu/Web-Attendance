@@ -52,9 +52,7 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Excel生成は利用時にだけ取得する。初回訪問時のSWインストールで
-        // 約1MBのチャンクを先読みし、画面表示と帯域を奪わないようにする。
-        globIgnores: ['**/heavy-excel-*.js', '**/exceljs.min-*.js'],
+        // Excel用の遅延チャンクもプリキャッシュし、SW導入後の初回オフライン出力を可能にする。
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
       },

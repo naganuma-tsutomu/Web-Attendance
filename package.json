@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "wrangler pages dev --compatibility-date=2024-03-20 -- npm run dev:client",
     "dev:client": "vite",
-    "build": "npm run lint && tsc -b && vite build",
+    "build": "npm run lint && tsc -b && vite build && npm run check:pwa-precache",
     "check:bundle-size": "node scripts/check-bundle-size.mjs",
+    "check:pwa-precache": "node scripts/check-pwa-precache.mjs",
     "lint": "eslint . --max-warnings=0",
     "preview": "vite preview",
     "test": "vitest run",

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestDelete as deleteStaff } from '../../../functions/api/staffs/[id]';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 describe('staff deletion with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         await miniflare?.dispose();
@@ -13,11 +13,7 @@ describe('staff deletion with D1', () => {
     it.each(['NO ACTION', 'CASCADE'] as const)(
         'shift_preferencesが%sでも関連データを削除し、他スタッフのデータは維持する',
         async (preferenceDeleteAction) => {
-            miniflare = new Miniflare({
-                modules: true,
-                script: 'export default { fetch() { return new Response("ok") } }',
-                d1Databases: ['DB'],
-            });
+            miniflare = createD1Miniflare();
             const db = await miniflare.getD1Database('DB');
             await db.batch([
                 db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, name TEXT NOT NULL)'),

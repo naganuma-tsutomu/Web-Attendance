@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { Miniflare } from 'miniflare';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 const migrationPath = resolve(process.cwd(), 'db/migrations/0007_staff_preferences_on_delete_cascade.sql');
 const readMigrationStatements = async () => (await readFile(migrationPath, 'utf8'))
@@ -11,7 +11,7 @@ const readMigrationStatements = async () => (await readFile(migrationPath, 'utf8
     .filter(Boolean);
 
 describe('staff preference cascade migration with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         await miniflare?.dispose();
@@ -21,11 +21,7 @@ describe('staff preference cascade migration with D1', () => {
     it.each(['NO ACTION', 'CASCADE'] as const)(
         '%sの既存スキーマをCASCADEへ統一し、データとインデックスを維持する',
         async (currentAction) => {
-            miniflare = new Miniflare({
-                modules: true,
-                script: 'export default { fetch() { return new Response("ok") } }',
-                d1Databases: ['DB'],
-            });
+            miniflare = createD1Miniflare();
             const db = await miniflare.getD1Database('DB');
             const onDelete = currentAction === 'CASCADE' ? ' ON DELETE CASCADE' : '';
             await db.batch([

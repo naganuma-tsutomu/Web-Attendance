@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestDelete as deleteClass } from '../../../functions/api/settings/classes/[id]';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 describe('class deletion with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         await miniflare?.dispose();
@@ -11,11 +11,7 @@ describe('class deletion with D1', () => {
     });
 
     it('シフトで使用中のクラスを409で拒否し、未使用クラスだけ削除する', async () => {
-        miniflare = new Miniflare({
-            modules: true,
-            script: 'export default { fetch() { return new Response("ok") } }',
-            d1Databases: ['DB'],
-        });
+        miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare('CREATE TABLE classes (id TEXT PRIMARY KEY, name TEXT NOT NULL)'),

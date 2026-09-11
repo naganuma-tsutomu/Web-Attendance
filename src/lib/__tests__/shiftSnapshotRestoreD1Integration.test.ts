@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestPost as restoreSnapshot } from '../../../functions/api/shifts/snapshots/[id]/restore';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 type SnapshotShift = {
     date: string;
@@ -11,7 +11,7 @@ type SnapshotShift = {
 };
 
 describe('shift snapshot restore with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         vi.restoreAllMocks();
@@ -20,11 +20,7 @@ describe('shift snapshot restore with D1', () => {
     });
 
     const createDatabase = async () => {
-        miniflare = new Miniflare({
-            modules: true,
-            script: 'export default { fetch() { return new Response("ok") } }',
-            d1Databases: ['DB'],
-        });
+        miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare(`CREATE TABLE shifts (

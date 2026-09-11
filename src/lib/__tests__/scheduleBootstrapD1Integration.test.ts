@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestGet as getScheduleBootstrap } from '../../../functions/api/schedule-bootstrap';
 import { ScheduleBootstrapSchema } from '../api/scheduleBootstrapApi';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 const ADMIN_PASSWORD = 'schedule-bootstrap-test-secret';
 
@@ -20,7 +20,7 @@ type BootstrapResponse = {
 };
 
 describe('schedule bootstrap API with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         await miniflare?.dispose();
@@ -28,11 +28,7 @@ describe('schedule bootstrap API with D1', () => {
     });
 
     it('参照データと指定月データを欠落なく1レスポンスで返す', async () => {
-        miniflare = new Miniflare({
-            modules: true,
-            script: 'export default { fetch() { return new Response("ok") } }',
-            d1Databases: ['DB'],
-        });
+        miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare('CREATE TABLE classes (id TEXT PRIMARY KEY, name TEXT, display_order INTEGER, auto_allocate INTEGER DEFAULT 1, color TEXT)'),

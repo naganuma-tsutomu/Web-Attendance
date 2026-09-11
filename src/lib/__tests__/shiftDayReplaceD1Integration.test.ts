@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestPost as replaceDayShifts } from '../../../functions/api/shifts/day';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 describe('daily shift replacement with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         vi.restoreAllMocks();
@@ -12,11 +12,7 @@ describe('daily shift replacement with D1', () => {
     });
 
     const createDatabase = async () => {
-        miniflare = new Miniflare({
-            modules: true,
-            script: 'export default { fetch() { return new Response("ok") } }',
-            d1Databases: ['DB'],
-        });
+        miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare(`CREATE TABLE shifts (

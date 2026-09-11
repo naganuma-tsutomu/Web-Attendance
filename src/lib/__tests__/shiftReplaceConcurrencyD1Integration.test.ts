@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestPost as replaceShifts } from '../../../functions/api/shifts/replace';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 describe('monthly shift replacement concurrency with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         await miniflare?.dispose();
@@ -11,11 +11,7 @@ describe('monthly shift replacement concurrency with D1', () => {
     });
 
     it('古いversionによる置換を409で拒否し、先に保存されたシフトを維持する', async () => {
-        miniflare = new Miniflare({
-            modules: true,
-            script: 'export default { fetch() { return new Response("ok") } }',
-            d1Databases: ['DB'],
-        });
+        miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare(`CREATE TABLE shifts (

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Miniflare } from 'miniflare';
 import { onRequestPost as adminLogin } from '../../../functions/api/auth/login';
 import { onRequestPost as staffLogin } from '../../../functions/api/auth/staff-login';
+import { createD1Miniflare } from './miniflareTestUtils';
 
 const ADMIN_PASSWORD = 'correct-admin-password';
 
 describe('authentication rate limiting with D1', () => {
-    let miniflare: Miniflare | undefined;
+    let miniflare: ReturnType<typeof createD1Miniflare> | undefined;
 
     afterEach(async () => {
         await miniflare?.dispose();
@@ -20,11 +20,7 @@ describe('authentication rate limiting with D1', () => {
     });
 
     it('管理者はIP単位、スタッフはIPと氏名単位で10回目から429にする', async () => {
-        miniflare = new Miniflare({
-            modules: true,
-            script: 'export default { fetch() { return new Response("ok") } }',
-            d1Databases: ['DB'],
-        });
+        miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare(`CREATE TABLE auth_rate_limits (

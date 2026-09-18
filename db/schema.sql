@@ -19,8 +19,10 @@ CREATE TABLE IF NOT EXISTS staffs (
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
     display_order INTEGER DEFAULT 0,
-    access_key TEXT
+    access_key TEXT,
+    retired_at TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_staffs_retired_at ON staffs(retired_at);
 
 -- Staff Classes (Many-to-Many)
 CREATE TABLE IF NOT EXISTS staff_classes (
@@ -73,6 +75,29 @@ CREATE TABLE IF NOT EXISTS shifts (
     isError INTEGER DEFAULT 0,
     duty_number INTEGER DEFAULT NULL
 );
+
+-- Month-level revision used to reject stale full-month replacements.
+CREATE TABLE IF NOT EXISTS shift_month_versions (
+    year_month TEXT PRIMARY KEY,
+    version INTEGER NOT NULL DEFAULT 0,
+    lock_token TEXT
+);
+
+CREATE TRIGGER IF NOT EXISTS shifts_version_after_insert AFTER INSERT ON shifts BEGIN
+    INSERT INTO shift_month_versions (year_month, version) VALUES (substr(NEW.date, 1, 7), 1)
+    ON CONFLICT(year_month) DO UPDATE SET version = version + 1;
+END;
+CREATE TRIGGER IF NOT EXISTS shifts_version_after_delete AFTER DELETE ON shifts BEGIN
+    INSERT INTO shift_month_versions (year_month, version) VALUES (substr(OLD.date, 1, 7), 1)
+    ON CONFLICT(year_month) DO UPDATE SET version = version + 1;
+END;
+CREATE TRIGGER IF NOT EXISTS shifts_version_after_update AFTER UPDATE ON shifts BEGIN
+    INSERT INTO shift_month_versions (year_month, version) VALUES (substr(OLD.date, 1, 7), 1)
+    ON CONFLICT(year_month) DO UPDATE SET version = version + 1;
+    INSERT INTO shift_month_versions (year_month, version)
+    SELECT substr(NEW.date, 1, 7), 1 WHERE substr(NEW.date, 1, 7) <> substr(OLD.date, 1, 7)
+    ON CONFLICT(year_month) DO UPDATE SET version = version + 1;
+END;
 
 -- Fixed Dates (Locked shifts) Table
 CREATE TABLE IF NOT EXISTS fixed_dates (
@@ -233,7 +258,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_shifts_date_class_duty_number ON shifts(da
 CREATE INDEX IF NOT EXISTS idx_shift_snapshots_ym_created ON shift_snapshots(yearMonth, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_shift_pref_dates_ym ON shift_preference_dates(yearMonth);
 CREATE INDEX IF NOT EXISTS idx_staff_available_days_staffid ON staff_available_days(staffId);
-CREATE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shift_preferences_staffid_ym ON shift_preferences(staffId, yearMonth);
 
 -- 管理操作・スタッフ操作の追跡ログ
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -256,6 +281,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_audit_logs_occurred_at ON audit_logs(occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_year_month ON audit_logs(year_month, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id, occurred_at DESC);
+
+-- Application-level authentication throttling (Cloudflare Rate Limiting remains the outer layer).
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+    key_hash TEXT PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    window_started_at INTEGER NOT NULL,
+    blocked_until INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_updated_at ON auth_rate_limits(updated_at);
 
 -- ============================================================
 -- 既存 DB へのスキーマ変更について

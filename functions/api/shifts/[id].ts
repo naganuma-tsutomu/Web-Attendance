@@ -1,7 +1,8 @@
 import { handleServerError, createValidationError, validateTimeFormat, validateTimeRange } from '../../utils/validation';
 import type { Env, D1BindParam, D1Row } from '../../types';
-import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { loadStaffShiftsForDates, validateActiveStaffAssignments, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
+import { ShiftUpdateSchema } from '../../../shared/shiftRequestSchemas';
 
 // shifts テーブルで更新を許可するカラム名のホワイトリスト
 const ALLOWED_SHIFT_COLUMNS = new Set([
@@ -23,11 +24,9 @@ const addSetClause = (setClauses: string[], bindings: D1BindParam[], column: str
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as Partial<{
-            staffId: string; startTime: string; endTime: string;
-            classType: string; isEarlyShift: boolean; isError: boolean;
-            duty_number: number | null;
-        }>;
+        const parsed = ShiftUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('シフトの入力内容が不正です');
+        const body = parsed.data;
 
         const current = await context.env.DB.prepare(
             `SELECT id, date, staffId, startTime, endTime, classType, isError
@@ -61,6 +60,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (timeError) return createValidationError(timeError);
         if (!mergedShift.staffId.trim()) return createValidationError('staffId は必須です');
         if (!mergedShift.classType.trim()) return createValidationError('classType は必須です');
+        if (body.staffId !== undefined && body.staffId !== current.staffId) {
+            const staffError = await validateActiveStaffAssignments(context.env.DB, [body.staffId]);
+            if (staffError) return staffError;
+        }
 
         const existingShifts = await loadStaffShiftsForDates(context.env.DB, [mergedShift], id);
         const conflictResponse = validateNoShiftConflicts([...existingShifts, mergedShift]);

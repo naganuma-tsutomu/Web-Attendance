@@ -1,15 +1,18 @@
 import { createValidationError, handleServerError, validateName } from '../../../utils/validation';
 import type { Env } from '../../../types';
+import { RequirementTemplateNameSchema } from '../../../../shared/basicRequestSchemas';
 
 // PUT /api/settings/shift-requirement-templates/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string };
+        const parsed = RequirementTemplateNameSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('テンプレート名を正しく入力してください');
+        const body = parsed.data;
         const nameError = validateName(body.name ?? '', 'テンプレート名', 50);
         if (nameError) return createValidationError(nameError);
 
-        const name = body.name!.trim();
+        const name = body.name;
         const duplicate = await context.env.DB.prepare(
             'SELECT id FROM shift_requirement_templates WHERE name = ? AND id <> ?'
         ).bind(name, id).first();

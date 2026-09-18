@@ -1,15 +1,13 @@
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env } from '../../types';
 import { writeAuditLog } from '../../utils/auditLog';
+import { ShiftClearSchema } from '../../../shared/shiftRequestSchemas';
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body: {
-            yearMonth: string;
-            exceptDates?: string[];
-            clearFixedDates?: boolean;
-        } = await context.request.json();
-        const { yearMonth, exceptDates, clearFixedDates = false } = body;
+        const parsed = ShiftClearSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('シフト消去の入力内容が不正です');
+        const { yearMonth, exceptDates, clearFixedDates = false } = parsed.data;
 
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);

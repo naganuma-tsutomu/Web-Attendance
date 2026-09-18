@@ -1,6 +1,7 @@
 import { createValidationError, handleServerError, validateYearMonth } from '../../utils/validation';
 import type { Env } from '../../types';
 import { writeAuditLog } from '../../utils/auditLog';
+import { FixedDatesReplaceSchema, FixedDateToggleSchema } from '../../../shared/calendarRequestSchemas';
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
@@ -23,15 +24,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body: { yearMonth: string, dates: string[] } = await context.request.json();
-        const { yearMonth, dates } = body;
+        const parsed = FixedDatesReplaceSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('固定日の入力内容が不正です');
+        const { yearMonth, dates } = parsed.data;
 
         const ymError = validateYearMonth(yearMonth);
         if (ymError) return createValidationError(ymError);
 
         // 重複排除し、date が yearMonth に属するものだけ受け付ける
         // (date PRIMARY KEY の INSERT OR REPLACE で別月の行の yearMonth を上書きしてしまう事故を防止)
-        const uniqueDates = Array.from(new Set(dates || [])).filter(d => d.startsWith(yearMonth));
+        const uniqueDates = dates;
 
         // DELETE文とINSERT文を1つのバッチ（トランザクション）にまとめる
         const statements = [
@@ -55,8 +57,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
 export const onRequestPatch: PagesFunction<Env> = async (context) => {
     try {
-        const body: { date?: string, fixed?: boolean } = await context.request.json();
-        const { date, fixed } = body;
+        const parsed = FixedDateToggleSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('固定日の入力内容が不正です');
+        const { date, fixed } = parsed.data;
 
         if (
             typeof date !== 'string' ||

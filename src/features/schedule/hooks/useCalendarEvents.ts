@@ -38,7 +38,7 @@ export const useCalendarEvents = (
                 errorByDate.set(shift.date, (errorByDate.get(shift.date) ?? 0) + 1);
             }
             const staff = staffList.find(s => s.id === shift.staffId);
-            const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
+            const staffName = staff?.name ?? shift.staffName ?? (shift.isError ? '未割り当て' : '不明');
 
             const shiftClass = classes.find(c => c.id === shift.classType);
             const className = shiftClass ? shiftClass.name : shift.classType;

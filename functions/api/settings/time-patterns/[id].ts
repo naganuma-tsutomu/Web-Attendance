@@ -1,11 +1,23 @@
 import { handleServerError, createValidationError, validateTimeRange, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
+import { TimePatternUpdateSchema } from '../../../../shared/settingsEntitySchemas';
+import { loadRotationSettings } from '../../../utils/rotationSettings';
 
+type DayFlag = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'holiday';
 // PUT /api/settings/time-patterns/:id
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string; startTime?: string; endTime?: string };
+        const parsed = TimePatternUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('勤務時間パターンの入力内容が不正です');
+        const body = parsed.data;
+
+        const current = await context.env.DB.prepare(
+            'SELECT id, startTime, endTime FROM shift_time_patterns WHERE id = ?'
+        ).bind(id).first() as { id: string; startTime: string; endTime: string } | null;
+        if (!current) {
+            return Response.json({ error: '勤務時間パターンが見つかりません' }, { status: 404 });
+        }
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -13,33 +25,17 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             if (nameError) return createValidationError(nameError);
         }
 
-        // Validate time range if both provided
-        if (body.startTime !== undefined && body.endTime !== undefined) {
-            const timeError = validateTimeRange(body.startTime, body.endTime);
+        if (body.startTime !== undefined || body.endTime !== undefined) {
+            const timeError = validateTimeRange(
+                body.startTime ?? current.startTime,
+                body.endTime ?? current.endTime,
+            );
             if (timeError) return createValidationError(timeError);
-        } else if (body.startTime !== undefined) {
-            // Only startTime provided, fetch current endTime to validate
-            const current = await context.env.DB.prepare(
-                'SELECT endTime FROM shift_time_patterns WHERE id = ?'
-            ).bind(id).first() as { endTime: string } | null;
-            if (current) {
-                const timeError = validateTimeRange(body.startTime, current.endTime);
-                if (timeError) return createValidationError(timeError);
-            }
-        } else if (body.endTime !== undefined) {
-            // Only endTime provided, fetch current startTime to validate
-            const current = await context.env.DB.prepare(
-                'SELECT startTime FROM shift_time_patterns WHERE id = ?'
-            ).bind(id).first() as { startTime: string } | null;
-            if (current) {
-                const timeError = validateTimeRange(current.startTime, body.endTime);
-                if (timeError) return createValidationError(timeError);
-            }
         }
 
         // Build update query dynamically
         const updates: string[] = [];
-        const values: any[] = [];
+        const values: D1BindParam[] = [];
 
         if (body.name !== undefined) {
             updates.push('name = ?');
@@ -54,35 +50,41 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             values.push(body.endTime);
         }
         // 曜日・祝日フラグの追加
-        const dayFlags = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
+        const dayFlags: DayFlag[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
         for (const flag of dayFlags) {
-            if ((body as any)[flag] !== undefined) {
+            if (body[flag] !== undefined) {
                 updates.push(`${flag} = ?`);
-                values.push((body as any)[flag]);
+                values.push(body[flag]!);
             }
         }
 
+        const statements = [];
         if (updates.length > 0) {
             values.push(id);
-            await context.env.DB.prepare(
-                `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
-            ).bind(...values).run();
+            statements.push(
+                context.env.DB.prepare(
+                    `UPDATE shift_time_patterns SET ${updates.join(', ')} WHERE id = ?`
+                ).bind(...values)
+            );
         }
 
         // スタッフ区分の紐付け同期
-        if ((body as any).roleIds !== undefined) {
-            const roleIds = (body as any).roleIds as string[];
+        if (body.roleIds !== undefined) {
+            const roleIds = body.roleIds;
             // 一旦削除
-            await context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id).run();
+            statements.push(
+                context.env.DB.prepare('DELETE FROM role_patterns WHERE patternId = ?').bind(id)
+            );
             // 再挿入
             if (roleIds.length > 0) {
-                const statements = roleIds.map(roleId =>
+                statements.push(...roleIds.map(roleId =>
                     context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
                         .bind(roleId, id)
-                );
-                await context.env.DB.batch(statements);
+                ));
             }
         }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ success: true });
     } catch (e) {
@@ -94,7 +96,24 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        await context.env.DB.prepare('DELETE FROM shift_time_patterns WHERE id = ?').bind(id).run();
+        const rotationSettings = await loadRotationSettings(context.env.DB);
+        if (
+            rotationSettings.earlyPatternId === id ||
+            rotationSettings.latePatternId === id ||
+            rotationSettings.saturdayPatternId === id
+        ) {
+            return Response.json(
+                { error: 'ローテーション設定で使用中の勤務時間パターンは削除できません' },
+                { status: 409 },
+            );
+        }
+
+        const result = await context.env.DB.prepare(
+            'DELETE FROM shift_time_patterns WHERE id = ?'
+        ).bind(id).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: '勤務時間パターンが見つかりません' }, { status: 404 });
+        }
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'Database error deleting time pattern');

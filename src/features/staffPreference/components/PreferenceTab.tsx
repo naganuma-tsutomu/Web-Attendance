@@ -6,7 +6,7 @@ import { savePreference } from '../../../lib/api';
 import { CLOSED_DAY_HOLIDAY } from '../../../constants';
 import { isFixedHoliday as checkFixedHoliday } from '../../../lib/holidayUtils';
 import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
-import type { ShiftPreferenceDetail, Shift, Holiday, BusinessDayOverride } from '../../../types';
+import type { AvailableDayConfig, ShiftPreferenceDetail, Shift, Holiday, BusinessDayOverride } from '../../../types';
 
 interface PreferenceTabProps {
     staff: { id: string; name: string };
@@ -20,7 +20,7 @@ interface PreferenceTabProps {
     myShifts: Shift[];
     holidays: Holiday[];
     businessDayOverrides: BusinessDayOverride[];
-    myAvailableDays: any;
+    myAvailableDays: Array<number | AvailableDayConfig>;
     closedDays: number[];
 }
 

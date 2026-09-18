@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
 import type { Env } from '../../../types';
+import { ClassCreateSchema } from '../../../../shared/settingsEntitySchemas';
 
 // GET /api/settings/classes — クラス一覧
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -16,7 +17,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/classes — クラス追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string, auto_allocate?: number, color?: string };
+        const parsed = ClassCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('クラスの入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name
         const nameError = validateName(body.name, 'クラス名', 50);
@@ -32,6 +35,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         return Response.json({ id });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('classes.name')) {
+            return createValidationError('同じ名前のクラスが既にあります');
+        }
         return handleServerError(e, 'Database error creating class');
     }
 };

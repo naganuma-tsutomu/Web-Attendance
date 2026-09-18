@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError } from '../../utils/validation';
 import type { Env } from '../../types';
+import { FacilityUpdateSchema } from '../../../shared/basicRequestSchemas';
 
 const DEFAULT_FACILITY_NAME = '施設名未設定';
 
@@ -19,15 +20,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // PUT /api/settings/facility — 施設名を更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name?: string };
-        const name = body.name?.trim();
-
-        if (!name) {
-            return createValidationError('施設名を入力してください');
-        }
-        if (name.length > 50) {
-            return createValidationError('施設名は50文字以内で入力してください');
-        }
+        const parsed = FacilityUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('施設名を正しく入力してください');
+        const { name } = parsed.data;
 
         await context.env.DB.prepare(
             `INSERT INTO app_settings (key, value) VALUES ('facility_name', ?)

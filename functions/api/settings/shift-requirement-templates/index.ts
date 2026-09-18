@@ -1,5 +1,6 @@
 import { createValidationError, handleServerError, validateName } from '../../../utils/validation';
 import type { Env } from '../../../types';
+import { RequirementTemplateNameSchema } from '../../../../shared/basicRequestSchemas';
 
 interface TemplateRow {
     id: string;
@@ -35,11 +36,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // 現在有効な全クラスの必要人数設定をスナップショットとして保存する。
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name?: string };
+        const parsed = RequirementTemplateNameSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('テンプレート名を正しく入力してください');
+        const body = parsed.data;
         const nameError = validateName(body.name ?? '', 'テンプレート名', 50);
         if (nameError) return createValidationError(nameError);
 
-        const name = body.name!.trim();
+        const name = body.name;
         const duplicate = await context.env.DB.prepare(
             'SELECT id FROM shift_requirement_templates WHERE name = ?'
         ).bind(name).first();

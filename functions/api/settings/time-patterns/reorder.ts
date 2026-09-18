@@ -1,13 +1,17 @@
 import { createValidationError, handleServerError } from '../../../utils/validation';
 import type { Env } from '../../../types';
+import { ReorderRequestSchema } from '../../../../shared/reorderSchema';
 
 // PUT /api/settings/time-patterns/reorder
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
-        const { orders } = await context.request.json() as { orders: { id: string, order: number }[] };
-
-        if (!orders || !Array.isArray(orders)) {
+        const parsed = ReorderRequestSchema.safeParse(await context.request.json());
+        if (!parsed.success) {
             return createValidationError('Invalid orders data');
+        }
+        const { orders } = parsed.data;
+        if (orders.length === 0) {
+            return Response.json({ success: true, message: 'Reordered' });
         }
 
         const statements = orders.map(item =>

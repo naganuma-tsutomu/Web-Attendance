@@ -1,8 +1,7 @@
-import { createValidationError, handleServerError, validateDate } from '../../../utils/validation';
+import { createValidationError, handleServerError } from '../../../utils/validation';
 import type { Env } from '../../../types';
 import { writeAuditLog } from '../../../utils/auditLog';
-
-type BulkInput = { startDate?: string; endDate?: string; status?: string; name?: string };
+import { BusinessDayOverrideBulkSchema } from '../../../../shared/calendarRequestSchemas';
 
 const enumerateDates = (startDate: string, endDate: string): string[] => {
     const dates: string[] = [];
@@ -17,18 +16,9 @@ const enumerateDates = (startDate: string, endDate: string): string[] => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as BulkInput;
-        const startError = validateDate(body.startDate, '開始日');
-        if (startError) return createValidationError(startError);
-        const endError = validateDate(body.endDate, '終了日');
-        if (endError) return createValidationError(endError);
-        if (body.startDate! > body.endDate!) return createValidationError('終了日は開始日以降にしてください');
-        if (body.status !== 'open' && body.status !== 'closed') {
-            return createValidationError('営業状態はopenまたはclosedで指定してください');
-        }
-        if (body.name !== undefined && typeof body.name !== 'string') return createValidationError('理由は文字列で入力してください');
-        if ((body.name ?? '').trim().length > 100) return createValidationError('理由は100文字以内で入力してください');
-
+        const parsed = BusinessDayOverrideBulkSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('一括設定の入力内容が不正です');
+        const body = parsed.data;
         const dates = enumerateDates(body.startDate!, body.endDate!);
         if (dates.length > 31) return createValidationError('一括登録は31日以内で指定してください');
 

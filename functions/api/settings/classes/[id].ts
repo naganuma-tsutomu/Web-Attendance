@@ -1,11 +1,14 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
+import { ClassUpdateSchema } from '../../../../shared/settingsEntitySchemas';
 
 // PUT /api/settings/classes/[id] — クラス更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { name?: string, display_order?: number, auto_allocate?: number, color?: string };
+        const parsed = ClassUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('クラスの入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name if provided
         if (body.name !== undefined) {
@@ -15,7 +18,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         let query = 'UPDATE classes SET ';
         const sets: string[] = [];
-        const params: any[] = [];
+        const params: D1BindParam[] = [];
 
         if (body.name !== undefined) {
             sets.push('name = ?');
@@ -41,9 +44,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         query += sets.join(', ') + ' WHERE id = ?';
         params.push(id);
 
-        await context.env.DB.prepare(query).bind(...params).run();
+        const result = await context.env.DB.prepare(query).bind(...params).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: 'クラスが見つかりません' }, { status: 404 });
+        }
         return Response.json({ success: true });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('classes.name')) {
+            return createValidationError('同じ名前のクラスが既にあります');
+        }
         return handleServerError(e, 'Database error updating class');
     }
 };
@@ -52,7 +61,30 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        await context.env.DB.prepare('DELETE FROM classes WHERE id = ?').bind(id).run();
+        const result = await context.env.DB.prepare(
+            `DELETE FROM classes
+             WHERE id = ?
+               AND NOT EXISTS (SELECT 1 FROM shifts WHERE classType = ?)`
+        ).bind(id, id).run();
+
+        if (Number(result.meta.changes ?? 0) === 0) {
+            const [existingClass, referencedShift] = await Promise.all([
+                context.env.DB.prepare('SELECT id FROM classes WHERE id = ?').bind(id).first(),
+                context.env.DB.prepare('SELECT id FROM shifts WHERE classType = ? LIMIT 1').bind(id).first(),
+            ]);
+            if (!existingClass) {
+                return new Response(JSON.stringify({ error: 'クラスが見つかりません' }), {
+                    status: 404,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+            if (referencedShift) {
+                return new Response(JSON.stringify({ error: 'シフトで使用中のクラスは削除できません' }), {
+                    status: 409,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+        }
         return Response.json({ success: true });
     } catch (e) {
         return handleServerError(e, 'Database error deleting class');

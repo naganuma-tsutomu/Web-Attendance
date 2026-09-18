@@ -1,25 +1,26 @@
-import { handleServerError } from '../../../utils/validation';
+import { createValidationError, handleServerError, validateYear } from '../../../utils/validation';
 import holiday_jp from '@holiday-jp/holiday_jp';
 import type { Env } from '../../../types';
 
-// GET /api/holidays/sync — 外部データと同期（@holiday-jp/holiday_jpパッケージ使用）
+type SyncedHoliday = { id: string; date: string; name: string };
+
+// POST /api/holidays/sync — 外部データと同期（@holiday-jp/holiday_jpパッケージ使用）
 // Query: ?year=2025 (年指定、省略時は今年と来年)
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
         const url = new URL(context.request.url);
         const yearParam = url.searchParams.get('year');
+        if (yearParam !== null) {
+            const yearError = validateYear(yearParam);
+            if (yearError) return createValidationError(yearError);
+        }
         
         const currentYear = new Date().getFullYear();
         const years = yearParam 
-            ? [parseInt(yearParam)] 
+            ? [Number(yearParam)]
             : [currentYear, currentYear + 1];
         
-        const results = {
-            synced: 0,
-            skipped: 0,
-            errors: [] as string[],
-            holidays: [] as any[]
-        };
+        const holidaysToSync: SyncedHoliday[] = [];
         
         for (const year of years) {
             // @holiday-jp/holiday_jpから祝日データを取得
@@ -31,49 +32,31 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
             for (const holiday of holidays) {
                 const dateStr = holiday.date.toISOString().split('T')[0]; // YYYY-MM-DD
                 const id = `hol_${year}_${dateStr.replace(/-/g, '')}`;
-                
-                // 振替休日かどうかを判定
-                const isSubstitute = holiday.name.includes('振替');
-                
-                try {
-                    // INSERT OR IGNOREで重複をスキップ
-                    await context.env.DB.prepare(
-                        `INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday) 
-                         VALUES (?, ?, ?, ?, ?)`
-                    ).bind(
-                        id,
-                        dateStr,
-                        holiday.name,
-                        'national',
-                        isSubstitute ? 0 : 0  // 振替休日も休日扱い
-                    ).run();
-                    
-                    results.holidays.push({
-                        date: dateStr,
-                        name: holiday.name,
-                        id
-                    });
-                    
-                    // 変更があったか確認（簡易的に実装）
-                    const { results: existing } = await context.env.DB.prepare(
-                        'SELECT id FROM holidays WHERE date = ?'
-                    ).bind(dateStr).all();
-                    
-                    if (existing && existing.length > 0 && existing[0].id === id) {
-                        results.synced++;
-                    } else {
-                        results.skipped++;
-                    }
-                } catch (err) {
-                    results.errors.push(`${dateStr}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                }
+                holidaysToSync.push({ id, date: dateStr, name: holiday.name });
             }
         }
+
+        // 祝日ごとの逐次D1アクセスを避け、1回のトランザクションで同期する。
+        const statements = holidaysToSync.map(holiday => context.env.DB.prepare(
+            `INSERT OR IGNORE INTO holidays (id, date, name, type, is_workday)
+             VALUES (?, ?, ?, 'national', 0)`
+        ).bind(holiday.id, holiday.date, holiday.name));
+        const batchResults = statements.length > 0
+            ? await context.env.DB.batch(statements)
+            : [];
+        const synced = batchResults.reduce(
+            (count, result) => count + (Number(result.meta.changes ?? 0) > 0 ? 1 : 0),
+            0,
+        );
+        const skipped = holidaysToSync.length - synced;
         
         return Response.json({
             success: true,
-            message: `同期完了: ${results.synced}件追加, ${results.skipped}件スキップ`,
-            ...results
+            message: `同期完了: ${synced}件追加, ${skipped}件スキップ`,
+            synced,
+            skipped,
+            errors: [],
+            holidays: holidaysToSync,
         });
     } catch (e) { 
         return handleServerError(e, 'Holiday sync failed'); 

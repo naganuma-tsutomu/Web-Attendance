@@ -1,4 +1,23 @@
 import { z } from 'zod';
+import { ShiftRequirementSchema } from '../../shared/shiftRequirementSchema';
+import { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared/shiftPreferenceSchema';
+import {
+  BreakSettingsSchema,
+  BusinessHoursSchema,
+  RotationSettingsSchema,
+  SchedulePreferencesSchema,
+} from '../../shared/appSettingsSchemas';
+
+export { ShiftRequirementSchema } from '../../shared/shiftRequirementSchema';
+export { ShiftPreferenceDetailSchema, ShiftPreferenceSchema } from '../../shared/shiftPreferenceSchema';
+export {
+  BreakSettingsSchema,
+  BusinessHoursSchema,
+  ExcelHighlightRuleSchema,
+  ExcelSettingsSchema,
+  RotationSettingsSchema,
+  SchedulePreferencesSchema,
+} from '../../shared/appSettingsSchemas';
 
 // ==========================================
 // Zod スキーマ定義 (Single Source of Truth)
@@ -32,25 +51,11 @@ export const ShiftClassSchema = z.object({
   color: z.string().optional().nullable(),
 });
 
-export const ShiftPreferenceDetailSchema = z.object({
-  date: z.string(),
-  startTime: z.string().optional().nullable(),
-  endTime: z.string().optional().nullable(),
-  type: z.string().optional().nullable(),
-});
-
-export const ShiftPreferenceSchema = z.object({
-  id: z.string(),
-  staffId: z.string(),
-  yearMonth: z.string(),
-  submitted: z.boolean().optional(),
-  details: z.array(ShiftPreferenceDetailSchema).optional(),
-});
-
 export const ShiftSchema = z.object({
   id: z.string(),
   date: z.string(),
   staffId: z.string(),
+  staffName: z.string().nullable().optional(),
   startTime: z.string(),
   endTime: z.string(),
   classType: z.string(),
@@ -94,17 +99,6 @@ export const DynamicRoleSchema = z.object({
   patterns: z.array(ShiftTimePatternSchema).optional().default([]),
 });
 
-export const ShiftRequirementSchema = z.object({
-  id: z.string(),
-  classId: z.string(),
-  dayOfWeek: z.number().int(),
-  startTime: z.string(),
-  endTime: z.string(),
-  minStaffCount: z.number().int(),
-  maxStaffCount: z.number().int().optional().nullable(),
-  priority: z.number().optional().nullable(),
-});
-
 export const ShiftRequirementTemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -131,51 +125,6 @@ export const BusinessDayOverrideSchema = z.object({
   name: z.string(),
   created_at: z.string().optional().nullable(),
   updated_at: z.string().optional().nullable(),
-});
-
-export const BusinessHoursSchema = z.object({
-  startHour: z.number().multipleOf(0.5),
-  endHour: z.number().multipleOf(0.5),
-  closedDays: z.array(z.number().int()).optional(),
-});
-
-export const ExcelHighlightRuleSchema = z.object({
-  staffId: z.string(),
-  regularStartTime: z.string(),
-  regularEndTime: z.string(),
-  highlightColor: z.string().default('FFFFCCE5'), // Pink
-});
-
-export const ExcelSettingsSchema = z.object({
-  excludeHolidayStaffOnSaturdays: z.boolean().default(true),
-  highlightRules: z.array(ExcelHighlightRuleSchema).default([]),
-  showDutyNumbers: z.boolean().default(false),
-  leaderRoleId: z.string().nullable().default(null),
-});
-
-export const BreakSettingsSchema = z.object({
-  exceptionEnabled: z.boolean().default(false),
-  exceptionThresholdTime: z.string().default('12:00'),
-  exceptionBreakMinutes: z.number().int().default(30),
-  displayActualHoursInModal: z.boolean().default(false),
-  displayActualHoursInExcel: z.boolean().default(false),
-});
-
-export const SchedulePreferencesSchema = z.object({
-  autoOpenGenerationReport: z.boolean().default(true),
-});
-
-export const RotationSettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  roleId: z.string().default(''),
-  earlyPatternId: z.string().default(''),
-  latePatternId: z.string().default(''),
-  weekdayEarlyCount: z.number().int().min(0).max(100).default(1),
-  weekdayLateCount: z.number().int().min(0).max(100).default(2),
-  saturdayEnabled: z.boolean().default(false),
-  saturdayCount: z.number().int().min(0).max(100).default(1),
-  saturdayPreferFridayLate: z.boolean().default(true),
-  saturdayPatternId: z.string().optional(),
 });
 
 export const AuditLogSchema = z.object({

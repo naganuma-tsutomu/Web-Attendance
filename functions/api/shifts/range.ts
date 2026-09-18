@@ -1,10 +1,13 @@
 import { createValidationError, handleServerError, validateDate } from '../../utils/validation';
 import type { Env } from '../../types';
 import { writeAuditLog } from '../../utils/auditLog';
+import { ShiftRangeDeleteSchema } from '../../../shared/shiftRequestSchemas';
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { startDate?: string; endDate?: string };
+        const parsed = ShiftRangeDeleteSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('削除期間の入力内容が不正です');
+        const body = parsed.data;
         const startError = validateDate(body.startDate, '開始日');
         if (startError) return createValidationError(startError);
         const endError = validateDate(body.endDate, '終了日');

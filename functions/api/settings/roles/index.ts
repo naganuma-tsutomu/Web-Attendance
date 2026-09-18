@@ -1,5 +1,6 @@
 import { handleServerError, createValidationError, validateName, validateTargetHours } from '../../../utils/validation';
 import type { Env, D1Row } from '../../../types';
+import { RoleCreateSchema } from '../../../../shared/settingsEntitySchemas';
 
 // GET /api/settings/roles — スタッフ区分+紐付けパターン一覧
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -42,7 +43,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/roles — スタッフ区分追加
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as { name: string, targetHours?: number | null, weeklyHoursTarget?: number | null, patternIds?: string[] };
+        const parsed = RoleCreateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('スタッフ区分の入力内容が不正です');
+        const body = parsed.data;
 
         // Validate name
         const nameError = validateName(body.name, 'スタッフ区分名', 50);
@@ -52,27 +55,35 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const hoursError = validateTargetHours(body.targetHours);
         if (hoursError) return createValidationError(hoursError);
 
-        const id = `stp_${crypto.randomUUID()}`;
+        const id = `role_${crypto.randomUUID()}`;
 
         // 1. スタッフ区分の追加 (display_order は既存の最大値 + 1)
-        const { maxOrder } = await context.env.DB.prepare('SELECT MAX(display_order) as maxOrder FROM roles').first<{ maxOrder: number }>();
-        const nextOrder = (maxOrder || 0) + 1;
+        const orderRow = await context.env.DB.prepare(
+            'SELECT MAX(display_order) as maxOrder FROM roles'
+        ).first<{ maxOrder: number }>();
+        const nextOrder = (orderRow?.maxOrder || 0) + 1;
 
-        await context.env.DB.prepare(
-            'INSERT INTO roles (id, name, targetHours, weeklyHoursTarget, display_order) VALUES (?, ?, ?, ?, ?)'
-        ).bind(id, body.name.trim(), body.targetHours === undefined ? null : body.targetHours, body.weeklyHoursTarget === undefined ? null : body.weeklyHoursTarget, nextOrder).run();
+        const statements = [
+            context.env.DB.prepare(
+                'INSERT INTO roles (id, name, targetHours, weeklyHoursTarget, display_order) VALUES (?, ?, ?, ?, ?)'
+            ).bind(id, body.name.trim(), body.targetHours === undefined ? null : body.targetHours, body.weeklyHoursTarget === undefined ? null : body.weeklyHoursTarget, nextOrder),
+        ];
 
         // 2. パターンの紐付け (もしあれば)
         if (body.patternIds && body.patternIds.length > 0) {
-            const statements = body.patternIds.map(patternId =>
+            statements.push(...body.patternIds.map(patternId =>
                 context.env.DB.prepare('INSERT INTO role_patterns (roleId, patternId) VALUES (?, ?)')
                     .bind(id, patternId)
-            );
-            await context.env.DB.batch(statements);
+            ));
         }
+
+        await context.env.DB.batch(statements);
 
         return Response.json({ id });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('roles.name')) {
+            return createValidationError('同じ名前のスタッフ区分が既にあります');
+        }
         return handleServerError(e, 'Database error creating role');
     }
 };

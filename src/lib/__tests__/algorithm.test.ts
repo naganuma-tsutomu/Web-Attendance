@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateShiftsForMonth, isStaffAvailable } from '../algorithm';
 import { UNASSIGNED_STAFF_ID, SHIFT_DAY } from '../../constants';
-import type { Staff, ShiftPreference, DynamicRole, ShiftRequirement } from '../../types';
+import type { Staff, Shift, ShiftPreference, DynamicRole, ShiftRequirement, ShiftTimePattern } from '../../types';
 
 // テスト用のスタッフデータ
 const makeStaff = (overrides: Partial<Staff> & { id: string; name: string; role: string }): Staff => ({
@@ -373,11 +373,11 @@ describe('generateShiftsForMonth', () => {
         const rotationPatterns = [
             { id: 'p_early', name: '早番', startTime: '07:00', endTime: '16:00', sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 0 },
             { id: 'p_late', name: '遅番', startTime: '10:00', endTime: '19:00', sun: 0, mon: 1, tue: 1, wed: 1, thu: 1, fri: 1, sat: 1, holiday: 0 }
-        ] as any[];
+        ] satisfies ShiftTimePattern[];
 
         const rotationRoles = [
             { id: 'role1', name: '正社員', targetHours: 160, display_order: 1, patterns: rotationPatterns }
-        ] as any[];
+        ] satisfies DynamicRole[];
 
         it('設定が有効な場合、要求とは独立してローテーションシフトが生成される', () => {
             const staff = [
@@ -403,7 +403,7 @@ describe('generateShiftsForMonth', () => {
             const existingShifts = [
                 { id: 'ex1', date: '2025-05-30', staffId: 'rs1', startTime: '10:00', endTime: '19:00', classType: 'class_niji' }, // 遅番
                 { id: 'ex2', date: '2025-05-30', staffId: 'rs2', startTime: '07:00', endTime: '16:00', classType: 'class_niji' }  // 早番
-            ] as any[];
+            ] satisfies Shift[];
 
             const shifts = generateShiftsForMonth('2025-06', staff, [], rotationRoles, dummyClasses, [], [], existingShifts, [], [], rotationSettings, rotationPatterns);
 

@@ -1,4 +1,5 @@
-import { handleServerError, createValidationError, validateName, validateRole } from '../../utils/validation';
+import { formatStaffInputError, StaffUpdateInputSchema } from '../../../shared/staffSchemas';
+import { handleServerError, createValidationError } from '../../utils/validation';
 import type { Env, D1BindParam } from '../../types';
 
 // staffs テーブルで更新を許可するカラム名のホワイトリスト
@@ -25,25 +26,15 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
-        const staffData = await context.request.json() as Partial<{
-            name: string; role: string; hoursTarget: number | null;
-            weeklyHoursTarget: number | null;
-            defaultWorkingHoursStart: string | null; defaultWorkingHoursEnd: string | null;
-            accessKey: string | null;
-            availableDays: (number | { day: number; weeks?: number[] | null })[];
-            classIds: string[];
-        }>;
-        
-        // Validate name if provided
-        if (staffData.name !== undefined) {
-            const nameError = validateName(staffData.name, '名前', 100);
-            if (nameError) return createValidationError(nameError);
-        }
-        
-        // Validate role if provided
-        if (staffData.role !== undefined) {
-            const roleError = validateRole(staffData.role);
-            if (roleError) return createValidationError(roleError);
+        const parsed = StaffUpdateInputSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError(formatStaffInputError(parsed.error));
+        const staffData = parsed.data;
+
+        const existing = await context.env.DB.prepare(
+            'SELECT id FROM staffs WHERE id = ? AND retired_at IS NULL'
+        ).bind(id).first();
+        if (!existing) {
+            return Response.json({ error: 'スタッフが見つかりません' }, { status: 404 });
         }
 
         // 更新するカラムを動的に構築（undefined = 更新しない、null = NULL を書き込む）
@@ -116,6 +107,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         return Response.json({ success: true });
     } catch (e) {
+        if (e instanceof Error && e.message.includes('UNIQUE constraint failed') && e.message.includes('staffs.access_key')) {
+            return new Response(JSON.stringify({ error: '指定されたアクセスキーは既に使用されています' }), {
+                status: 409,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
         return handleServerError(e, 'Database error updating staff');
     }
 };
@@ -126,9 +123,16 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         const id = url.pathname.split('/').pop();
         if (!id) return createValidationError('IDが指定されていません');
 
-        // ON DELETE CASCADE により staff_available_days, staff_classes,
-        // shifts, shift_preferences, shift_preference_dates も連動して削除される
-        await context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id).run();
+        const existing = await context.env.DB.prepare(
+            'SELECT id FROM staffs WHERE id = ? AND retired_at IS NULL'
+        ).bind(id).first();
+        if (!existing) {
+            return Response.json({ error: 'スタッフが見つかりません' }, { status: 404 });
+        }
+
+        await context.env.DB.prepare(
+            "UPDATE staffs SET retired_at = datetime('now'), access_key = NULL WHERE id = ? AND retired_at IS NULL"
+        ).bind(id).run();
 
         return Response.json({ success: true });
     } catch (e) {

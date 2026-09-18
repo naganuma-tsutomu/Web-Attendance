@@ -74,10 +74,11 @@ describe('shift API integrity validation', () => {
     });
 
     it('境界が接する追加シフトは許可する', async () => {
-        const batch = vi.fn().mockResolvedValue([]);
+        const run = vi.fn().mockResolvedValue({ success: true });
         const db = {
-            prepare: (sql: string) => makeStatement(sql, sql.includes('FROM shifts')
-                ? [{
+            prepare: (sql: string) => {
+                const statement = makeStatement(sql, sql.includes('FROM shifts')
+                    ? [{
                     id: 'existing',
                     date: '2026-08-03',
                     staffId: 's1',
@@ -85,9 +86,11 @@ describe('shift API integrity validation', () => {
                     endTime: '12:00',
                     classType: 'a',
                     isError: 0,
-                }]
-                : []),
-            batch,
+                    }]
+                    : []);
+                if (sql.includes('INSERT INTO shifts')) statement.run = run;
+                return statement;
+            },
         };
         const context = {
             request: {
@@ -101,7 +104,7 @@ describe('shift API integrity validation', () => {
         const response = await createShifts(context as never);
 
         expect(response.status).toBe(200);
-        expect(batch).toHaveBeenCalledTimes(1);
+        expect(run).toHaveBeenCalledTimes(1);
     });
 
     it('編集後に別シフトと重なる場合は409で拒否する', async () => {

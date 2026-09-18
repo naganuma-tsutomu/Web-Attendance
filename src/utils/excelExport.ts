@@ -256,7 +256,7 @@ export const exportToExcelAdvanced = async (
             }
 
             if (shift) {
-                rowData.name = staff ? staff.name : '未割当';
+                rowData.name = staff?.name ?? shift.staffName ?? '未割当';
                 rowData.class = shiftClass ? shiftClass.name : '';
                 if (showDutyNumbers) {
                     rowData.duty_number = effectiveDutyNumbers.get(shift.id) ?? 1;

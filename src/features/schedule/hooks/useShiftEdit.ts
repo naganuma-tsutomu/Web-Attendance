@@ -1,6 +1,6 @@
 import { useReducer, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { updateShift, saveShiftsBatch, deleteShift } from '../../../lib/api';
+import { replaceShiftsForDay } from '../../../lib/api';
 import { timeToMinutes } from '../../../utils/timeUtils';
 import { UNASSIGNED_STAFF_ID, SHIFT_STEP_MINS } from '../../../constants';
 import type { Shift, ClassType, ShiftTimePattern } from '../../../types';
@@ -196,10 +196,12 @@ interface UseShiftEditParams {
     onModifiedChange?: (modified: boolean) => void;
     saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
     discardRef?: React.MutableRefObject<(() => void) | null>;
+    expectedVersion?: number;
 }
 
 export function useShiftEdit({
-    shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef, discardRef
+    shifts, date, staffList, timePatterns, hours, onShiftUpdate, onModifiedChange, saveRef, discardRef,
+    expectedVersion,
 }: UseShiftEditParams) {
     const targetDateStr = format(date, 'yyyy-MM-dd');
 
@@ -250,66 +252,38 @@ export function useShiftEdit({
                 throw new Error('未設定の従業員がクラスに配置されています。保存する前に従業員を割り当ててください。');
             }
 
-            if (deletedIds.size > 0) {
-                await Promise.all(Array.from(deletedIds).map(id => deleteShift(id)));
+            if (expectedVersion === undefined) {
+                throw new Error('シフトを再読み込みしてから保存してください。');
             }
 
-            if (addedShifts.length > 0) {
-                const newShiftsToSave = addedShifts.map(s => {
-                    const local = localShifts[s.id];
-                    return {
-                        date: s.date,
-                        staffId: s.staffId,
-                        startTime: local ? toTimeStr(local.start) : s.startTime,
-                        endTime: local ? toTimeStr(local.end) : s.endTime,
-                        classType: local ? local.classType : s.classType,
-                        ...(local?.dutyNumber !== undefined ? { duty_number: local.dutyNumber } : {}),
-                    };
-                });
-                await saveShiftsBatch(newShiftsToSave);
-            }
-
-            const modifiedIds = Object.keys(localShifts).filter(id => {
-                if (id.startsWith('temp-')) return false;
-                const current = localShifts[id];
-                const initial = initialShifts[id];
-                return initial && (
-                    current.start !== initial.start ||
-                    current.end !== initial.end ||
-                    current.classType !== initial.classType ||
-                    current.isError !== initial.isError ||
-                    current.dutyNumber !== undefined
-                );
+            const finalShifts = [
+                ...shifts.filter(shift => shift.date === targetDateStr),
+                ...addedShifts,
+            ].filter(shift => !deletedIds.has(shift.id)).map(shift => {
+                const local = localShifts[shift.id];
+                return {
+                    ...(!shift.id.startsWith('temp-') ? { id: shift.id } : {}),
+                    date: targetDateStr,
+                    staffId: shift.staffId,
+                    startTime: local ? toTimeStr(local.start) : shift.startTime,
+                    endTime: local ? toTimeStr(local.end) : shift.endTime,
+                    classType: local?.classType ?? shift.classType,
+                    isEarlyShift: shift.isEarlyShift ?? false,
+                    isError: local?.isError ?? shift.isError ?? false,
+                    duty_number: local?.dutyNumber !== undefined
+                        ? local.dutyNumber
+                        : shift.duty_number ?? null,
+                };
             });
 
-            if (modifiedIds.length > 0) {
-                const dutyModifiedIds = modifiedIds.filter(id => localShifts[id].dutyNumber !== undefined);
-
-                if (dutyModifiedIds.length > 0) {
-                    await Promise.all(dutyModifiedIds.map(id => updateShift(id, { duty_number: null })));
-                }
-
-                const updates = modifiedIds.map(id => {
-                    const cur = localShifts[id];
-                    const init = initialShifts[id];
-                    const patch: Partial<Shift> = {};
-                    if (cur.start !== init.start) patch.startTime = toTimeStr(cur.start);
-                    if (cur.end !== init.end) patch.endTime = toTimeStr(cur.end);
-                    if (cur.classType !== init.classType) patch.classType = cur.classType;
-                    if (cur.isError !== init.isError) patch.isError = cur.isError;
-                    if (cur.dutyNumber !== undefined) patch.duty_number = cur.dutyNumber;
-                    return { id, patch };
-                }).filter(({ patch }) => Object.keys(patch).length > 0);
-
-                await Promise.all(updates.map(({ id, patch }) => updateShift(id, patch)));
-            }
+            await replaceShiftsForDay(targetDateStr, expectedVersion, finalShifts);
 
             onShiftUpdate?.();
         } catch (error) {
             console.error(error);
             throw error;
         }
-    }, [addedShifts, deletedIds, localShifts, initialShifts, shifts, onShiftUpdate]);
+    }, [addedShifts, deletedIds, expectedVersion, localShifts, shifts, targetDateStr, onShiftUpdate]);
 
     useEffect(() => {
         if (saveRef) saveRef.current = handleSave;

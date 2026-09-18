@@ -13,13 +13,10 @@ import type {
     AvailableDayConfig as _AvailableDayConfig,
     StaffInferred,
     ShiftClassInferred,
-    ShiftPreferenceDetailInferred,
-    ShiftPreferenceInferred,
     ShiftInferred,
     ShiftSnapshotMetadataInferred,
     ShiftTimePatternInferred,
     DynamicRoleInferred,
-    ShiftRequirementInferred,
     HolidayInferred,
     BusinessHoursInferred,
     SchedulePreferencesInferred,
@@ -27,6 +24,9 @@ import type {
     ExcelHighlightRuleSchema,
     AuditLogInferred,
 } from './schemas';
+
+export type { ShiftRequirement } from '../../shared/shiftRequirementSchema';
+export type { ShiftPreference, ShiftPreferenceDetail } from '../../shared/shiftPreferenceSchema';
 
 // ==========================================
 // 型エイリアス（単純なもの）
@@ -52,12 +52,6 @@ export interface ShiftClass extends Omit<ShiftClassInferred, 'display_order' | '
     auto_allocate: number;
     color?: string;
 }
-
-/** 希望休の詳細 */
-export type ShiftPreferenceDetail = ShiftPreferenceDetailInferred;
-
-/** 希望休 */
-export type ShiftPreference = ShiftPreferenceInferred;
 
 /** シフト */
 export interface Shift extends Omit<ShiftInferred, 'isError' | 'isEarlyShift' | 'classType'> {
@@ -117,11 +111,6 @@ export interface DynamicRole extends Omit<DynamicRoleInferred, 'display_order' |
     targetHours: number | null;
     display_order: number;
     patterns: ShiftTimePattern[];
-}
-
-/** シフト要件 */
-export interface ShiftRequirement extends Omit<ShiftRequirementInferred, 'priority'> {
-    priority: number;
 }
 
 /** 全クラスの必要人数設定をまとめた名前付きテンプレート */

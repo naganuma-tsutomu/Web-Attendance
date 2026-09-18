@@ -1,15 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Views, type View } from 'react-big-calendar';
 import { format } from 'date-fns';
-import { useQueries } from '@tanstack/react-query';
-import {
-    getBusinessDayOverrides, getHolidays, syncHolidaysIfNeeded,
-} from '../../../lib/api';
-import {
-    QUERY_KEYS, useStaffList, useClasses, useTimePatterns, useRoles,
-    useBusinessHours, useExcelSettings, useBreakSettings,
-    useSchedulePreferences, useShiftRequirements,
-} from '../../../lib/hooks';
+import { syncHolidaysIfNeeded } from '../../../lib/api';
 import { createBusinessDayOverrideMap, resolveBusinessDay } from '../../../lib/businessDayUtils';
 import { saveActiveMonth, loadActiveMonth } from '../../../utils/dateUtils';
 import { useScheduleQueries } from './useScheduleQueries';
@@ -35,39 +27,22 @@ export const useScheduleData = () => {
     const [isDayModified, setIsDayModified] = useState(false);
     const daySaveRef = useRef<(() => Promise<void>) | null>(null);
     const dayDiscardRef = useRef<(() => void) | null>(null);
+    const holidaySyncStartedRef = useRef(false);
 
-    // 静的データ
-    const { data: staffList = [], isLoading: isLoadingStaff } = useStaffList();
-    const { data: classes = [], isLoading: isLoadingClasses } = useClasses();
-    const { data: timePatterns = [], isLoading: isLoadingPatterns } = useTimePatterns();
-    const { data: roles = [], isLoading: isLoadingRoles } = useRoles();
-    const { data: businessHours } = useBusinessHours();
-    const { data: excelSettings } = useExcelSettings();
-    const { data: breakSettings } = useBreakSettings();
-    const { data: schedulePreferences } = useSchedulePreferences();
-    const { data: requirements = [], isLoading: isLoadingRequirements } = useShiftRequirements();
-
-    // 動的な複数月データフェッチ
-    const { rawShifts, preferences, fixedDates, monthsToFetch, isFetching, isError, refetch } = useScheduleQueries(currentDate, view);
-    const yearsToFetch = useMemo(() => Array.from(new Set(monthsToFetch.map(month => Number(month.slice(0, 4))))), [monthsToFetch]);
-
-    const holidayQueries = useQueries({
-        queries: yearsToFetch.map(year => ({
-            queryKey: QUERY_KEYS.holidays(year),
-            queryFn: () => getHolidays(year),
-        })),
-    });
-    const overrideQueries = useQueries({
-        queries: monthsToFetch.map(month => ({
-            queryKey: QUERY_KEYS.businessDayOverrides(month),
-            queryFn: () => getBusinessDayOverrides(month),
-        })),
-    });
-    const holidays = useMemo(() => holidayQueries.flatMap(query => query.data ?? []), [holidayQueries]);
-    const businessDayOverrides = useMemo(() => overrideQueries.flatMap(query => query.data ?? []), [overrideQueries]);
-    const isLoadingHolidays = holidayQueries.some(query => query.isLoading);
-    const isLoadingBusinessDayOverrides = overrideQueries.some(query => query.isLoading);
-    const hasBusinessDayQueryError = holidayQueries.some(query => query.isError) || overrideQueries.some(query => query.isError);
+    // 初期表示に必要な参照データ・複数月データを1リクエストで取得
+    const {
+        rawShifts, shiftMonthVersions, preferences, fixedDates, holidays, businessDayOverrides,
+        references, isLoading: loading, isFetching, isError, refetch,
+    } = useScheduleQueries(currentDate, view);
+    const staffList = references?.staffs ?? [];
+    const classes = references?.classes ?? [];
+    const timePatterns = references?.timePatterns ?? [];
+    const roles = references?.roles ?? [];
+    const businessHours = references?.businessHours;
+    const excelSettings = references?.excelSettings;
+    const breakSettings = references?.breakSettings;
+    const schedulePreferences = references?.schedulePreferences;
+    const requirements = references?.shiftRequirements ?? [];
 
     // カレンダーイベント構築
     const { events, summaryEvents, errorCount, errorDates, eventStyleGetter } = useCalendarEvents(
@@ -117,8 +92,10 @@ export const useScheduleData = () => {
     };
 
     // Loading & Error States
-    const loading = isLoadingStaff || isLoadingClasses || isLoadingPatterns || isLoadingRoles || isLoadingRequirements || isLoadingHolidays || isLoadingBusinessDayOverrides;
-    const loadError = isError || hasBusinessDayQueryError ? 'データの読み込みに失敗しました。' : null;
+    const loadError = isError
+        ? 'データの読み込みに失敗しました。再読み込みが完了するまで編集・生成・消去はできません。'
+        : null;
+    const canMutateSchedule = !loading && !loadError;
 
     // 変更ハンドラ群（生成・消去・更新・固定日切り替え）
     const actions = useScheduleActions({
@@ -128,22 +105,36 @@ export const useScheduleData = () => {
         rawShifts,
         classes,
         autoOpenGenerationReport: schedulePreferences?.autoOpenGenerationReport ?? true,
+        canMutateSchedule,
     });
 
     useEffect(() => {
-        syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
-    }, []);
+        if (loading || loadError || holidaySyncStartedRef.current) return;
+        // 初期表示に必要なGET群が完了してから、日次同期をバックグラウンドで始める。
+        const timer = window.setTimeout(() => {
+            holidaySyncStartedRef.current = true;
+            syncHolidaysIfNeeded().catch(err => console.error('Failed to sync holidays', err));
+        }, 1000);
+        return () => window.clearTimeout(timer);
+    }, [loading, loadError]);
 
     useEffect(() => {
         saveActiveMonth(currentDate);
     }, [currentDate]);
 
-    const loadShifts = () => refetch();
+    const loadShifts = () => {
+        void refetch();
+    };
+
+    const retryLoad = () => {
+        void refetch();
+    };
 
     return {
         // データ
         events,
         rawShifts,
+        shiftMonthVersions,
         staffList,
         classes,
         timePatterns,
@@ -164,6 +155,7 @@ export const useScheduleData = () => {
         errorCount,
         errorDates,
         loadError,
+        canMutateSchedule,
         currentDate,
         view,
         isDayModified,
@@ -179,6 +171,7 @@ export const useScheduleData = () => {
         setView,
         setIsDayModified,
         loadShifts,
+        retryLoad,
         eventStyleGetter,
         getHolidayNameForDate,
         getBusinessDayStatusForDate,

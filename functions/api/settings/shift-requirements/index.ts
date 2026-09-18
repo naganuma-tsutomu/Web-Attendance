@@ -1,4 +1,4 @@
-import type { ShiftRequirement } from '../../../../src/types';
+import { ShiftRequirementsRequestSchema } from '../../../../shared/shiftRequirementSchema';
 import {
     handleServerError,
     createValidationError,
@@ -8,7 +8,7 @@ import {
     validateMaxStaffCount
 } from '../../../utils/validation';
 
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
 
 // GET /api/settings/shift-requirements
 // Query params: classId, dayOfWeek (optional)
@@ -20,15 +20,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         let query = 'SELECT * FROM shift_requirements';
         const conditions: string[] = [];
-        const values: any[] = [];
+        const values: D1BindParam[] = [];
 
-        if (classId) {
+        if (classId !== null) {
+            const normalizedClassId = classId.trim();
+            if (!normalizedClassId || normalizedClassId.length > 128) {
+                return createValidationError('classIdは1〜128文字で指定してください');
+            }
             conditions.push('classId = ?');
-            values.push(classId);
+            values.push(normalizedClassId);
         }
 
         if (dayOfWeekParam !== null) {
-            const dayOfWeek = parseInt(dayOfWeekParam, 10);
+            if (!dayOfWeekParam.trim()) {
+                return createValidationError('曜日は整数値で指定してください');
+            }
+            const dayOfWeek = Number(dayOfWeekParam);
+            const dayError = validateDayOfWeek(dayOfWeek);
+            if (dayError) return createValidationError(dayError);
             conditions.push('dayOfWeek = ?');
             values.push(dayOfWeek);
         }
@@ -49,7 +58,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 // POST /api/settings/shift-requirements
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const body = await context.request.json() as ShiftRequirement | ShiftRequirement[];
+        const parsed = ShiftRequirementsRequestSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('必要人数設定の入力内容が不正です');
+        const body = parsed.data;
 
         // 配列に変換（単一オブジェクトの場合も配列に）
         const requirements = Array.isArray(body) ? body : [body];

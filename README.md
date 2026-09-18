@@ -39,13 +39,15 @@ echo 'ADMIN_PASSWORD=your_password' > .dev.vars
 npm run dev
 ```
 
-Cloudflare Workers のランタイムをエミュレートしながら起動します（`http://localhost:5173`）。
+Cloudflare Workers のランタイムをエミュレートしながら起動します。ブラウザではWranglerが表示するURL（通常は `http://localhost:8788`）を開いてください。`http://localhost:5173` はViteのプロキシ元で、Pages FunctionsのAPIを利用できません。
 
 ### テスト
 
 ```bash
 npm test
 ```
+
+Pull Requestとpushでは、GitHub Actionsがlint、型検査、全テスト、production build、空D1へのschema・seed適用を自動実行します。
 
 ## デプロイ（Cloudflare Pages）
 
@@ -56,7 +58,7 @@ npm test
 wrangler login
 
 # 本番用 D1 データベースを初期化
-wrangler d1 execute web-attendance-db --file=db/schema.sql
+wrangler d1 execute DB --remote --file=db/schema.sql
 
 # 管理者パスワードを本番環境に設定
 wrangler pages secret put ADMIN_PASSWORD
@@ -79,11 +81,11 @@ wrangler pages deploy dist
 
    ```bash
    # access_key 重複確認
-   wrangler d1 execute web-attendance-db \
+   wrangler d1 execute DB --remote \
      --command "SELECT access_key, COUNT(*) AS c FROM staffs WHERE access_key IS NOT NULL GROUP BY access_key HAVING c > 1;"
 
    # (date, classType, duty_number) 重複確認
-   wrangler d1 execute web-attendance-db \
+   wrangler d1 execute DB --remote \
      --command "SELECT date, classType, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, classType, duty_number HAVING c > 1;"
    ```
 
@@ -92,13 +94,13 @@ wrangler pages deploy dist
 2. **マイグレーション実行**
 
    ```bash
-   wrangler d1 execute web-attendance-db --file=db/migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute DB --remote --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
    ローカルで事前検証する場合:
 
    ```bash
-   wrangler d1 execute web-attendance-db --local --file=db/migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute DB --local --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
 > **注意**: 新規環境（初回セットアップ）は `db/schema.sql` のみで OK。マイグレーションは不要。
@@ -106,8 +108,40 @@ wrangler pages deploy dist
 機能追加後のマイグレーションは番号順に適用する。操作履歴機能を利用する環境では、次も実行する。
 
 ```bash
-wrangler d1 execute web-attendance-db --file=db/migrations/0004_audit_logs.sql
+wrangler d1 execute DB --remote --file=db/migrations/0004_audit_logs.sql
 ```
+
+復元DB・既存DBのスタッフ削除用外部キーを現行スキーマへ揃える場合は、次を実行する。
+
+```bash
+wrangler d1 execute DB --remote \
+  --file=db/migrations/0007_staff_preferences_on_delete_cascade.sql
+```
+
+希望休の月次レコードをスタッフごとに1件へ統一する場合は、`0007` の後に次を実行する。
+既存の重複はIDが最小の行へ統合され、いずれかが提出済みなら提出済み状態を維持する。
+
+```bash
+wrangler d1 execute DB --remote \
+  --file=db/migrations/0008_shift_preferences_unique_staff_month.sql
+```
+
+退職者を履歴として残す機能を既存DBで使う前に、`0009` を適用する。
+ローカル検証には `--local` を付け、本番への適用時はバックアップを確認して `--remote` を付ける。
+
+```bash
+wrangler d1 execute DB --local \
+  --file=db/migrations/0009_retired_staff.sql
+```
+
+本番へ適用する場合:
+
+```bash
+wrangler d1 execute DB --remote \
+  --file=db/migrations/0009_retired_staff.sql
+```
+
+退職操作ではスタッフのログイン資格を無効にし、過去シフトを残す。退職者履歴から元に戻すと同じスタッフ ID とシフトを引き継ぎ、新しいアクセスキーを発行する。完全削除では関連シフトとスナップショット内の該当シフトを削除する。
 
 ### 環境
 
@@ -150,6 +184,14 @@ wrangler pages deploy dist --env preview
 - アクション: 一時ブロックまたは Managed Challenge
 - 管理者ログイン `/api/auth/login` も同様に制限
 
+本番・プレビューへデプロイした後は、両方の環境で設定漏れを検査します。
+
+```bash
+RATE_LIMIT_TARGET_URL=https://example.pages.dev npm run check:auth-rate-limit
+```
+
+スタッフ用・管理者用ログインの両方が、20回以内に `429 Too Many Requests` を返せば成功です。制限回数を20回より多く設定している場合は、`RATE_LIMIT_CHECK_ATTEMPTS`（最大100）で検査回数を指定できます。この検査は実際に失敗ログインを連続送信するため、デプロイ直後のスモークテストとしてのみ実行してください。
+
 ## プロジェクト構成
 
 ```
@@ -172,3 +214,7 @@ wrangler pages deploy dist --env preview
 ---
 
 ユーザー向けの操作マニュアルは [USER_MANUAL.md](docs/USER_MANUAL.md) を参照してください。
+
+監視、障害対応、D1復旧については [OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md) を参照してください。
+
+依存関係の監査方針と既知の例外は [DEPENDENCY_SECURITY.md](docs/DEPENDENCY_SECURITY.md) を参照してください。

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { onRequestGet as getStaffs } from '../../../functions/api/staffs/index';
+import { onRequestDelete as deleteStaff } from '../../../functions/api/staffs/[id]';
 import { onRequestGet as getPreferences } from '../../../functions/api/preferences/index';
 import { onRequestPost as replaceShifts } from '../../../functions/api/shifts/replace';
 import { onRequest as middleware } from '../../../functions/api/_middleware';
@@ -57,6 +58,24 @@ const createContext = async (
 });
 
 describe('server API security boundaries', () => {
+    it('スタッフの退職時は関連シフトを残し、アクセスキーを無効にする', async () => {
+        const batch = vi.fn().mockResolvedValue([]);
+        const prepare = vi.fn((sql: string) => createStatement(
+                sql,
+                query => query.startsWith('SELECT id FROM staffs') ? [{ id: 's1' }] : [],
+            ));
+        const db = { prepare, batch };
+
+        const response = await deleteStaff({
+            request: { url: 'https://example.com/api/staffs/s1' },
+            env: { DB: db },
+        } as never);
+
+        expect(response.status).toBe(200);
+        expect(batch).not.toHaveBeenCalled();
+        expect(prepare).toHaveBeenCalledWith("UPDATE staffs SET retired_at = datetime('now'), access_key = NULL WHERE id = ? AND retired_at IS NULL");
+    });
+
     it('スタッフ権限のスタッフ一覧からアクセスキーを除外する', async () => {
         const staffToken = await signStaffCookie('s1', SECRET);
         const db = {
@@ -158,7 +177,7 @@ describe('server API security boundaries', () => {
     });
 
     it('月次シフト置換は固定日を除外した削除と挿入を同じbatchに積む', async () => {
-        const batch = vi.fn().mockResolvedValue([]);
+        const batch = vi.fn().mockResolvedValue([{}, { meta: { changes: 1 } }]);
         const prepared: MockStatement[] = [];
         const db = {
             prepare: (sql: string) => {
@@ -175,6 +194,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: ['2025-06-10'],
                 shifts: [{ date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' }],
             }
@@ -186,7 +206,7 @@ describe('server API security boundaries', () => {
         expect(batch).toHaveBeenCalledTimes(1);
         const deleteStatement = prepared.find(statement => statement.sql.startsWith('DELETE FROM shifts'));
         expect(deleteStatement?.sql).toContain('date NOT IN');
-        expect(deleteStatement?.binds).toEqual(['2025-06-01', '2025-07-01', '2025-06-10']);
+        expect(deleteStatement?.binds).toEqual(['2025-06-01', '2025-07-01', '2025-06-10', '2025-06', expect.any(String)]);
     });
 
     it('月次シフト置換は不正な挿入データなら削除batchを実行しない', async () => {
@@ -199,6 +219,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: [],
                 shifts: [{ date: '2025-07-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' }],
             }
@@ -220,6 +241,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: [],
                 shifts: [
                     { date: '2025-06-01', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a', duty_number: 1 },
@@ -244,6 +266,7 @@ describe('server API security boundaries', () => {
             'https://example.com/api/shifts/replace',
             {
                 yearMonth: '2025-06',
+                expectedVersion: 0,
                 fixedDates: [],
                 shifts: [
                     { date: '2025-06-02', staffId: 's1', startTime: '09:00', endTime: '18:00', classType: 'class_a' },
@@ -261,29 +284,14 @@ describe('server API security boundaries', () => {
         });
     });
 
-    it('月次シフト置換の途中失敗時は置換前データを復元する', async () => {
+    it('月次シフト置換は上限1000件でもDELETEと全INSERTを1回のbatchへ渡す', async () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        const batch = vi.fn()
-            .mockResolvedValueOnce([])
-            .mockRejectedValueOnce(new Error('second chunk failed'))
-            .mockResolvedValue([]);
+        const batch = vi.fn().mockRejectedValueOnce(new Error('atomic batch failed'));
         const db = {
-            prepare: (sql: string) => createStatement(sql, query => query.startsWith('SELECT id, date')
-                ? [{
-                    id: 'old1',
-                    date: '2025-06-02',
-                    staffId: 's1',
-                    startTime: '09:00',
-                    endTime: '18:00',
-                    classType: 'class_a',
-                    isEarlyShift: 0,
-                    isError: 0,
-                    duty_number: null,
-                }]
-                : []),
+            prepare: (sql: string) => createStatement(sql),
             batch,
         };
-        const shifts = Array.from({ length: 100 }, (_, index) => ({
+        const shifts = Array.from({ length: 1000 }, (_, index) => ({
             date: '2025-06-03',
             staffId: `s${index}`,
             startTime: '09:00',
@@ -295,16 +303,18 @@ describe('server API security boundaries', () => {
             '',
             db,
             'https://example.com/api/shifts/replace',
-            { yearMonth: '2025-06', fixedDates: [], shifts }
+            { yearMonth: '2025-06', expectedVersion: 0, fixedDates: [], shifts }
         );
 
         const response = await replaceShifts(context as never);
 
         expect(response.status).toBe(500);
-        expect(batch).toHaveBeenCalledTimes(3);
-        const restoreBatch = batch.mock.calls[2][0] as MockStatement[];
-        expect(restoreBatch[0].sql).toContain('DELETE FROM shifts');
-        expect(restoreBatch[1].binds[0]).toBe('old1');
+        expect(batch).toHaveBeenCalledTimes(1);
+        const atomicBatch = batch.mock.calls[0][0] as MockStatement[];
+        expect(atomicBatch).toHaveLength(5);
+        expect(atomicBatch[2].sql).toContain('DELETE FROM shifts');
+        expect(atomicBatch[3].sql).toContain('FROM json_each(?)');
+        expect(JSON.parse(String(atomicBatch[3].binds[0]))).toHaveLength(1000);
         consoleSpy.mockRestore();
     });
 });
@@ -312,6 +322,7 @@ describe('server API security boundaries', () => {
 describe('middleware 経由の認可: POST /api/shifts/replace', () => {
     const replaceBody = {
         yearMonth: '2025-06',
+        expectedVersion: 0,
         fixedDates: [],
         shifts: [],
     };
@@ -339,7 +350,7 @@ describe('middleware 経由の認可: POST /api/shifts/replace', () => {
         };
         const ctx = {
             request,
-            env: { ADMIN_PASSWORD: adminPassword },
+            env: { ADMIN_PASSWORD: adminPassword, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
             next,
         };
         return { ctx, isNextCalled: () => nextCalled };
@@ -388,7 +399,7 @@ describe('middleware 経由の認可: 個別営業日API', () => {
                 headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : name.toLowerCase() === 'content-type' ? 'application/json' : null },
                 clone: () => ({ json: async () => ({ date: '2026-08-13', status: 'closed', name: '夏季休業' }) }),
             },
-            env: { ADMIN_PASSWORD: SECRET },
+            env: { ADMIN_PASSWORD: SECRET, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
             next: async () => {
                 nextCalled = true;
                 return new Response(null, { status: 204 });
@@ -409,5 +420,49 @@ describe('middleware 経由の認可: 個別営業日API', () => {
         const response = await middleware(context as never);
         expect(response.status).toBe(401);
         expect(wasNextCalled()).toBe(false);
+    });
+
+    it('読み取り許可ルートの配下にある別APIはスタッフへ自動許可しない', async () => {
+        const staffToken = await signStaffCookie('s1', SECRET);
+        let nextCalled = false;
+        const context = {
+            request: {
+                url: 'https://example.com/api/settings/holidays/sync',
+                method: 'GET',
+                headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : null },
+            },
+            env: { ADMIN_PASSWORD: SECRET, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
+            next: async () => {
+                nextCalled = true;
+                return new Response(null, { status: 204 });
+            },
+        };
+
+        const response = await middleware(context as never);
+
+        expect(response.status).toBe(401);
+        expect(nextCalled).toBe(false);
+    });
+
+    it('スケジュール集約APIはスタッフへ許可しない', async () => {
+        const staffToken = await signStaffCookie('s1', SECRET);
+        let nextCalled = false;
+        const context = {
+            request: {
+                url: 'https://example.com/api/schedule-bootstrap?month=2026-08',
+                method: 'GET',
+                headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : null },
+            },
+            env: { ADMIN_PASSWORD: SECRET, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
+            next: async () => {
+                nextCalled = true;
+                return new Response(null, { status: 204 });
+            },
+        };
+
+        const response = await middleware(context as never);
+
+        expect(response.status).toBe(401);
+        expect(nextCalled).toBe(false);
     });
 });

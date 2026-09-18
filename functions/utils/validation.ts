@@ -102,6 +102,15 @@ export function validateRole(role: string): string | null {
     return null;
 }
 
+// Staff access keys are always exactly six decimal digits.
+export function validateAccessKey(accessKey: string | null | undefined): string | null {
+    if (accessKey === null || accessKey === undefined) return null;
+    if (!/^\d{6}$/.test(accessKey)) {
+        return 'アクセスキーは6桁の数字で入力してください';
+    }
+    return null;
+}
+
 // Validate yearMonth format (YYYY-MM)
 export function validateYearMonth(yearMonth: string | null | undefined): string | null {
     if (!yearMonth) return 'yearMonthは必須です';
@@ -111,6 +120,18 @@ export function validateYearMonth(yearMonth: string | null | undefined): string 
     const [year, month] = yearMonth.split('-').map(Number);
     if (month < 1 || month > 12) return 'yearMonthの月が不正です（01〜12）';
     if (year < 2000 || year > 2100) return 'yearMonthの年が不正です';
+    return null;
+}
+
+// Validate year format and supported application range.
+export function validateYear(year: string | null | undefined): string | null {
+    if (!year || !/^\d{4}$/.test(year)) {
+        return 'yearは2000〜2100の4桁で指定してください';
+    }
+    const numericYear = Number(year);
+    if (numericYear < 2000 || numericYear > 2100) {
+        return 'yearは2000〜2100の4桁で指定してください';
+    }
     return null;
 }
 

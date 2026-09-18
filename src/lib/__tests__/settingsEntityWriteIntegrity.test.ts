@@ -1,0 +1,262 @@
+import { describe, expect, it, vi } from 'vitest';
+import { onRequestPost as createRole } from '../../../functions/api/settings/roles/index';
+import {
+    onRequestDelete as deleteRole,
+    onRequestPut as updateRole,
+} from '../../../functions/api/settings/roles/[id]';
+import { onRequestPost as createTimePattern } from '../../../functions/api/settings/time-patterns/index';
+import {
+    onRequestDelete as deleteTimePattern,
+    onRequestPut as updateTimePattern,
+} from '../../../functions/api/settings/time-patterns/[id]';
+import { onRequestPost as createClass } from '../../../functions/api/settings/classes/index';
+import { onRequestPut as updateClass } from '../../../functions/api/settings/classes/[id]';
+
+type MockStatement = {
+    sql: string;
+    binds: unknown[];
+    bind: (...values: unknown[]) => MockStatement;
+    first: () => Promise<Record<string, unknown> | null>;
+    run: () => Promise<{ meta: { changes: number } }>;
+};
+
+const createDb = (resolveFirst: (sql: string) => Record<string, unknown> | null) => {
+    const statements: MockStatement[] = [];
+    const batch = vi.fn().mockResolvedValue([]);
+    const prepare = vi.fn((sql: string) => {
+        const statement: MockStatement = {
+            sql,
+            binds: [],
+            bind: (...values: unknown[]) => {
+                statement.binds = values;
+                return statement;
+            },
+            first: async () => resolveFirst(sql),
+            run: async () => ({ meta: { changes: 1 } }),
+        };
+        statements.push(statement);
+        return statement;
+    });
+    return { DB: { prepare, batch }, statements, batch };
+};
+
+describe('settings entity write integrity', () => {
+    it('スタッフ区分本体と勤務パターン関連付けを同じbatchで作成する', async () => {
+        const db = createDb(sql => sql.includes('MAX(display_order)') ? { maxOrder: 2 } : null);
+        const response = await createRole({
+            request: { json: async () => ({ name: '常勤', targetHours: 160, patternIds: ['pattern-1', 'pattern-2'] }) },
+            env: { DB: db.DB },
+        } as never);
+        const result = await response.json() as { id: string };
+
+        expect(response.status).toBe(200);
+        expect(result.id).toMatch(/^role_/);
+        expect(db.batch).toHaveBeenCalledTimes(1);
+        const batch = db.batch.mock.calls[0][0] as MockStatement[];
+        expect(batch.map(statement => statement.sql)).toEqual([
+            expect.stringContaining('INSERT INTO roles'),
+            expect.stringContaining('INSERT INTO role_patterns'),
+            expect.stringContaining('INSERT INTO role_patterns'),
+        ]);
+    });
+
+    it('重複するスタッフ区分名の作成を400で返す', async () => {
+        const db = createDb(sql => sql.includes('MAX(display_order)') ? { maxOrder: 1 } : null);
+        db.batch.mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: roles.name'));
+        const response = await createRole({
+            request: { json: async () => ({ name: '常勤' }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toEqual({ error: '同じ名前のスタッフ区分が既にあります' });
+    });
+
+    it('スタッフ区分本体と関連付けの更新を同じbatchへ積む', async () => {
+        const db = createDb(sql => sql.includes('SELECT id, name FROM roles') ? { id: 'role-1', name: '旧区分' } : null);
+        const response = await updateRole({
+            params: { id: 'role-1' },
+            request: { json: async () => ({ name: ' 常勤 ', patternIds: ['pattern-1'] }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(200);
+        const batch = db.batch.mock.calls[0][0] as MockStatement[];
+        expect(batch.map(statement => statement.sql)).toEqual([
+            expect.stringContaining('UPDATE roles SET'),
+            expect.stringContaining('UPDATE staffs SET role'),
+            expect.stringContaining('DELETE FROM role_patterns'),
+            expect.stringContaining('INSERT INTO role_patterns'),
+        ]);
+        expect(batch[0].binds).toEqual(['常勤', 'role-1']);
+        expect(batch[1].binds).toEqual(['常勤', '旧区分']);
+    });
+
+    it('存在しないスタッフ区分の更新を404で返す', async () => {
+        const db = createDb(() => null);
+        const response = await updateRole({
+            params: { id: 'missing' },
+            request: { json: async () => ({ patternIds: [] }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(404);
+        expect(db.batch).not.toHaveBeenCalled();
+    });
+
+    it('重複するスタッフ区分名への更新を400で返す', async () => {
+        const db = createDb(sql => sql.includes('SELECT id, name FROM roles') ? { id: 'role-1', name: '旧区分' } : null);
+        db.batch.mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: roles.name'));
+        const response = await updateRole({
+            params: { id: 'role-1' },
+            request: { json: async () => ({ name: '常勤' }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+    });
+
+    it('ローテーション設定で参照中のスタッフ区分を削除しない', async () => {
+        const db = createDb(sql => {
+            if (sql.includes('SELECT id, name FROM roles')) return { id: 'role-1', name: '常勤' };
+            if (sql.includes('COUNT(*)')) return { count: 0 };
+            if (sql.includes("key = 'rotation_settings'")) {
+                return {
+                    value: JSON.stringify({
+                        enabled: false,
+                        roleId: 'role-1',
+                        earlyPatternId: 'pattern-1',
+                        latePatternId: 'pattern-2',
+                        weekdayEarlyCount: 1,
+                        weekdayLateCount: 2,
+                        saturdayEnabled: false,
+                        saturdayCount: 1,
+                        saturdayPreferFridayLate: true,
+                    }),
+                };
+            }
+            return null;
+        });
+        const response = await deleteRole({
+            params: { id: 'role-1' },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(409);
+        expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM roles'))).toBe(false);
+    });
+
+    it('重複するクラス名の作成を400で返す', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: classes.name'));
+        const prepare = vi.fn(() => ({ bind: vi.fn(() => ({ run })) }));
+        const response = await createClass({
+            request: { json: async () => ({ name: 'A組' }) },
+            env: { DB: { prepare } },
+        } as never);
+
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toEqual({ error: '同じ名前のクラスが既にあります' });
+    });
+
+    it('重複するクラス名への更新を400で返す', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: classes.name'));
+        const prepare = vi.fn(() => ({ bind: vi.fn(() => ({ run })) }));
+        const response = await updateClass({
+            params: { id: 'class-1' },
+            request: { json: async () => ({ name: 'A組' }) },
+            env: { DB: { prepare } },
+        } as never);
+
+        expect(response.status).toBe(400);
+    });
+
+    it('名称またはIDでスタッフが参照中の区分を削除しない', async () => {
+        const db = createDb(sql => {
+            if (sql.includes('SELECT id, name FROM roles')) return { id: 'role-1', name: '常勤' };
+            if (sql.includes('COUNT(*)')) return { count: 2 };
+            return null;
+        });
+        const response = await deleteRole({
+            params: { id: 'role-1' },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+        const countStatement = db.statements.find(statement => statement.sql.includes('COUNT(*)'));
+        expect(countStatement?.binds).toEqual(['role-1', '常勤']);
+        expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM roles'))).toBe(false);
+    });
+
+    it('勤務時間パターン本体とスタッフ区分関連付けを同じbatchで作成する', async () => {
+        const db = createDb(sql => sql.includes('MAX(display_order)') ? { maxOrder: 3 } : null);
+        const response = await createTimePattern({
+            request: { json: async () => ({ name: '早番', startTime: '08:00', endTime: '17:00', roleIds: ['role-1'] }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(200);
+        const batch = db.batch.mock.calls[0][0] as MockStatement[];
+        expect(batch.map(statement => statement.sql)).toEqual([
+            expect.stringContaining('INSERT INTO shift_time_patterns'),
+            expect.stringContaining('INSERT INTO role_patterns'),
+        ]);
+    });
+
+    it('勤務時間パターン本体と関連付けの更新を同じbatchへ積む', async () => {
+        const db = createDb(sql => sql.includes('SELECT id, startTime')
+            ? { id: 'pattern-1', startTime: '08:00', endTime: '17:00' }
+            : null);
+        const response = await updateTimePattern({
+            params: { id: 'pattern-1' },
+            request: { json: async () => ({ endTime: '18:00', roleIds: ['role-1'] }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(200);
+        const batch = db.batch.mock.calls[0][0] as MockStatement[];
+        expect(batch.map(statement => statement.sql)).toEqual([
+            expect.stringContaining('UPDATE shift_time_patterns SET'),
+            expect.stringContaining('DELETE FROM role_patterns'),
+            expect.stringContaining('INSERT INTO role_patterns'),
+        ]);
+    });
+
+    it('勤務時間パターンの部分更新を既存時刻と組み合わせて検証する', async () => {
+        const db = createDb(sql => sql.includes('SELECT id, startTime')
+            ? { id: 'pattern-1', startTime: '08:00', endTime: '17:00' }
+            : null);
+        const response = await updateTimePattern({
+            params: { id: 'pattern-1' },
+            request: { json: async () => ({ endTime: '08:00' }) },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(400);
+        expect(db.batch).not.toHaveBeenCalled();
+    });
+
+    it('ローテーション設定で参照中の勤務時間パターンを削除しない', async () => {
+        const db = createDb(sql => sql.includes("key = 'rotation_settings'")
+            ? {
+                value: JSON.stringify({
+                    enabled: false,
+                    roleId: 'role-1',
+                    earlyPatternId: 'pattern-1',
+                    latePatternId: 'pattern-2',
+                    weekdayEarlyCount: 1,
+                    weekdayLateCount: 2,
+                    saturdayEnabled: false,
+                    saturdayCount: 1,
+                    saturdayPreferFridayLate: true,
+                }),
+            }
+            : null);
+        const response = await deleteTimePattern({
+            params: { id: 'pattern-2' },
+            env: { DB: db.DB },
+        } as never);
+
+        expect(response.status).toBe(409);
+        expect(db.statements.some(statement => statement.sql.startsWith('DELETE FROM shift_time_patterns'))).toBe(false);
+    });
+});

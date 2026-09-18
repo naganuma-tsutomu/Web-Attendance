@@ -58,9 +58,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             body: JSON.stringify({ password })
         });
         if (!res.ok) {
-            throw new Error('パスワードが間違っています。');
+            const data = await res.json().catch(() => ({})) as { error?: string; message?: string };
+            if (res.status === 401) throw new Error('パスワードが間違っています。');
+            if (res.status === 429) throw new Error(data.error || data.message || 'ログイン試行が多すぎます。しばらく待ってから再試行してください。');
+            if (res.status >= 500) throw new Error('ログイン処理でサーバーエラーが発生しました。サーバー設定とデータベースを確認してください。');
+            throw new Error(data.error || data.message || 'ログインに失敗しました。');
         }
-        await checkAuth();
+        const data = await res.json().catch(() => ({})) as { user?: User };
+        if (data.user) {
+            // ログイン応答で確定した認証状態を使い、直後の /auth/me 往復を省く。
+            setCurrentUser(data.user);
+        } else {
+            // 古いAPI応答との後方互換。
+            await checkAuth();
+        }
     }, [checkAuth]);
 
     const logout = useCallback(async () => {

@@ -26,13 +26,19 @@ interface UseScheduleActionsParams {
     rawShifts: Shift[];
     classes: ShiftClass[];
     autoOpenGenerationReport: boolean;
+    canMutateSchedule: boolean;
 }
+
+const DATA_NOT_READY_MESSAGE = 'データの再読み込みが完了するまで、シフトを変更できません。';
 
 export function useScheduleActions({
     currentDate, targetYearMonth, fixedDates, rawShifts, classes, autoOpenGenerationReport,
+    canMutateSchedule,
 }: UseScheduleActionsParams) {
     const fixedDatesRef = useRef(fixedDates);
     fixedDatesRef.current = fixedDates;
+    const canMutateScheduleRef = useRef(canMutateSchedule);
+    canMutateScheduleRef.current = canMutateSchedule;
     const [generating, setGenerating] = useState(false);
     const [isActionExecuting, setIsActionExecuting] = useState(false);
     const [generationReport, setGenerationReport] = useState<GenerationReport | null>(null);
@@ -53,7 +59,15 @@ export function useScheduleActions({
     const saveFixedDatesMutation = useSaveFixedDates();
     const createShiftSnapshotMutation = useCreateShiftSnapshot();
 
+    const ensureScheduleDataReady = () => {
+        if (canMutateScheduleRef.current) return true;
+        toast.error(DATA_NOT_READY_MESSAGE);
+        setConfirmAction(null);
+        return false;
+    };
+
     const executeGenerate = async () => {
+        if (!ensureScheduleDataReady()) return;
         setIsActionExecuting(true);
         setGenerating(true);
         try {
@@ -96,8 +110,8 @@ export function useScheduleActions({
             ]);
 
             const fixedDateSet = new Set(latestFixedDates);
-            const fixedContextShifts = targetMonthShifts.filter(s => fixedDateSet.has(s.date));
-            const mergedContext = [...previousMonthShifts, ...nextMonthShifts, ...fixedContextShifts];
+            const fixedContextShifts = targetMonthShifts.shifts.filter(s => fixedDateSet.has(s.date));
+            const mergedContext = [...previousMonthShifts.shifts, ...nextMonthShifts.shifts, ...fixedContextShifts];
 
             const generatedShifts = generateShiftsForMonth(
                 targetYearMonth,
@@ -136,6 +150,7 @@ export function useScheduleActions({
 
             await replaceShiftsMutation.mutateAsync({
                 yearMonth: targetYearMonth,
+                expectedVersion: targetMonthShifts.version,
                 shifts: generatedShifts,
                 fixedDates: latestFixedDates,
             });
@@ -165,6 +180,7 @@ export function useScheduleActions({
     };
 
     const handleGenerate = () => {
+        if (!ensureScheduleDataReady()) return;
         if (toggleFixedDateMutation.isPending) {
             toast.warning('固定日の保存完了後に自動生成を実行してください。');
             return;
@@ -178,11 +194,13 @@ export function useScheduleActions({
     };
 
     const handleClearShifts = () => {
+        if (!ensureScheduleDataReady()) return;
         setConfirmAction({
             title: 'シフトの消去',
             message: 'この月のロックされていないシフトを削除します。',
             checkboxLabel: 'ロック済みのシフトも削除する（ロックも解除されます）',
             onConfirm: async (includeFixedDates = false) => {
+                if (!ensureScheduleDataReady()) return;
                 setIsActionExecuting(true);
                 try {
                     await createShiftSnapshotMutation.mutateAsync({
@@ -214,6 +232,7 @@ export function useScheduleActions({
     };
 
     const handleLockAllShifts = async () => {
+        if (!ensureScheduleDataReady()) return;
         if (toggleFixedDateMutation.isPending) {
             toast.warning('個別ロックの保存完了後に実行してください');
             return;
@@ -243,6 +262,7 @@ export function useScheduleActions({
     };
 
     const handleUnlockAllShifts = async () => {
+        if (!ensureScheduleDataReady()) return;
         if (toggleFixedDateMutation.isPending) {
             toast.warning('個別ロックの保存完了後に実行してください');
             return;
@@ -267,6 +287,9 @@ export function useScheduleActions({
         editFormData: EditFormData,
         selectedEvent: import('./useCalendarEvents').CalendarEvent | null
     ) => {
+        if (!ensureScheduleDataReady()) {
+            throw new Error(DATA_NOT_READY_MESSAGE);
+        }
         try {
             if (selectedEvent) {
                 await updateShiftMutation.mutateAsync({
@@ -297,6 +320,7 @@ export function useScheduleActions({
     };
 
     const toggleFixedDate = (dateStr: string) => {
+        if (!ensureScheduleDataReady()) return;
         if (saveFixedDatesMutation.isPending) {
             toast.warning('一括ロック操作の完了後に変更してください');
             return;

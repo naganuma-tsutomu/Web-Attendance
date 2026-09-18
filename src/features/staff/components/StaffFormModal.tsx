@@ -64,6 +64,7 @@ const StaffFormModal = ({
                             <label htmlFor="staff-form-role" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">スタッフ区分マスタから選ぶ</label>
                             <select
                                 id="staff-form-role"
+                                required
                                 value={formData.role}
                                 onChange={e => handleRoleChange(e.target.value)}
                                 className="w-full px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-900 font-medium text-slate-700 dark:text-white appearance-none"

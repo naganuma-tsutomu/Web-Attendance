@@ -3,8 +3,8 @@ import { Views, type View } from 'react-big-calendar';
 import { format, startOfWeek, addDays, addMonths, addWeeks, subMonths, subWeeks, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Settings2, Download, AlertCircle, Loader2, Trash2, ChevronLeft, ChevronRight, BarChart2, Archive, FileUp, MoreHorizontal, Lock, LockOpen } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Shift, Staff, ShiftClass, ShiftTimePattern, BusinessHours, ShiftPreference, Holiday, ExcelSettings, BreakSettings, DynamicRole, BusinessDayOverride } from '../../../types';
-import { exportToExcelAdvanced } from '../../../utils/excelExport';
 import { getWeekStartsOn } from '../../../utils/dateUtils';
 import DatePicker from '../../../components/ui/DatePicker';
 
@@ -15,6 +15,7 @@ interface ScheduleHeaderProps {
     errorCount: number;
     errorDates?: { date: string; count: number }[];
     loadError: string | null;
+    actionsDisabled?: boolean;
     isFetching: boolean;
     isSummaryOpen: boolean;
     targetYearMonth: string;
@@ -55,6 +56,7 @@ const ScheduleHeader = ({
     errorCount,
     errorDates = [],
     loadError,
+    actionsDisabled = false,
     isFetching,
     isSummaryOpen,
     targetYearMonth,
@@ -89,6 +91,22 @@ const ScheduleHeader = ({
 }: ScheduleHeaderProps) => {
     const [showDesktopMoreMenu, setShowDesktopMoreMenu] = useState(false);
     const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
+    const [isPreparingExcel, setIsPreparingExcel] = useState(false);
+
+    const handleExcelExport = async () => {
+        if (isPreparingExcel || actionsDisabled) return;
+        setIsPreparingExcel(true);
+        try {
+            // ExcelJSを含む大きなチャンクは、実際に出力するときだけ取得する。
+            const { exportToExcelAdvanced } = await import('../../../utils/excelExport');
+            await exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides);
+        } catch (error) {
+            console.error('Failed to load Excel export module', error);
+            toast.error('Excel出力機能の読み込みに失敗しました');
+        } finally {
+            setIsPreparingExcel(false);
+        }
+    };
 
     return (
         <div className="flex-shrink-0 p-4 sm:p-6 md:p-8 pb-4 md:pb-4 space-y-6">
@@ -156,8 +174,8 @@ const ScheduleHeader = ({
                 <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full lg:w-auto lg:justify-end">
                     <button
                         onClick={onGenerate}
-                        disabled={generating}
-                        className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 hover:cursor-pointer'}`}
+                        disabled={generating || actionsDisabled}
+                        className={`flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors flex-1 sm:flex-none justify-center ${generating || actionsDisabled ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-700 hover:cursor-pointer'}`}
                     >
                         {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings2 className="w-5 h-5" />}
                         <span className="whitespace-nowrap">{generating ? '生成中...' : '自動生成'}</span>
@@ -166,7 +184,8 @@ const ScheduleHeader = ({
                     {/* デスクトップ: 個別ボタン */}
                     <button
                         onClick={onOpenBackups}
-                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer"
+                        disabled={actionsDisabled}
+                        className="hidden sm:flex items-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors justify-center hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Archive className="w-5 h-5 text-indigo-500" />
                         <span className="whitespace-nowrap">バックアップ</span>
@@ -183,10 +202,11 @@ const ScheduleHeader = ({
                         <span className="text-sm font-bold whitespace-nowrap">労働時間</span>
                     </button>
                     <button
-                        onClick={() => exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides)}
-                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+                        onClick={handleExcelExport}
+                        disabled={isPreparingExcel || actionsDisabled}
+                        className="hidden sm:flex items-center justify-center space-x-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-60"
                     >
-                        <Download className="w-5 h-5 text-green-600" />
+                        {isPreparingExcel ? <Loader2 className="w-5 h-5 animate-spin text-green-600" /> : <Download className="w-5 h-5 text-green-600" />}
                         <span className="text-xs font-bold whitespace-nowrap">Excel</span>
                     </button>
                     <div className="hidden sm:block relative">
@@ -204,21 +224,21 @@ const ScheduleHeader = ({
                             <>
                                 <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setShowDesktopMoreMenu(false)} />
                                 <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1.5 animate-in fade-in zoom-in-95 duration-150">
-                                    <button onClick={() => { onOpenImport(); setShowDesktopMoreMenu(false); }} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                    <button onClick={() => { onOpenImport(); setShowDesktopMoreMenu(false); }} disabled={actionsDisabled} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                         <FileUp className="w-4 h-4 text-emerald-600" /> シフトを取込
                                     </button>
                                     <button onClick={() => { onOpenGenerationReport(); setShowDesktopMoreMenu(false); }} disabled={!hasGenerationReport} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                         <BarChart2 className="w-4 h-4 text-emerald-600" /> 生成レポート
                                     </button>
                                     <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
-                                    <button onClick={() => { onLockAllShifts(); setShowDesktopMoreMenu(false); }} disabled={isBulkLockPending} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
+                                    <button onClick={() => { onLockAllShifts(); setShowDesktopMoreMenu(false); }} disabled={isBulkLockPending || actionsDisabled} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
                                         <Lock className="w-4 h-4 text-amber-600" /> すべてロック
                                     </button>
-                                    <button onClick={() => { onUnlockAllShifts(); setShowDesktopMoreMenu(false); }} disabled={isBulkLockPending} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
+                                    <button onClick={() => { onUnlockAllShifts(); setShowDesktopMoreMenu(false); }} disabled={isBulkLockPending || actionsDisabled} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
                                         <LockOpen className="w-4 h-4 text-slate-500" /> すべて解除
                                     </button>
                                     <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
-                                    <button onClick={() => { onClearShifts(); setShowDesktopMoreMenu(false); }} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                    <button onClick={() => { onClearShifts(); setShowDesktopMoreMenu(false); }} disabled={actionsDisabled} role="menuitem" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                         <Trash2 className="w-4 h-4" /> シフトを消去
                                     </button>
                                 </div>
@@ -229,7 +249,8 @@ const ScheduleHeader = ({
                     {/* モバイル: 労働時間 + バックアップ + ⋯ドロップダウン */}
                     <button
                         onClick={onOpenBackups}
-                        className="sm:hidden flex items-center justify-center px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl shadow-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        disabled={actionsDisabled}
+                        className="sm:hidden flex items-center justify-center px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl shadow-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         title="バックアップ"
                     >
                         <Archive className="w-5 h-5 text-indigo-500" />
@@ -258,7 +279,8 @@ const ScheduleHeader = ({
                                 <div className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 animate-in fade-in zoom-in-95 duration-150">
                                     <button
                                         onClick={() => { onOpenImport(); setShowMobileMoreMenu(false); }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                        disabled={actionsDisabled}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <FileUp className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                                         取込
@@ -272,8 +294,9 @@ const ScheduleHeader = ({
                                         レポート
                                     </button>
                                     <button
-                                        onClick={() => { exportToExcelAdvanced(targetYearMonth, staffList, rawShifts, classes, timePatterns, businessHours, preferences, holidays, excelSettings, breakSettings, roles, businessDayOverrides); setShowMobileMoreMenu(false); }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                                        onClick={() => { void handleExcelExport(); setShowMobileMoreMenu(false); }}
+                                        disabled={isPreparingExcel || actionsDisabled}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-60"
                                     >
                                         <Download className="w-4 h-4 text-green-600 flex-shrink-0" />
                                         Excel
@@ -281,7 +304,7 @@ const ScheduleHeader = ({
                                     <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
                                     <button
                                         onClick={() => { onLockAllShifts(); setShowMobileMoreMenu(false); }}
-                                        disabled={isBulkLockPending}
+                                        disabled={isBulkLockPending || actionsDisabled}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
                                     >
                                         <Lock className="w-4 h-4 text-amber-600 flex-shrink-0" />
@@ -289,7 +312,7 @@ const ScheduleHeader = ({
                                     </button>
                                     <button
                                         onClick={() => { onUnlockAllShifts(); setShowMobileMoreMenu(false); }}
-                                        disabled={isBulkLockPending}
+                                        disabled={isBulkLockPending || actionsDisabled}
                                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
                                     >
                                         <LockOpen className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -298,7 +321,8 @@ const ScheduleHeader = ({
                                     <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
                                     <button
                                         onClick={() => { onClearShifts(); setShowMobileMoreMenu(false); }}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                        disabled={actionsDisabled}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Trash2 className="w-4 h-4 flex-shrink-0" />
                                         シフトを消去

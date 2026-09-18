@@ -46,7 +46,7 @@ const ShiftBackupModal = ({ isOpen, yearMonth, onClose, onRestored }: ShiftBacku
     const [label, setLabel] = useState('');
     const [restoreTarget, setRestoreTarget] = useState<ShiftSnapshotMetadata | null>(null);
     const [exportingId, setExportingId] = useState<string | null>(null);
-    const { data: snapshots = [], isLoading, refetch } = useShiftSnapshots(yearMonth);
+    const { data: snapshots = [], isLoading, isError, refetch } = useShiftSnapshots(yearMonth);
     const createSnapshot = useCreateShiftSnapshot();
     const restoreSnapshot = useRestoreShiftSnapshot();
 
@@ -152,6 +152,17 @@ const ShiftBackupModal = ({ isOpen, yearMonth, onClose, onRestored }: ShiftBacku
                                 <div className="h-40 flex items-center justify-center text-slate-500 dark:text-slate-400">
                                     <Loader2 className="w-5 h-5 animate-spin mr-2" />
                                     読み込み中...
+                                </div>
+                            ) : isError ? (
+                                <div className="h-40 flex flex-col gap-3 items-center justify-center text-sm text-amber-700 dark:text-amber-300" role="alert">
+                                    <span>バックアップの読み込みに失敗しました</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => refetch()}
+                                        className="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                    >
+                                        再試行
+                                    </button>
                                 </div>
                             ) : sortedSnapshots.length === 0 ? (
                                 <div className="h-40 flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">

@@ -1,15 +1,14 @@
 import { handleServerError, createValidationError, validateName } from '../../../utils/validation';
-import type { Env } from '../../../types';
+import type { D1BindParam, Env } from '../../../types';
+import { HolidayUpdateSchema } from '../../../../shared/calendarRequestSchemas';
 
 // PUT /api/holidays/:id — 祝日更新
 export const onRequestPut: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        const body = await context.request.json() as { 
-            name?: string;
-            type?: string;
-            isWorkday?: boolean;
-        };
+        const parsed = HolidayUpdateSchema.safeParse(await context.request.json());
+        if (!parsed.success) return createValidationError('祝日の入力内容が不正です');
+        const body = parsed.data;
         
         // Validate name if provided
         if (body.name !== undefined) {
@@ -19,7 +18,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         
         let query = 'UPDATE holidays SET ';
         const sets: string[] = [];
-        const params: any[] = [];
+        const params: D1BindParam[] = [];
         
         if (body.name !== undefined) {
             sets.push('name = ?');
@@ -42,7 +41,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         query += sets.join(', ') + ' WHERE id = ?';
         params.push(id);
         
-        await context.env.DB.prepare(query).bind(...params).run();
+        const result = await context.env.DB.prepare(query).bind(...params).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: '祝日が見つかりません' }, { status: 404 });
+        }
         return new Response(null, { status: 204 });
     } catch (e) { 
         return handleServerError(e, 'Database error updating holiday'); 
@@ -53,7 +55,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
     try {
         const id = context.params.id as string;
-        await context.env.DB.prepare('DELETE FROM holidays WHERE id = ?').bind(id).run();
+        const result = await context.env.DB.prepare('DELETE FROM holidays WHERE id = ?').bind(id).run();
+        if (!result.meta.changes) {
+            return Response.json({ error: '祝日が見つかりません' }, { status: 404 });
+        }
         return new Response(null, { status: 204 });
     } catch (e) { 
         return handleServerError(e, 'Database error deleting holiday'); 

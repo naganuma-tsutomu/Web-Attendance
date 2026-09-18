@@ -19,7 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     const staff = await context.env.DB.prepare(
-        'SELECT id, name FROM staffs WHERE id = ?'
+        'SELECT id, name FROM staffs WHERE id = ? AND retired_at IS NULL'
     ).bind(staffId).first() as { id: string; name: string } | null;
 
     if (!staff) {

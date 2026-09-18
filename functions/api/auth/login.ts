@@ -1,5 +1,10 @@
 import { signCookie, TOKEN_MAX_AGE_SECONDS, ADMIN_COOKIE_NAME } from '../../utils';
 import type { Env } from '../../types';
+import { AdminLoginSchema } from '../../../shared/basicRequestSchemas';
+import {
+    buildAuthRateLimitKeys, checkAuthRateLimit, clearAuthFailures,
+    createRateLimitResponse, recordAuthFailure,
+} from '../../utils/authRateLimit';
 
 /**
  * HMAC-SHA256 を使った定数時間パスワード比較
@@ -32,7 +37,18 @@ async function timingSafePasswordCheck(input: string, expected: string): Promise
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
     try {
-        const { password } = await context.request.json() as { password?: string };
+        const rateLimitKeys = await buildAuthRateLimitKeys(context.request, 'admin');
+        const retryAfter = await checkAuthRateLimit(context.env.DB, rateLimitKeys);
+        if (retryAfter > 0) return createRateLimitResponse(retryAfter);
+
+        const parsed = AdminLoginSchema.safeParse(await context.request.json());
+        if (!parsed.success) {
+            const retry = await recordAuthFailure(context.env.DB, rateLimitKeys);
+            return retry > 0
+                ? createRateLimitResponse(retry)
+                : Response.json({ error: '認証に失敗しました' }, { status: 401 });
+        }
+        const { password } = parsed.data;
         const ADMIN_PASSWORD = context.env.ADMIN_PASSWORD;
 
         if (!ADMIN_PASSWORD) {
@@ -43,19 +59,26 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
 
         // 定数時間比較（タイミング攻撃対策）
-        const isValid = typeof password === 'string' && await timingSafePasswordCheck(password, ADMIN_PASSWORD);
+        const isValid = await timingSafePasswordCheck(password, ADMIN_PASSWORD);
         if (!isValid) {
+            const retry = await recordAuthFailure(context.env.DB, rateLimitKeys);
+            if (retry > 0) return createRateLimitResponse(retry);
             return new Response(
                 JSON.stringify({ error: '認証に失敗しました' }),
                 { status: 401, headers: { 'Content-Type': 'application/json' } }
             );
         }
 
+        await clearAuthFailures(context.env.DB, rateLimitKeys);
+
         const token = await signCookie(ADMIN_PASSWORD);
         const isSecure = context.request.url.startsWith('https');
         const cookie = `${ADMIN_COOKIE_NAME}=${token}; HttpOnly; Path=/; Max-Age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Strict${isSecure ? '; Secure' : ''}`;
 
-        return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({
+            success: true,
+            user: { uid: 'admin', email: 'admin' },
+        }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',

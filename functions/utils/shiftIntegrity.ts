@@ -15,6 +15,23 @@ export const validateNoShiftConflicts = (shifts: PersistedShift[]): Response | n
     return conflict ? createShiftConflictResponse(conflict) : null;
 };
 
+export const validateActiveStaffAssignments = async (
+    db: Env['DB'],
+    staffIds: string[],
+): Promise<Response | null> => {
+    const ids = [...new Set(staffIds.filter(id => id && id !== 'UNASSIGNED'))];
+    if (ids.length === 0) return null;
+    const { results } = await db.prepare(
+        `SELECT requested.value AS id
+         FROM json_each(?) AS requested
+         LEFT JOIN staffs st ON st.id = requested.value AND st.retired_at IS NULL
+         WHERE st.id IS NULL`
+    ).bind(JSON.stringify(ids)).all();
+    return results.length > 0
+        ? Response.json({ error: '退職者または存在しないスタッフを新しいシフトに割り当てることはできません。' }, { status: 409 })
+        : null;
+};
+
 export const loadStaffShiftsForDates = async (
     db: Env['DB'],
     shifts: PersistedShift[],
@@ -29,23 +46,40 @@ export const loadStaffShiftsForDates = async (
         });
     }
 
-    const rows = await Promise.all([...keys.values()].map(async ({ date, staffId }) => {
-        const statement = excludedId
-            ? db.prepare(
-                `SELECT id, date, staffId, startTime, endTime, classType, isError
-                 FROM shifts
-                 WHERE date = ? AND staffId = ? AND id <> ? AND isError = 0`
-            ).bind(date, staffId, excludedId)
-            : db.prepare(
-                `SELECT id, date, staffId, startTime, endTime, classType, isError
-                 FROM shifts
-                 WHERE date = ? AND staffId = ? AND isError = 0`
-            ).bind(date, staffId);
-        const result = await statement.all();
-        return result.results as D1Row[];
-    }));
+    if (keys.size === 0) return [];
 
-    return rows.flat().map(row => ({
+    const serializedKeys = JSON.stringify([...keys.values()]);
+    const statement = excludedId
+        ? db.prepare(
+            `WITH requested_keys AS (
+                SELECT DISTINCT
+                    json_extract(value, '$.date') AS date,
+                    json_extract(value, '$.staffId') AS staffId
+                FROM json_each(?)
+             )
+             SELECT s.id, s.date, s.staffId, s.startTime, s.endTime, s.classType, s.isError
+             FROM shifts AS s
+             INNER JOIN requested_keys AS requested
+                ON requested.date = s.date AND requested.staffId = s.staffId
+             WHERE s.id <> ? AND s.isError = 0`
+        ).bind(serializedKeys, excludedId)
+        : db.prepare(
+            `WITH requested_keys AS (
+                SELECT DISTINCT
+                    json_extract(value, '$.date') AS date,
+                    json_extract(value, '$.staffId') AS staffId
+                FROM json_each(?)
+             )
+             SELECT s.id, s.date, s.staffId, s.startTime, s.endTime, s.classType, s.isError
+             FROM shifts AS s
+             INNER JOIN requested_keys AS requested
+                ON requested.date = s.date AND requested.staffId = s.staffId
+             WHERE s.isError = 0`
+        ).bind(serializedKeys);
+    const result = await statement.all();
+    const rows = result.results as D1Row[];
+
+    return rows.map(row => ({
         id: String(row.id),
         date: String(row.date),
         staffId: String(row.staffId),

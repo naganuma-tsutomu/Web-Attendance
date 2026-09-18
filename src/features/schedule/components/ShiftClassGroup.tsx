@@ -140,7 +140,7 @@ const ShiftClassGroup: React.FC<ShiftClassGroupProps> = ({
                 )}
                 {sortedGroupShifts.map((shift) => {
                     const staff = staffList.find(s => s.id === shift.staffId);
-                    const staffName = staff ? staff.name : (shift.isError ? '未割り当て' : '不明');
+                    const staffName = staff?.name ?? shift.staffName ?? (shift.isError ? '未割り当て' : '不明');
                     const s = localShifts[shift.id];
                     if (!s) return null;
                     const pendingDuty = getPendingDuty(shift);

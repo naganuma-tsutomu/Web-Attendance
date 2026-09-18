@@ -86,7 +86,7 @@ describe('useStaffListActions', () => {
 
         await act(async () => result.current.confirmDelete());
         expect(mocks.deleteStaff.mutateAsync).toHaveBeenCalledWith('s1');
-        expect(mocks.toastSuccess).toHaveBeenCalledWith('スタッフを削除しました。');
+        expect(mocks.toastSuccess).toHaveBeenCalledWith('スタッフを退職者履歴に移しました。');
         expect(result.current.deleteTarget).toBeNull();
     });
 
@@ -96,7 +96,7 @@ describe('useStaffListActions', () => {
         act(() => result.current.requestDelete('s1', '山田'));
 
         await act(async () => result.current.confirmDelete());
-        expect(mocks.handleApiError).toHaveBeenCalledWith(expect.any(Error), '削除に失敗しました');
+        expect(mocks.handleApiError).toHaveBeenCalledWith(expect.any(Error), '退職処理に失敗しました');
         expect(result.current.deleteTarget).toEqual({ id: 's1', name: '山田' });
         expect(result.current.isDeleting).toBe(false);
     });

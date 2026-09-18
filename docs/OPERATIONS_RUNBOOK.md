@@ -1,12 +1,12 @@
 # 運用・障害対応Runbook
 
-最終確認日: 2026-08-04
+最終確認日: 2026-09-18
 
 ## 1. 対象環境
 
 | 環境 | D1データベース | 用途 |
 |---|---|---|
-| 本番 | `web-attendance-restored-db` | 利用者向け環境 |
+| 本番 | `web-attendance-db` | 利用者向け環境 |
 | preview | `web-attendance-preview-db` | リリース前確認 |
 
 本番操作では、コマンド実行前に対象DB名とCloudflareアカウントを二人で確認する。ローカル検証には必ず `--local` を付け、本番DB名だけを根拠に接続先を判断しない。
@@ -67,7 +67,7 @@ HAVING count > 1;
 本番での確認例:
 
 ```bash
-npx wrangler d1 execute web-attendance-restored-db --remote --command "SELECT COUNT(*) AS orphan_shifts FROM shifts s LEFT JOIN staffs st ON st.id = s.staffId WHERE st.id IS NULL;"
+npx wrangler d1 execute web-attendance-db --remote --command "SELECT COUNT(*) AS orphan_shifts FROM shifts s LEFT JOIN staffs st ON st.id = s.staffId WHERE st.id IS NULL;"
 ```
 
 ### D1メトリクス
@@ -93,9 +93,9 @@ D1のTime Travelは自動的に有効だが、復旧可能期間は契約プラ�
 ### 事前確認
 
 ```bash
-npx wrangler d1 info web-attendance-restored-db
-npx wrangler d1 time-travel info web-attendance-restored-db
-npx wrangler d1 time-travel info web-attendance-restored-db --timestamp="2026-08-04T12:00:00+09:00"
+npx wrangler d1 info web-attendance-db
+npx wrangler d1 time-travel info web-attendance-db
+npx wrangler d1 time-travel info web-attendance-db --timestamp="2026-08-04T12:00:00+09:00"
 ```
 
 1. `d1 info` のストレージバージョンと対象DBを確認する。
@@ -109,7 +109,7 @@ npx wrangler d1 time-travel info web-attendance-restored-db --timestamp="2026-08
 以下はプレースホルダーを実値に置き換え、対象と承認を再確認してから手動実行する。
 
 ```bash
-npx wrangler d1 time-travel restore web-attendance-restored-db --bookmark=RESTORE_BOOKMARK
+npx wrangler d1 time-travel restore web-attendance-db --bookmark=RESTORE_BOOKMARK
 ```
 
 復元後は、スタッフ数、対象月シフト数、固定日数、孤児シフト、当番番号重複、直近監査ログを確認する。誤った時点へ復元した場合は、事前に保存した現在ブックマークへ復元して取り消す。

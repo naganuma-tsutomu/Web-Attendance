@@ -55,6 +55,7 @@ export const ShiftSchema = z.object({
   id: z.string(),
   date: z.string(),
   staffId: z.string(),
+  staffName: z.string().nullable().optional(),
   startTime: z.string(),
   endTime: z.string(),
   classType: z.string(),

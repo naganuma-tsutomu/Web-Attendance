@@ -50,6 +50,33 @@ export const deleteStaff = async (staffId: string): Promise<void> => {
     await apiFetch(`/staffs/${encodeURIComponent(staffId)}`, { method: 'DELETE' });
 };
 
+export interface RetiredStaff {
+    id: string;
+    name: string;
+    role: string;
+    retiredAt: string;
+    shiftCount: number;
+}
+
+const RetiredStaffSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    role: z.string(),
+    retiredAt: z.string(),
+    shiftCount: z.number(),
+});
+
+export const getRetiredStaffList = async (): Promise<RetiredStaff[]> =>
+    apiFetch('/staffs/retired', {}, z.array(RetiredStaffSchema));
+
+export const restoreRetiredStaff = async (staffId: string): Promise<void> => {
+    await apiFetch(`/staffs/retired/${encodeURIComponent(staffId)}`, { method: 'POST' });
+};
+
+export const permanentlyDeleteRetiredStaff = async (staffId: string): Promise<void> => {
+    await apiFetch(`/staffs/retired/${encodeURIComponent(staffId)}`, { method: 'DELETE' });
+};
+
 export const updateStaffOrder = async (orders: { id: string; order: number }[]): Promise<void> => {
     await apiFetch('/staffs/reorder', {
         method: 'PUT',

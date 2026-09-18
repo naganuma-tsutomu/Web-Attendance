@@ -1,6 +1,6 @@
 import { createValidationError, handleServerError, validateYearMonth, validateDate, validateTimeRange } from '../../utils/validation';
 import type { Env, D1Row } from '../../types';
-import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { loadStaffShiftsForDates, validateActiveStaffAssignments, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
 import { ShiftBatchCreateSchema } from '../../../shared/shiftRequestSchemas';
 
@@ -17,7 +17,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         const [{ results }, versionRow] = await Promise.all([
             context.env.DB.prepare(
-                "SELECT * FROM shifts WHERE date >= ? AND date < ?"
+                `SELECT sh.*, st.name AS staffName
+                 FROM shifts sh LEFT JOIN staffs st ON st.id = sh.staffId
+                 WHERE sh.date >= ? AND sh.date < ?`
             ).bind(startStr, nextMonth).all(),
             context.env.DB.prepare(
                 "SELECT version FROM shift_month_versions WHERE year_month = ?"
@@ -66,6 +68,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
         const payloadConflict = validateNoShiftConflicts(shiftsData);
         if (payloadConflict) return payloadConflict;
+        const staffError = await validateActiveStaffAssignments(context.env.DB, shiftsData.map(shift => shift.staffId));
+        if (staffError) return staffError;
 
         const existingShifts = await loadStaffShiftsForDates(context.env.DB, shiftsData);
         const existingConflict = validateNoShiftConflicts([...existingShifts, ...shiftsData]);

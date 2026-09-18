@@ -9,11 +9,13 @@ import StaffListToolbar from './components/StaffListToolbar';
 import StaffDeleteConfirmModal from './components/StaffDeleteConfirmModal';
 import StaffMobileList from './components/StaffMobileList';
 import StaffDesktopTable from './components/StaffDesktopTable';
+import RetiredStaffHistory from './components/RetiredStaffHistory';
 import { useStaffForm } from './hooks/useStaffForm';
 import { useStaffListActions } from './hooks/useStaffListActions';
 
 const StaffPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [view, setView] = useState<'active' | 'retired'>('active');
     const [currentMonth, setCurrentMonth] = useState(() => loadActiveMonth());
 
     // --- React Query Hooks ---
@@ -56,6 +58,12 @@ const StaffPage = () => {
                 onRetry={handleRetry}
             />
 
+            <div role="tablist" aria-label="スタッフ表示" className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+                <button type="button" role="tab" aria-selected={view === 'active'} onClick={() => setView('active')} className={`px-4 py-2 text-sm font-bold ${view === 'active' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}>現役スタッフ</button>
+                <button type="button" role="tab" aria-selected={view === 'retired'} onClick={() => setView('retired')} className={`px-4 py-2 text-sm font-bold ${view === 'retired' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500'}`}>退職者履歴</button>
+            </div>
+
+            {view === 'active' ? <>
             <StaffListToolbar
                 currentMonth={currentMonth}
                 isLoading={loadingShifts || isShiftsFetching}
@@ -87,6 +95,7 @@ const StaffPage = () => {
                 onDragStart={staffActions.handleDragStart}
                 onEdit={staffForm.openEditForm}
             />
+            </> : <RetiredStaffHistory />}
 
             <StaffFormModal
                 isOpen={staffForm.isOpen}

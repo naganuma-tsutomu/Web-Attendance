@@ -58,7 +58,7 @@ Pull Requestとpushでは、GitHub Actionsがlint、型検査、全テスト、p
 wrangler login
 
 # 本番用 D1 データベースを初期化
-wrangler d1 execute web-attendance-restored-db --file=db/schema.sql
+wrangler d1 execute DB --remote --file=db/schema.sql
 
 # 管理者パスワードを本番環境に設定
 wrangler pages secret put ADMIN_PASSWORD
@@ -81,11 +81,11 @@ wrangler pages deploy dist
 
    ```bash
    # access_key 重複確認
-   wrangler d1 execute web-attendance-restored-db \
+   wrangler d1 execute DB --remote \
      --command "SELECT access_key, COUNT(*) AS c FROM staffs WHERE access_key IS NOT NULL GROUP BY access_key HAVING c > 1;"
 
    # (date, classType, duty_number) 重複確認
-   wrangler d1 execute web-attendance-restored-db \
+   wrangler d1 execute DB --remote \
      --command "SELECT date, classType, duty_number, COUNT(*) AS c FROM shifts WHERE duty_number IS NOT NULL GROUP BY date, classType, duty_number HAVING c > 1;"
    ```
 
@@ -94,13 +94,13 @@ wrangler pages deploy dist
 2. **マイグレーション実行**
 
    ```bash
-   wrangler d1 execute web-attendance-restored-db --file=db/migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute DB --remote --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
    ローカルで事前検証する場合:
 
    ```bash
-   wrangler d1 execute web-attendance-restored-db --local --file=db/migrations/0001_initial_schema_updates.sql
+   wrangler d1 execute DB --local --file=db/migrations/0001_initial_schema_updates.sql
    ```
 
 > **注意**: 新規環境（初回セットアップ）は `db/schema.sql` のみで OK。マイグレーションは不要。
@@ -108,13 +108,13 @@ wrangler pages deploy dist
 機能追加後のマイグレーションは番号順に適用する。操作履歴機能を利用する環境では、次も実行する。
 
 ```bash
-wrangler d1 execute web-attendance-restored-db --file=db/migrations/0004_audit_logs.sql
+wrangler d1 execute DB --remote --file=db/migrations/0004_audit_logs.sql
 ```
 
 復元DB・既存DBのスタッフ削除用外部キーを現行スキーマへ揃える場合は、次を実行する。
 
 ```bash
-wrangler d1 execute web-attendance-restored-db --remote \
+wrangler d1 execute DB --remote \
   --file=db/migrations/0007_staff_preferences_on_delete_cascade.sql
 ```
 
@@ -122,9 +122,26 @@ wrangler d1 execute web-attendance-restored-db --remote \
 既存の重複はIDが最小の行へ統合され、いずれかが提出済みなら提出済み状態を維持する。
 
 ```bash
-wrangler d1 execute web-attendance-restored-db --remote \
+wrangler d1 execute DB --remote \
   --file=db/migrations/0008_shift_preferences_unique_staff_month.sql
 ```
+
+退職者を履歴として残す機能を既存DBで使う前に、`0009` を適用する。
+ローカル検証には `--local` を付け、本番への適用時はバックアップを確認して `--remote` を付ける。
+
+```bash
+wrangler d1 execute DB --local \
+  --file=db/migrations/0009_retired_staff.sql
+```
+
+本番へ適用する場合:
+
+```bash
+wrangler d1 execute DB --remote \
+  --file=db/migrations/0009_retired_staff.sql
+```
+
+退職操作ではスタッフのログイン資格を無効にし、過去シフトを残す。退職者履歴から元に戻すと同じスタッフ ID とシフトを引き継ぎ、新しいアクセスキーを発行する。完全削除では関連シフトとスナップショット内の該当シフトを削除する。
 
 ### 環境
 
@@ -132,7 +149,7 @@ wrangler d1 execute web-attendance-restored-db --remote \
 
 | 環境 | D1 データベース |
 |------|----------------|
-| 本番 | `web-attendance-restored-db` |
+| 本番 | `web-attendance-db` |
 | プレビュー | `web-attendance-preview-db` |
 
 プレビュー環境へのデプロイ:

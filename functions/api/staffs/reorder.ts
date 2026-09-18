@@ -15,7 +15,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
         // Use a transaction if possible, but D1 batch is more likely what we need
         const statements = orders.map(item =>
-            context.env.DB.prepare("UPDATE staffs SET display_order = ? WHERE id = ?")
+            context.env.DB.prepare("UPDATE staffs SET display_order = ? WHERE id = ? AND retired_at IS NULL")
                 .bind(item.order, item.id)
         );
 

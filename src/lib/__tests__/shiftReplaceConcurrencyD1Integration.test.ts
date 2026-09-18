@@ -14,6 +14,7 @@ describe('monthly shift replacement concurrency with D1', () => {
         miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
+            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, retired_at TEXT)'),
             db.prepare(`CREATE TABLE shifts (
                 id TEXT PRIMARY KEY, date TEXT NOT NULL, staffId TEXT NOT NULL,
                 startTime TEXT NOT NULL, endTime TEXT NOT NULL, classType TEXT NOT NULL,
@@ -32,6 +33,7 @@ describe('monthly shift replacement concurrency with D1', () => {
                 ON CONFLICT(year_month) DO UPDATE SET version = version + 1;
             END`),
         ]);
+        await db.prepare("INSERT INTO staffs (id) VALUES ('s1'), ('first'), ('stale')").run();
         await db.prepare(`
             INSERT INTO shifts (id, date, staffId, startTime, endTime, classType)
             VALUES ('original', '2026-08-01', 's1', '09:00', '18:00', 'c1')

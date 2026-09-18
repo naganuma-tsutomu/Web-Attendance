@@ -43,6 +43,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const restorableShifts = shifts.filter(shift => shift.date.startsWith(yearMonth));
         const conflictResponse = validateNoShiftConflicts(restorableShifts);
         if (conflictResponse) return conflictResponse;
+        const { results: staffRows } = await context.env.DB.prepare('SELECT id FROM staffs').all();
+        const staffIds = new Set((staffRows as D1Row[]).map(staff => String(staff.id)));
+        const missingStaffIds = new Set(restorableShifts
+            .filter(shift => shift.staffId !== 'UNASSIGNED' && !staffIds.has(shift.staffId))
+            .map(shift => shift.staffId));
+        if (missingStaffIds.size > 0) {
+            return Response.json({ error: `存在しないスタッフを含むため復元できません（${missingStaffIds.size}人）。` }, { status: 409 });
+        }
         const fixedDates = parseSnapshotFixedDates(row.fixed_dates_json ? String(row.fixed_dates_json) : '[]')
             .filter(date => date.startsWith(yearMonth));
 

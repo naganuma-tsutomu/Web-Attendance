@@ -1,6 +1,6 @@
 import { createValidationError, handleServerError, validateDate, validateTimeRange, validateYearMonth } from '../../utils/validation';
 import type { Env } from '../../types';
-import { validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { validateActiveStaffAssignments, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
 import { ShiftReplaceSchema } from '../../../shared/shiftRequestSchemas';
 
@@ -66,6 +66,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         }
         const conflictResponse = validateNoShiftConflicts(insertableShifts);
         if (conflictResponse) return conflictResponse;
+        const staffError = await validateActiveStaffAssignments(context.env.DB, insertableShifts.map(shift => shift.staffId));
+        if (staffError) return staffError;
 
         const [y, m] = yearMonth.split('-').map(Number);
         const startStr = `${yearMonth}-01`;

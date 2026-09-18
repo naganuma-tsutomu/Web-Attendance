@@ -23,6 +23,7 @@ describe('shift snapshot restore with D1', () => {
         miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
+            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY)'),
             db.prepare(`CREATE TABLE shifts (
                 id TEXT PRIMARY KEY, date TEXT NOT NULL,
                 staffId TEXT NOT NULL CHECK (staffId <> 'INVALID'),
@@ -46,6 +47,7 @@ describe('shift snapshot restore with D1', () => {
 
     const insertExistingData = async (db: D1Database) => {
         await db.batch([
+            db.prepare("INSERT INTO staffs (id) VALUES ('existing-staff')"),
             db.prepare(`INSERT INTO shifts
                 (id, date, staffId, startTime, endTime, classType)
                 VALUES ('existing', '2026-09-01', 'existing-staff', '09:00', '18:00', 'class-a')`),
@@ -99,6 +101,7 @@ describe('shift snapshot restore with D1', () => {
             endTime: '18:00',
             classType: 'class-a',
         }));
+        await db.batch(shifts.map(shift => db.prepare('INSERT INTO staffs (id) VALUES (?)').bind(shift.staffId)));
         await insertSnapshot(db, shifts, ['2026-09-02', '2026-09-03']);
 
         const { batch, response } = await restore(db);
@@ -125,6 +128,10 @@ describe('shift snapshot restore with D1', () => {
         vi.spyOn(console, 'error').mockImplementation(() => {});
         const db = await createDatabase();
         await insertExistingData(db);
+        await db.batch([
+            db.prepare("INSERT INTO staffs (id) VALUES ('restored-staff')"),
+            db.prepare("INSERT INTO staffs (id) VALUES ('INVALID')"),
+        ]);
         await insertSnapshot(db, [
             { date: '2026-09-02', staffId: 'restored-staff', startTime: '09:00', endTime: '18:00', classType: 'class-a' },
             { date: '2026-09-03', staffId: 'INVALID', startTime: '09:00', endTime: '18:00', classType: 'class-a' },
@@ -143,5 +150,18 @@ describe('shift snapshot restore with D1', () => {
         await expect(db.prepare('SELECT id FROM shift_snapshots ORDER BY id').all()).resolves.toMatchObject({
             results: [{ id: 'snapshot-target' }],
         });
+    }, 15_000);
+
+    it('存在しないスタッフを含むスナップショットは既存シフトを変更せず拒否する', async () => {
+        const db = await createDatabase();
+        await insertExistingData(db);
+        await insertSnapshot(db, [
+            { date: '2026-09-02', staffId: 'missing', startTime: '09:00', endTime: '18:00', classType: 'class-a' },
+        ]);
+
+        const { batch, response } = await restore(db);
+        expect(response.status).toBe(409);
+        expect(batch).not.toHaveBeenCalled();
+        await expect(db.prepare('SELECT id FROM shifts').all()).resolves.toMatchObject({ results: [{ id: 'existing' }] });
     }, 15_000);
 });

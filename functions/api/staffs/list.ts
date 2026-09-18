@@ -4,7 +4,7 @@ import type { Env } from '../../types';
 export const onRequestGet: PagesFunction<Env> = async (context) => {
     try {
         const { results } = await context.env.DB.prepare(
-            "SELECT id, name FROM staffs ORDER BY display_order ASC"
+            "SELECT id, name FROM staffs WHERE retired_at IS NULL ORDER BY display_order ASC"
         ).all();
 
         return Response.json(results);

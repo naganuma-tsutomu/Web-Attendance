@@ -31,7 +31,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const staffData = parsed.data;
 
         const existing = await context.env.DB.prepare(
-            'SELECT id FROM staffs WHERE id = ?'
+            'SELECT id FROM staffs WHERE id = ? AND retired_at IS NULL'
         ).bind(id).first();
         if (!existing) {
             return Response.json({ error: 'スタッフが見つかりません' }, { status: 404 });
@@ -124,22 +124,15 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
         if (!id) return createValidationError('IDが指定されていません');
 
         const existing = await context.env.DB.prepare(
-            'SELECT id FROM staffs WHERE id = ?'
+            'SELECT id FROM staffs WHERE id = ? AND retired_at IS NULL'
         ).bind(id).first();
         if (!existing) {
             return Response.json({ error: 'スタッフが見つかりません' }, { status: 404 });
         }
 
-        // 既存DBには ON DELETE CASCADE が付いていない外部キーがあるため、
-        // 関連データを同じbatchで明示的に削除してからスタッフ本体を削除する。
-        await context.env.DB.batch([
-            context.env.DB.prepare("DELETE FROM shifts WHERE staffId = ?").bind(id),
-            context.env.DB.prepare("DELETE FROM staff_classes WHERE staffId = ?").bind(id),
-            context.env.DB.prepare("DELETE FROM staff_available_days WHERE staffId = ?").bind(id),
-            context.env.DB.prepare("DELETE FROM shift_preference_dates WHERE staffId = ?").bind(id),
-            context.env.DB.prepare("DELETE FROM shift_preferences WHERE staffId = ?").bind(id),
-            context.env.DB.prepare("DELETE FROM staffs WHERE id = ?").bind(id),
-        ]);
+        await context.env.DB.prepare(
+            "UPDATE staffs SET retired_at = datetime('now'), access_key = NULL WHERE id = ? AND retired_at IS NULL"
+        ).bind(id).run();
 
         return Response.json({ success: true });
     } catch (e) {

@@ -58,15 +58,13 @@ const createContext = async (
 });
 
 describe('server API security boundaries', () => {
-    it('スタッフ削除はシフトとスタッフ本体を同一batchで削除する', async () => {
+    it('スタッフの退職時は関連シフトを残し、アクセスキーを無効にする', async () => {
         const batch = vi.fn().mockResolvedValue([]);
-        const db = {
-            prepare: (sql: string) => createStatement(
+        const prepare = vi.fn((sql: string) => createStatement(
                 sql,
                 query => query.startsWith('SELECT id FROM staffs') ? [{ id: 's1' }] : [],
-            ),
-            batch,
-        };
+            ));
+        const db = { prepare, batch };
 
         const response = await deleteStaff({
             request: { url: 'https://example.com/api/staffs/s1' },
@@ -74,17 +72,8 @@ describe('server API security boundaries', () => {
         } as never);
 
         expect(response.status).toBe(200);
-        expect(batch).toHaveBeenCalledTimes(1);
-        const statements = batch.mock.calls[0][0] as MockStatement[];
-        expect(statements.map(statement => statement.sql)).toEqual([
-            'DELETE FROM shifts WHERE staffId = ?',
-            'DELETE FROM staff_classes WHERE staffId = ?',
-            'DELETE FROM staff_available_days WHERE staffId = ?',
-            'DELETE FROM shift_preference_dates WHERE staffId = ?',
-            'DELETE FROM shift_preferences WHERE staffId = ?',
-            'DELETE FROM staffs WHERE id = ?',
-        ]);
-        expect(statements.every(statement => statement.binds[0] === 's1')).toBe(true);
+        expect(batch).not.toHaveBeenCalled();
+        expect(prepare).toHaveBeenCalledWith("UPDATE staffs SET retired_at = datetime('now'), access_key = NULL WHERE id = ? AND retired_at IS NULL");
     });
 
     it('スタッフ権限のスタッフ一覧からアクセスキーを除外する', async () => {
@@ -361,7 +350,7 @@ describe('middleware 経由の認可: POST /api/shifts/replace', () => {
         };
         const ctx = {
             request,
-            env: { ADMIN_PASSWORD: adminPassword },
+            env: { ADMIN_PASSWORD: adminPassword, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
             next,
         };
         return { ctx, isNextCalled: () => nextCalled };
@@ -410,7 +399,7 @@ describe('middleware 経由の認可: 個別営業日API', () => {
                 headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : name.toLowerCase() === 'content-type' ? 'application/json' : null },
                 clone: () => ({ json: async () => ({ date: '2026-08-13', status: 'closed', name: '夏季休業' }) }),
             },
-            env: { ADMIN_PASSWORD: SECRET },
+            env: { ADMIN_PASSWORD: SECRET, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
             next: async () => {
                 nextCalled = true;
                 return new Response(null, { status: 204 });
@@ -442,7 +431,7 @@ describe('middleware 経由の認可: 個別営業日API', () => {
                 method: 'GET',
                 headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : null },
             },
-            env: { ADMIN_PASSWORD: SECRET },
+            env: { ADMIN_PASSWORD: SECRET, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
             next: async () => {
                 nextCalled = true;
                 return new Response(null, { status: 204 });
@@ -464,7 +453,7 @@ describe('middleware 経由の認可: 個別営業日API', () => {
                 method: 'GET',
                 headers: { get: (name: string) => name.toLowerCase() === 'cookie' ? `${STAFF_COOKIE_NAME}=${staffToken}` : null },
             },
-            env: { ADMIN_PASSWORD: SECRET },
+            env: { ADMIN_PASSWORD: SECRET, DB: { prepare: (sql: string) => createStatement(sql, () => [{ id: 's1' }]) } },
             next: async () => {
                 nextCalled = true;
                 return new Response(null, { status: 204 });

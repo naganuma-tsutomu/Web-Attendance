@@ -1,5 +1,6 @@
 export const QUERY_KEYS = {
     staffs: ['staffs'],
+    retiredStaffs: ['retiredStaffs'],
     roles: ['roles'],
     classes: ['classes'],
     shifts: (monthStr: string) => ['shifts', monthStr],

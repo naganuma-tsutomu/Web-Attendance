@@ -15,6 +15,7 @@ describe('daily shift replacement with D1', () => {
         miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
+            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, retired_at TEXT)'),
             db.prepare(`CREATE TABLE shifts (
                 id TEXT PRIMARY KEY, date TEXT NOT NULL, staffId TEXT NOT NULL CHECK (staffId <> 'INVALID'),
                 startTime TEXT NOT NULL, endTime TEXT NOT NULL, classType TEXT NOT NULL,
@@ -35,6 +36,7 @@ describe('daily shift replacement with D1', () => {
                 ON CONFLICT(year_month) DO UPDATE SET version = version + 1;
             END`),
         ]);
+        await db.prepare("INSERT INTO staffs (id) VALUES ('s1'), ('s2'), ('s3'), ('s4'), ('first'), ('stale'), ('INVALID')").run();
         await db.prepare(`
             INSERT INTO shifts (id, date, staffId, startTime, endTime, classType, duty_number) VALUES
             ('keep', '2026-08-03', 's1', '09:00', '18:00', 'c1', 1),

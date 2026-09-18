@@ -32,7 +32,7 @@ describe('schedule bootstrap API with D1', () => {
         const db = await miniflare.getD1Database('DB');
         await db.batch([
             db.prepare('CREATE TABLE classes (id TEXT PRIMARY KEY, name TEXT, display_order INTEGER, auto_allocate INTEGER DEFAULT 1, color TEXT)'),
-            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, name TEXT, role TEXT, hoursTarget REAL, weeklyHoursTarget REAL, defaultWorkingHoursStart TEXT, defaultWorkingHoursEnd TEXT, display_order INTEGER, access_key TEXT)'),
+            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, name TEXT, role TEXT, hoursTarget REAL, weeklyHoursTarget REAL, defaultWorkingHoursStart TEXT, defaultWorkingHoursEnd TEXT, display_order INTEGER, access_key TEXT, retired_at TEXT)'),
             db.prepare('CREATE TABLE staff_classes (staffId TEXT, classId TEXT)'),
             db.prepare('CREATE TABLE staff_available_days (id TEXT PRIMARY KEY, staffId TEXT, dayOfWeek INTEGER, weeks TEXT)'),
             db.prepare('CREATE TABLE shift_time_patterns (id TEXT PRIMARY KEY, name TEXT, startTime TEXT, endTime TEXT, display_order INTEGER, sun INTEGER, mon INTEGER, tue INTEGER, wed INTEGER, thu INTEGER, fri INTEGER, sat INTEGER, holiday INTEGER)'),
@@ -51,7 +51,9 @@ describe('schedule bootstrap API with D1', () => {
         await db.batch([
             db.prepare("INSERT INTO classes (id, name, display_order) VALUES ('c1', 'A組', 1)"),
             db.prepare("INSERT INTO staffs (id, name, role, display_order, access_key) VALUES ('s1', '山田', '常勤', 1, '123456')"),
+            db.prepare("INSERT INTO staffs (id, name, role, display_order, retired_at) VALUES ('s2', '元スタッフ', 'バイト', 2, '2026-09-01')"),
             db.prepare("INSERT INTO shifts (id, date, staffId, startTime, endTime, classType) VALUES ('shift1', '2026-08-10', 's1', '09:00', '18:00', 'c1')"),
+            db.prepare("INSERT INTO shifts (id, date, staffId, startTime, endTime, classType) VALUES ('shift2', '2026-08-11', 's2', '09:00', '18:00', 'c1')"),
             db.prepare("INSERT INTO shift_month_versions (year_month, version) VALUES ('2026-08', 1)"),
             db.prepare("INSERT INTO shift_preferences (id, staffId, yearMonth, submitted) VALUES ('pref1', 's1', '2026-08', 1)"),
             db.prepare("INSERT INTO shift_preference_dates (id, staffId, yearMonth, date) VALUES ('prefdate1', 's1', '2026-08', '2026-08-15')"),
@@ -75,7 +77,10 @@ describe('schedule bootstrap API with D1', () => {
         expect(data.references.classes).toEqual([expect.objectContaining({ id: 'c1', name: 'A組' })]);
         expect(data.months['2026-08'].shifts).toMatchObject({
             version: 1,
-            shifts: [expect.objectContaining({ id: 'shift1', isEarlyShift: false })],
+            shifts: [
+                expect.objectContaining({ id: 'shift1', isEarlyShift: false }),
+                expect.objectContaining({ id: 'shift2', staffName: '元スタッフ' }),
+            ],
         });
         expect(data.months['2026-08'].preferences).toEqual([
             expect.objectContaining({ id: 'pref1', submitted: true, details: [expect.objectContaining({ date: '2026-08-15' })] }),

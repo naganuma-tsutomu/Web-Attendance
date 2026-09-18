@@ -15,6 +15,23 @@ export const validateNoShiftConflicts = (shifts: PersistedShift[]): Response | n
     return conflict ? createShiftConflictResponse(conflict) : null;
 };
 
+export const validateActiveStaffAssignments = async (
+    db: Env['DB'],
+    staffIds: string[],
+): Promise<Response | null> => {
+    const ids = [...new Set(staffIds.filter(id => id && id !== 'UNASSIGNED'))];
+    if (ids.length === 0) return null;
+    const { results } = await db.prepare(
+        `SELECT requested.value AS id
+         FROM json_each(?) AS requested
+         LEFT JOIN staffs st ON st.id = requested.value AND st.retired_at IS NULL
+         WHERE st.id IS NULL`
+    ).bind(JSON.stringify(ids)).all();
+    return results.length > 0
+        ? Response.json({ error: '退職者または存在しないスタッフを新しいシフトに割り当てることはできません。' }, { status: 409 })
+        : null;
+};
+
 export const loadStaffShiftsForDates = async (
     db: Env['DB'],
     shifts: PersistedShift[],

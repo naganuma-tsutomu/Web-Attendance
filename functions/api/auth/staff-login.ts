@@ -25,7 +25,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (retryAfter > 0) return createRateLimitResponse(retryAfter);
 
         const staff = await context.env.DB.prepare(
-            "SELECT id, name FROM staffs WHERE name = ? AND access_key = ?"
+            "SELECT id, name FROM staffs WHERE name = ? AND access_key = ? AND retired_at IS NULL"
         ).bind(name.trim(), accessKey.trim()).first() as { id: string, name: string } | null;
 
         if (!staff) {

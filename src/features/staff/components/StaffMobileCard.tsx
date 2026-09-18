@@ -1,4 +1,4 @@
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Archive } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Staff, ShiftClass } from '../../../types';
@@ -106,10 +106,10 @@ const StaffMobileCard = ({
                                     event.stopPropagation();
                                     onDelete?.(staff.id, staff.name);
                                 }}
-                                aria-label="削除"
-                                className="-mr-1 rounded-xl p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                                aria-label="退職"
+                                className="-mr-1 rounded-xl p-2 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/20"
                             >
-                                <Trash2 className="h-5 w-5" />
+                                <Archive className="h-5 w-5" />
                             </button>
                         )}
                     </div>

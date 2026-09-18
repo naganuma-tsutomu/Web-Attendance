@@ -28,7 +28,7 @@ describe('authentication rate limiting with D1', () => {
                 window_started_at INTEGER NOT NULL, blocked_until INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL
             )`),
-            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, name TEXT NOT NULL, access_key TEXT)'),
+            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, name TEXT NOT NULL, access_key TEXT, retired_at TEXT)'),
             db.prepare("INSERT INTO staffs (id, name, access_key) VALUES ('s1', '山田', '123456')"),
         ]);
 

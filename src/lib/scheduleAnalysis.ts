@@ -129,7 +129,7 @@ export const analyzeSchedule = (input: ScheduleAnalysisInput): ScheduleAnalysisR
         group.push(shift);
         shiftsByDate.set(shift.date, group);
 
-        if (!staffMap.has(shift.staffId) && shift.staffId !== UNASSIGNED_STAFF_ID) {
+        if (!staffMap.has(shift.staffId) && !shift.staffName && shift.staffId !== UNASSIGNED_STAFF_ID) {
             issues.push({ id: issueId('UNKNOWN_STAFF', shift.id), code: 'UNKNOWN_STAFF', severity: 'error', date: shift.date, shiftId: shift.id, staffId: shift.staffId, message: '存在しないスタッフが割り当てられています。' });
         }
         if (!classMap.has(shift.classType)) {

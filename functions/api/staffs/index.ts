@@ -9,7 +9,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
         // staffs と available_days を JOIN して一括取得
         const { results: staffRows } = await context.env.DB.prepare(
-            "SELECT * FROM staffs ORDER BY display_order ASC"
+            "SELECT * FROM staffs WHERE retired_at IS NULL ORDER BY display_order ASC"
         ).all();
 
         const staffIds = (staffRows as D1Row[]).map(r => r.id as string);

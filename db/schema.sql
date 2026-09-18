@@ -19,8 +19,10 @@ CREATE TABLE IF NOT EXISTS staffs (
     defaultWorkingHoursStart TEXT,
     defaultWorkingHoursEnd TEXT,
     display_order INTEGER DEFAULT 0,
-    access_key TEXT
+    access_key TEXT,
+    retired_at TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_staffs_retired_at ON staffs(retired_at);
 
 -- Staff Classes (Many-to-Many)
 CREATE TABLE IF NOT EXISTS staff_classes (

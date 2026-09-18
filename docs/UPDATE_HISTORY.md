@@ -4,6 +4,16 @@ Web-Attendanceの主な機能追加と変更内容を、バージョンごとに
 
 [GitHubリポジトリ](https://github.com/naganuma-tsutomu/Web-Attendance) / [リリース一覧](https://github.com/naganuma-tsutomu/Web-Attendance/releases)
 
+## v3.1.0
+
+[GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v3.1.0)
+
+- **退職者履歴を追加**: 退職したスタッフのログインを無効にし、名前と過去のシフトを履歴として残せるようにしました
+- **退職者の復職と完全削除に対応**: 履歴から元に戻すと同じスタッフ ID とシフトを引き継ぎ、新しいアクセスキーを発行します。完全削除では関連シフトとスナップショット内の該当データも削除します
+- **シフトデータの整合性を改善**: 退職者を新しいシフトへ割り当てられないようにし、スナップショット復元時には参照先スタッフの存在を確認します
+
+既存DBでは、この機能を使う前に `db/migrations/0009_retired_staff.sql` を適用してください。
+
 ## v3.0.0
 
 [GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v3.0.0)

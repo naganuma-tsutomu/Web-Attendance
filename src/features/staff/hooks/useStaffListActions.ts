@@ -19,9 +19,9 @@ export const useStaffListActions = (staffs: Staff[]) => {
         try {
             await deleteStaff.mutateAsync(deleteTarget.id);
             setDeleteTarget(null);
-            toast.success('スタッフを削除しました。');
+            toast.success('スタッフを退職者履歴に移しました。');
         } catch (error) {
-            handleApiError(error, '削除に失敗しました');
+            handleApiError(error, '退職処理に失敗しました');
         } finally {
             setIsDeleting(false);
         }

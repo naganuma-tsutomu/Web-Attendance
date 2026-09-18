@@ -89,6 +89,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
         : null;
 
     if (staffId) {
+        const activeStaff = await context.env.DB.prepare(
+            'SELECT id FROM staffs WHERE id = ? AND retired_at IS NULL'
+        ).bind(staffId).first();
+        if (!activeStaff) {
+            return Response.json({ error: '認証が必要です。ログインしてください。' }, { status: 401 });
+        }
         // バックアップ管理はシフト本文の読み取りとは別扱いで、管理者専用にする。
         if (url.pathname.startsWith('/api/shifts/snapshots')) {
             return new Response(

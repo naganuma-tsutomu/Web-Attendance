@@ -15,14 +15,14 @@ const StaffDeleteConfirmModal = ({
 }: StaffDeleteConfirmModalProps) => (
     <ConfirmModal
         isOpen={staffName !== undefined}
-        title="スタッフの削除"
-        message={`${staffName ?? ''} さんを削除してもよろしいですか？この操作は取り消せません。`}
-        confirmLabel="削除する"
+        title="スタッフの退職"
+        message={`${staffName ?? ''} さんを退職者履歴に移します。既存のシフトは残り、ログインと新しいシフトへの割り当てはできなくなります。将来のシフトがある場合は再割り当てしてください。`}
+        confirmLabel="退職にする"
         cancelLabel="キャンセル"
         onConfirm={onConfirm}
         onCancel={onCancel}
         isLoading={isLoading}
-        variant="danger"
+        variant="info"
     />
 );
 

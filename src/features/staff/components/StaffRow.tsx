@@ -1,4 +1,4 @@
-import { GripVertical, Edit2, Trash2 } from 'lucide-react';
+import { GripVertical, Edit2, Archive } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Staff, ShiftClass } from '../../../types';
@@ -127,10 +127,10 @@ const StaffRow = ({ staff, classes, onEdit, onDelete, isOverlay = false, getHoli
                         </button>
                         <button
                             onClick={() => onDelete?.(staff.id, staff.name)}
-                            aria-label="削除"
-                            className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                            aria-label="退職"
+                            className="text-slate-400 hover:text-indigo-600 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
                         >
-                            <Trash2 className="w-5 h-5" />
+                            <Archive className="w-5 h-5" />
                         </button>
                     </>
                 )}

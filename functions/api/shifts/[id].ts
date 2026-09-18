@@ -1,6 +1,6 @@
 import { handleServerError, createValidationError, validateTimeFormat, validateTimeRange } from '../../utils/validation';
 import type { Env, D1BindParam, D1Row } from '../../types';
-import { loadStaffShiftsForDates, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { loadStaffShiftsForDates, validateActiveStaffAssignments, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
 import { ShiftUpdateSchema } from '../../../shared/shiftRequestSchemas';
 
@@ -60,6 +60,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         if (timeError) return createValidationError(timeError);
         if (!mergedShift.staffId.trim()) return createValidationError('staffId は必須です');
         if (!mergedShift.classType.trim()) return createValidationError('classType は必須です');
+        if (body.staffId !== undefined && body.staffId !== current.staffId) {
+            const staffError = await validateActiveStaffAssignments(context.env.DB, [body.staffId]);
+            if (staffError) return staffError;
+        }
 
         const existingShifts = await loadStaffShiftsForDates(context.env.DB, [mergedShift], id);
         const conflictResponse = validateNoShiftConflicts([...existingShifts, mergedShift]);

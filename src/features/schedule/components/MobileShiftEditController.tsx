@@ -49,7 +49,7 @@ const MobileShiftEditController = ({
     if (!shift) return null;
 
     const staff = staffList.find(s => s.id === shift.staffId);
-    const staffName = staff ? staff.name : '不明';
+    const staffName = staff?.name ?? shift.staffName ?? '不明';
     const localData = localShifts[shift.id] ?? {
         start: timeToMinutes(shift.startTime),
         end: timeToMinutes(shift.endTime),

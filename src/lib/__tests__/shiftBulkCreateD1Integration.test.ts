@@ -15,6 +15,7 @@ describe('bulk shift creation with D1', () => {
         miniflare = createD1Miniflare();
         const db = await miniflare.getD1Database('DB');
         await db.batch([
+            db.prepare('CREATE TABLE staffs (id TEXT PRIMARY KEY, retired_at TEXT)'),
             db.prepare(`CREATE TABLE shifts (
                 id TEXT PRIMARY KEY, date TEXT NOT NULL, staffId TEXT NOT NULL CHECK (staffId <> 'INVALID'),
                 startTime TEXT NOT NULL, endTime TEXT NOT NULL, classType TEXT NOT NULL,
@@ -24,6 +25,8 @@ describe('bulk shift creation with D1', () => {
             db.prepare(`CREATE UNIQUE INDEX idx_shifts_date_class_duty_number
                 ON shifts(date, classType, duty_number) WHERE duty_number IS NOT NULL`),
         ]);
+        await db.prepare("INSERT INTO staffs (id) SELECT 'staff-' || value FROM json_each(?)")
+            .bind(JSON.stringify(Array.from({ length: 1000 }, (_, index) => index))).run();
         return db;
     };
 
@@ -68,6 +71,7 @@ describe('bulk shift creation with D1', () => {
         const db = await createDatabase();
         const input = shifts(250);
         input[149].staffId = 'INVALID';
+        await db.prepare("INSERT INTO staffs (id) VALUES ('INVALID')").run();
 
         const { response } = await execute(db, input);
 
@@ -96,5 +100,14 @@ describe('bulk shift creation with D1', () => {
         expect(preparedSql.some(sql => sql.includes('INSERT INTO shifts'))).toBe(false);
         await expect(db.prepare('SELECT COUNT(*) AS count FROM shifts').first())
             .resolves.toMatchObject({ count: 1 });
+    });
+
+    it('退職者を新しいシフトに割り当てない', async () => {
+        const db = await createDatabase();
+        await db.prepare("UPDATE staffs SET retired_at = '2026-08-01' WHERE id = 'staff-0'").run();
+        const { response } = await execute(db, shifts(1));
+        expect(response.status).toBe(409);
+        await expect(db.prepare('SELECT COUNT(*) AS count FROM shifts').first())
+            .resolves.toMatchObject({ count: 0 });
     });
 });

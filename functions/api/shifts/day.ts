@@ -1,6 +1,6 @@
 import { ShiftDayReplaceSchema } from '../../../shared/shiftRequestSchemas';
 import type { Env, D1Row } from '../../types';
-import { validateNoShiftConflicts } from '../../utils/shiftIntegrity';
+import { validateActiveStaffAssignments, validateNoShiftConflicts } from '../../utils/shiftIntegrity';
 import { writeAuditLog } from '../../utils/auditLog';
 import { createValidationError, handleServerError, validateDate, validateTimeRange } from '../../utils/validation';
 
@@ -58,6 +58,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (unknownId) {
             return conflictResponse('シフトが他の操作で更新されています。再読み込みしてから保存してください');
         }
+        const previousStaffById = new Map(beforeRows.map(row => [String(row.id), String(row.staffId)]));
+        const newlyAssignedStaffIds = shifts
+            .filter(shift => !shift.id || previousStaffById.get(shift.id) !== shift.staffId)
+            .map(shift => shift.staffId);
+        const staffError = await validateActiveStaffAssignments(context.env.DB, newlyAssignedStaffIds);
+        if (staffError) return staffError;
 
         const rows = shifts.map((shift: DayShift) => ({
             id: shift.id ?? `shift_${crypto.randomUUID()}`,

@@ -4,6 +4,13 @@ Web-Attendanceの主な機能追加と変更内容を、バージョンごとに
 
 [GitHubリポジトリ](https://github.com/naganuma-tsutomu/Web-Attendance) / [リリース一覧](https://github.com/naganuma-tsutomu/Web-Attendance/releases)
 
+## v3.1.1
+
+[GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v3.1.1)
+
+- **本番DB設定とマイグレーション整合性の改善**: 本番環境（`web-attendance-restored-db`）へのDB反映に伴い、認証レート制限（`auth_rate_limits`）やシフト月次バージョン（`shift_month_versions`）等のマイグレーションを適用し、ログイン時のサーバーエラーを解消しました
+- **設定ファイルとマニュアルの整合性調整**: `wrangler.toml` の本番D1バインディング設定を現行の本番環境に合わせて更新し、ユーザーマニュアルのバージョン表記を v3.1.1 に更新しました
+
 ## v3.1.0
 
 [GitHubリリース](https://github.com/naganuma-tsutomu/Web-Attendance/releases/tag/v3.1.0)

@@ -16,7 +16,7 @@ const StaffDeleteConfirmModal = ({
     <ConfirmModal
         isOpen={staffName !== undefined}
         title="スタッフの退職"
-        message={`${staffName ?? ''} さんを退職者履歴に移します。既存のシフトは残り、ログインと新しいシフトへの割り当てはできなくなります。将来のシフトがある場合は再割り当てしてください。`}
+        message={`${staffName ?? ''} さんを退職者履歴に移します。既存のシフトは残り、ログインと新しいシフトへの割り当てはできなくなります。`}
         confirmLabel="退職にする"
         cancelLabel="キャンセル"
         onConfirm={onConfirm}
